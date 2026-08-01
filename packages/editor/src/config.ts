@@ -37,6 +37,14 @@ export interface LivePreviewConfig {
   /** 关掉图片渲染（大文档降级策略，见 docs/design/02 §9）。 */
   renderImages: boolean
   /**
+   * 渲染文档里的行内 HTML（`<b>` `<sup>` `<kbd>` 那几个）。
+   *
+   * 默认开。给得出一个开关是因为这是唯一一条安全相关的路径 —— 尽管实现上
+   * 一个字节的 HTML 都不进 DOM（见 live-preview/inline-html.ts），
+   * 「我要看见我文件里到底写了什么」本身也是个正当诉求。
+   */
+  renderInlineHtml: boolean
+  /**
    * 用户 Ctrl/Cmd + 点击链接时调用。
    *
    * 内核自己不打开任何链接 —— 那需要宿主能力，而且「在哪儿打开」是产品决策
@@ -59,6 +67,7 @@ export const livePreviewConfig = Facet.define<Partial<LivePreviewConfig>, LivePr
     return combineConfig(values, {
       assetResolver: (src: string) => src,
       renderImages: true,
+      renderInlineHtml: true,
       onOpenLink: null,
       imageSink: null,
       onImageError: null,

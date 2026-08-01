@@ -26,6 +26,30 @@ export class BulletWidget extends WidgetType {
   }
 }
 
+/**
+ * 行内 `<br>`：真的换一行。
+ *
+ * `lineBreaks` 必须如实报 1 —— CodeMirror 靠它算行高与坐标。不报的话，
+ * 光标定位、滚动、`coordsAt` 全都会按「这一行没换过」来算，点击位置会偏。
+ */
+export class LineBreakWidget extends WidgetType {
+  override eq(): boolean {
+    return true
+  }
+  toDOM(): HTMLElement {
+    const span = document.createElement('span')
+    span.className = 'cm-typo-html-br'
+    span.appendChild(document.createElement('br'))
+    return span
+  }
+  override get lineBreaks(): number {
+    return 1
+  }
+  override ignoreEvent(): boolean {
+    return false
+  }
+}
+
 /** 分隔线。替换掉整行的 `---`。 */
 export class RuleWidget extends WidgetType {
   override eq(): boolean {

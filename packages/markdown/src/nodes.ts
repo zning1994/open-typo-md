@@ -31,6 +31,13 @@ export const INLINE_NODES = {
   escape: 'Escape',
   entity: 'Entity',
   hardBreak: 'HardBreak',
+  /**
+   * 行内 HTML 的**单个标签**。
+   *
+   * 注意它不是配对结构：`<b>粗</b>` 出来的是两个平级的 `HTMLTag`，
+   * 中间的文字跟它们是兄弟。要配对得自己扫（见 @typo/editor 的 inline-html.ts）。
+   */
+  htmlTag: 'HTMLTag',
 } as const
 
 /** 块级元素。 */

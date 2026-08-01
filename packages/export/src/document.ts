@@ -38,6 +38,29 @@ export interface DocumentOptions {
 }
 
 /**
+ * 打印专用的字体覆盖 —— **macOS 上 PDF 空白页的根因就在这里**。
+ *
+ * `system-ui` 与 `-apple-system` 在 macOS 上解析到 `.AppleSystemUIFont`。
+ * 那是个系统字体，拿不到字形轮廓、也没法子集化，于是 Chromium 的 PDF 后端
+ * **一条绘制文字的指令都不发** —— 版面照排（长文档确实分页了）、底色照画，
+ * 就是没有字。Linux 与 Windows 上 `system-ui` 指向普通字体文件，所以只有
+ * macOS 复现。排查过程见 06 §3.3。
+ *
+ * 所以打印路径上把正文字体换成**有真实字体文件的具名字体**。
+ *
+ * 刻意**不列任何中日韩字体**：`PingFang SC` 之流同样是 macOS 系统字体，
+ * 写进去等于把同一个坑换个位置再踩一遍。中日韩字形交给 Chromium 的
+ * 逐字回退 —— 实测它挑出来的那个字体是画得进 PDF 的。
+ *
+ * 只作用于 PDF。给人看的 HTML 仍然用 `system-ui`：那是一份真的网页，
+ * 在收件人机器上长得像原生控件才是对的。
+ */
+export const PRINT_FONT_CSS = `:root {
+  --typo-font-body: Helvetica, Arial, 'Liberation Sans', 'Nimbus Sans', sans-serif;
+  --typo-font-mono: Menlo, Consolas, 'DejaVu Sans Mono', 'Liberation Mono', monospace;
+}`
+
+/**
  * HTML 文本转义。
  *
  * 只用于我们自己拼进模板的字段（标题）。正文那一侧由 rehype 负责转义 ——

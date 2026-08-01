@@ -60,6 +60,37 @@ export const baseTheme = EditorView.theme({
   },
   '.cm-typo-link': { color: v('accent', '#0969da'), textDecoration: 'underline' },
 
+  // —— 行内 HTML ——
+  //
+  // 这一组只有类名，没有任何 HTML 参与（见 live-preview/inline-html.ts）。
+  // 有几个跟 Markdown 自己的写法效果重合（`<b>` ≡ `**`），仍然分开定义 ——
+  // 共用类名会让「源码里到底写的哪一种」在样式层面彻底不可分辨。
+  '.cm-typo-html-b, .cm-typo-html-strong': { fontWeight: '700' },
+  '.cm-typo-html-i, .cm-typo-html-em': { fontStyle: 'italic' },
+  '.cm-typo-html-u': { textDecoration: 'underline' },
+  '.cm-typo-html-s': { textDecoration: 'line-through', opacity: '0.7' },
+  // 上下标用 relative 位移而不是 `vertical-align: super/sub`：
+  // 后者会把行高撑开，一行里出现一个 `<sup>` 整段就跳一下
+  '.cm-typo-html-sup, .cm-typo-html-sub': { fontSize: '0.75em', position: 'relative' },
+  '.cm-typo-html-sup': { top: '-0.4em' },
+  '.cm-typo-html-sub': { bottom: '-0.25em' },
+  '.cm-typo-html-kbd': {
+    fontFamily: v('font-mono', 'ui-monospace, Menlo, Consolas, monospace'),
+    fontSize: '0.85em',
+    padding: '0.1em 0.4em',
+    border: `1px solid ${v('border', '#d0d7de')}`,
+    borderBottomWidth: '2px',
+    borderRadius: '4px',
+    backgroundColor: v('code-bg', '#f0f2f4'),
+  },
+  // `<mark>` 的底色从强调色兑出来，而不是新加一个主题变量：
+  // 为一个标签往变量契约里加一条，六个内置主题和所有第三方主题都得跟着改，
+  // 代价远大于收益。兑出来的颜色在任何主题下都自动成立。
+  '.cm-typo-html-mark': {
+    backgroundColor: `color-mix(in srgb, ${v('accent', '#0969da')} 22%, transparent)`,
+    borderRadius: '2px',
+  },
+
   // 显形中的 Markdown 标记：看得见，但不抢戏
   '.cm-typo-mark': { color: v('marker-fg', '#b0b6bd'), fontWeight: 'normal' },
   '.cm-typo-list-number': { color: v('marker-fg', '#b0b6bd') },

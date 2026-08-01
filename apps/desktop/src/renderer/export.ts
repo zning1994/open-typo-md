@@ -14,7 +14,12 @@
  * 一个文件发出去，收件人双击就能看。所以外链一律不许有 —— 包括字体。
  * KaTeX 的样式表引用二十来个 woff2，不内联的话公式在别人机器上是一堆方框。
  */
-import { buildDocument, markdownToHtmlFragment, type ExportHooks } from '@typo/export'
+import {
+  PRINT_FONT_CSS,
+  buildDocument,
+  markdownToHtmlFragment,
+  type ExportHooks,
+} from '@typo/export'
 import { THEME_VARIABLES, type ThemeId } from './theme.js'
 
 /**
@@ -152,15 +157,20 @@ function hooksFor(context: ExportContext): ExportHooks {
  */
 export async function exportHtmlDocument(
   context: ExportContext,
-  options: { theme?: ThemeId; viewport?: boolean } = {},
+  options: { theme?: ThemeId; viewport?: boolean; printFonts?: boolean } = {},
 ): Promise<string> {
   const fragment = await markdownToHtmlFragment(context.markdown, hooksFor(context))
   const katex = fragment.includes('katex') ? await katexCss() : null
-  const theme = themeCss(options.theme)
+
+  // 字体覆盖必须排在主题**后面** —— 它靠「同一选择器、后来者胜」压住主题
+  // 采集到的那份字体栈
+  const css = [themeCss(options.theme)]
+  if (katex) css.push(katex)
+  if (options.printFonts) css.push(PRINT_FONT_CSS)
 
   return buildDocument(fragment, {
     title: context.title,
-    css: katex ? [theme, katex] : [theme],
+    css,
     ...(options.viewport === false ? { viewport: false } : {}),
   })
 }
@@ -173,9 +183,11 @@ export async function exportHtmlDocument(
  *   导出的 PDF 没有理由不一致。真要深色 PDF，可以先导出 HTML 再自己打印。
  * - **不带 viewport meta**。PDF 没有「设备宽度」这回事，让布局去迁就一个从不
  *   显示的窗口有多宽，只会让产物取决于无关的东西。
+ * - **换掉正文字体**。`system-ui` 在 macOS 上解析到一个拿不到字形轮廓的系统
+ *   字体，Chromium 于是一个字都画不进 PDF —— 整页空白。见 `PRINT_FONT_CSS`。
  */
 export async function exportPdfHtml(context: ExportContext): Promise<string> {
-  return exportHtmlDocument(context, { theme: 'light', viewport: false })
+  return exportHtmlDocument(context, { theme: 'light', viewport: false, printFonts: true })
 }
 
 /**

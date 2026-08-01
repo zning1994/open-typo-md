@@ -13,6 +13,7 @@ import {
   BulletWidget,
   EntityWidget,
   ImageWidget,
+  LineBreakWidget,
   MathWidget,
   MermaidWidget,
   RuleWidget,
@@ -26,6 +27,8 @@ export interface StateOptions {
   /** 关掉数学扩展（默认开）。 */
   math?: boolean
   assetResolver?: (src: string) => string
+  /** 关掉行内 HTML 的渲染（默认跟产品一致：开）。 */
+  renderInlineHtml?: boolean
   extensions?: Extension[]
 }
 
@@ -54,6 +57,7 @@ export function mkState(doc: string, options: StateOptions = {}): EditorState {
       livePreviewConfig.of({
         assetResolver: options.assetResolver ?? ((src) => src),
         renderImages: true,
+        renderInlineHtml: options.renderInlineHtml ?? true,
       }),
       ...(options.extensions ?? []),
     ],
@@ -78,6 +82,7 @@ export function decorationsOf(state: EditorState) {
  *   ⟦img:src|alt⟧  图片
  *   ⟦math:tex⟧   数学公式
  *   ⟦mermaid⟧    图表
+ *   ⏎            行内 `<br>`
  *   实体直接显示解码后的字符
  */
 export function preview(doc: string, options: StateOptions = {}): string {
@@ -112,6 +117,7 @@ function renderPreview(doc: string, options: StateOptions): string {
     else if (widget instanceof EntityWidget) out += widget.text
     else if (widget instanceof MathWidget) out += `⟦math:${widget.tex}⟧`
     else if (widget instanceof MermaidWidget) out += `⟦mermaid⟧`
+    else if (widget instanceof LineBreakWidget) out += '⏎'
     else if (widget instanceof ImageWidget) out += `⟦img:${widget.src}|${widget.alt}⟧`
     pos = to
   }

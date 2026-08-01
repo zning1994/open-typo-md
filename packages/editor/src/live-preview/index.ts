@@ -21,6 +21,14 @@ export { computeDecorations, type BuildResult } from './build.js'
 export { blockPreview, computeBlockDecorations } from './blocks.js'
 export { activeState, revealsLine, revealsRange, type ActiveState } from './active.js'
 export {
+  htmlLayoutOf,
+  parseHtmlTag,
+  type HtmlLayout,
+  type HtmlPair,
+  type HtmlTag,
+  type TagKind,
+} from './inline-html.js'
+export {
   alignmentsOf,
   delimiterRowLayout,
   delimiterRowOf,

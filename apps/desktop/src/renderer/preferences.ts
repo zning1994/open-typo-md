@@ -26,6 +26,8 @@ export type PageSize = (typeof PAGE_SIZES)[number]
 export interface Preferences {
   /** 新标签页默认进源码模式。 */
   sourceModeByDefault: boolean
+  /** 渲染文档里的行内 HTML（`<b>` `<sup>` `<kbd>` 那几个）。 */
+  renderInlineHtml: boolean
   /** 导出 PDF 的纸张。 */
   pdfPageSize: PageSize
   /** 导出 PDF 用横向。 */
@@ -36,6 +38,7 @@ export interface Preferences {
 
 export const DEFAULT_PREFERENCES: Preferences = {
   sourceModeByDefault: false,
+  renderInlineHtml: true,
   pdfPageSize: 'A4',
   pdfLandscape: false,
   // 跟 Word 的默认值接近，打出来不至于顶到纸边
@@ -49,6 +52,7 @@ const MARGIN_MAX = 3
 /** 存进 `settings.json` 时的键名。带前缀分组，方便用户自己看懂那个文件。 */
 const KEYS: Record<keyof Preferences, string> = {
   sourceModeByDefault: 'editor.sourceModeByDefault',
+  renderInlineHtml: 'editor.renderInlineHtml',
   pdfPageSize: 'export.pdf.pageSize',
   pdfLandscape: 'export.pdf.landscape',
   pdfMarginInch: 'export.pdf.marginInch',
@@ -64,6 +68,7 @@ const VALIDATORS: {
   [K in keyof Preferences]: (value: unknown) => Preferences[K] | null
 } = {
   sourceModeByDefault: (value) => (typeof value === 'boolean' ? value : null),
+  renderInlineHtml: (value) => (typeof value === 'boolean' ? value : null),
   pdfPageSize: (value) =>
     typeof value === 'string' && (PAGE_SIZES as readonly string[]).includes(value)
       ? (value as PageSize)

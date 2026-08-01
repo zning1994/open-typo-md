@@ -3,7 +3,7 @@
  *
  * 跟命令面板一样是**当前窗口里的浮层**，不是另开一个窗口。开窗口意味着再来一份
  * 渲染进程入口、一套自己的主题初始化、一条跨窗口同步设置的通路 ——
- * 而设置项现在只有五条，那些管道比它们要装的东西还重。
+ * 而设置项现在只有六条，那些管道比它们要装的东西还重。
  *
  * 交互沿用命令面板那三条：Esc 与点遮罩都能关，关掉之后焦点回编辑器
  * （焦点丢在 body 上，用户下一次按键就没反应，而且他不会意识到是浮层的锅）。
@@ -141,6 +141,12 @@ export class SettingsPanel {
           prefs.sourceModeByDefault,
           '只影响新打开的标签，不动已经开着的那些',
           (value) => this.options.preferences.set('sourceModeByDefault', value),
+        ),
+        this.checkRow(
+          '渲染行内 HTML',
+          prefs.renderInlineHtml,
+          '只认不带属性的 <b> <em> <u> <s> <sub> <sup> <kbd> <mark> <br>，其余按原文显示',
+          (value) => this.options.preferences.set('renderInlineHtml', value),
         ),
       ]),
       this.section('导出 PDF', [

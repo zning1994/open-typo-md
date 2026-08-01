@@ -39,12 +39,14 @@ describe('默认值', () => {
   it('存过的值会被读回来', async () => {
     const store = await load({
       'editor.sourceModeByDefault': true,
+      'editor.renderInlineHtml': false,
       'export.pdf.pageSize': 'Letter',
       'export.pdf.landscape': true,
       'export.pdf.marginInch': 1.25,
     })
     expect(store.all()).toEqual({
       sourceModeByDefault: true,
+      renderInlineHtml: false,
       pdfPageSize: 'Letter',
       pdfLandscape: true,
       pdfMarginInch: 1.25,

@@ -26,12 +26,14 @@ import {
 } from '@typo/markdown'
 import { livePreviewConfig } from '../config.js'
 import { activeState, revealsLine, revealsRange, type ActiveState } from './active.js'
+import { htmlLayoutOf } from './inline-html.js'
 import { alignmentsOf, delimiterRowLayout, rowLayout, tableIsActive } from './tables.js'
 import { MathWidget } from '../math.js'
 import {
   BulletWidget,
   EntityWidget,
   ImageWidget,
+  LineBreakWidget,
   RuleWidget,
   TaskCheckboxWidget,
 } from './widgets.js'
@@ -81,11 +83,15 @@ class Builder {
   readonly atomic: Range<Decoration>[] = []
   private readonly lineSeen = new Set<string>()
 
+  /** 已经处理过行内 HTML 的容器，避免同一个段落被它的每个标签各扫一遍。 */
+  readonly htmlSeen = new Set<string>()
+
   constructor(
     readonly state: EditorState,
     readonly active: ActiveState,
     readonly resolveAsset: (src: string) => string,
     readonly renderImages: boolean,
+    readonly renderInlineHtml: boolean,
   ) {}
 
   mark(from: number, to: number, cls: string): void {
@@ -163,7 +169,13 @@ export function computeDecorations(
   visible: readonly { from: number; to: number }[],
 ): BuildResult {
   const cfg = state.facet(livePreviewConfig)
-  const b = new Builder(state, activeState(state), cfg.assetResolver, cfg.renderImages)
+  const b = new Builder(
+    state,
+    activeState(state),
+    cfg.assetResolver,
+    cfg.renderImages,
+    cfg.renderInlineHtml,
+  )
   const tree = syntaxTree(state)
 
   for (const range of visible) {
@@ -249,6 +261,10 @@ function handleNode(b: Builder, node: SyntaxNodeRef, clip: { from: number; to: n
 
     case INLINE_NODES.url:
       handleBareUrl(b, node)
+      return
+
+    case INLINE_NODES.htmlTag:
+      handleHtmlTag(b, node)
       return
 
     case FOOTNOTE_NODES.ref:
@@ -416,6 +432,47 @@ function handleBareUrl(b: Builder, node: SyntaxNodeRef): void {
   const parent = node.node.parent
   if (parent && URL_CONTAINERS.has(parent.name)) return
   b.mark(node.from, node.to, 'cm-typo-link cm-typo-autolink')
+}
+
+/**
+ * 行内 HTML。安全模型见 ./inline-html.ts 开头 —— 一句话：这里**不解析 HTML**，
+ * 只按封闭标签集合挂类名，没有任何一个字节的用户内容进过 `innerHTML`。
+ *
+ * 一整个容器一次算完（而不是一个标签一个标签地算），因为配对本来就得看到两端。
+ * 代价是可能给视口外的标签也发装饰 —— 上界是这个容器里的标签数，可以接受，
+ * 换来的是「`<b>` 在视口上边、`</b>` 在下边」这种情况不会被误判成没闭合。
+ */
+function handleHtmlTag(b: Builder, node: SyntaxNodeRef): void {
+  if (!b.renderInlineHtml) return
+
+  const container = node.node.parent
+  if (!container) return
+  // 段落与它里面的链接可能起点相同，光用 from 会互相盖掉
+  const key = `${container.name}:${container.from}:${container.to}`
+  if (b.htmlSeen.has(key)) return
+  b.htmlSeen.add(key)
+
+  const { pairs, voids } = htmlLayoutOf(b.state, container)
+
+  for (const { open, close } of pairs) {
+    // 样式一直挂着（跟强调一致）：显形时露出来的是标签本身，不是排版效果
+    b.mark(open.from, close.to, `cm-typo-html cm-typo-html-${open.cls}`)
+    if (revealsRange(b.active, open.from, close.to)) {
+      b.mark(open.from, open.to, MARK_CLASS)
+      b.mark(close.from, close.to, MARK_CLASS)
+    } else {
+      b.hide(open.from, open.to)
+      b.hide(close.from, close.to)
+    }
+  }
+
+  for (const tag of voids) {
+    if (revealsRange(b.active, tag.from, tag.to)) {
+      b.mark(tag.from, tag.to, MARK_CLASS)
+      continue
+    }
+    b.hide(tag.from, tag.to, Decoration.replace({ widget: new LineBreakWidget() }))
+  }
 }
 
 /** 这些节点里的 `URL` 是链接目标，已由各自的 handler 折叠，不该再画一遍。 */

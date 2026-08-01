@@ -110,6 +110,7 @@ const tabs: TabManager = new TabManager({
       // 只影响**新建的**标签：已经开着的那些按用户当时的选择留着，
       // 改一个设置就把所有标签的视图切一遍，是很吓人的行为
       sourceMode: preferences.get('sourceModeByDefault'),
+      renderInlineHtml: preferences.get('renderInlineHtml'),
       assetResolver: createAssetResolver(() => {
         const path = pathOf()
         return path ? dirnameOf(path) : null
@@ -499,6 +500,13 @@ async function restoreSession(): Promise<void> {
 
 // 偏好必须在建第一个标签**之前**读完 —— 晚一步的话「默认进源码模式」
 // 作用不到启动时那个标签上，用户会觉得这个设置时灵时不灵
+// 行内 HTML 的开关跟「默认进源码模式」不同，它**立刻作用到所有标签**：
+// 前者是新标签的初始视图（改已开的标签会很吓人），后者是渲染规则，
+// 用户在设置里勾掉之后期待的是「我文件里那个 <b> 现在就该露出来」
+preferences.onChange((values) => {
+  for (const tab of tabs.all()) tab.editor.setRenderInlineHtml(values.renderInlineHtml)
+})
+
 void (async () => {
   await Promise.all([themes.init(), preferences.init()])
   // 读设置是异步的，而「外部要求打开文件」的事件可能在这期间就到了 ——

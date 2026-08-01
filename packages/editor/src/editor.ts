@@ -64,6 +64,8 @@ export interface TypoEditorOptions {
   /** 存图失败时的提示途径。 */
   onImageError?: (error: Error, name: string) => void
   sourceMode?: boolean
+  /** 渲染文档里的行内 HTML。默认开，见 config.ts 的 `renderInlineHtml`。 */
+  renderInlineHtml?: boolean
   readOnly?: boolean
   /** 文档内容变化时调用。频率等同于按键，实现方需自行控制开销。 */
   onDocChange?: (text: string) => void
@@ -81,9 +83,19 @@ export class TypoEditor {
   private readonly readOnlyCompartment = new Compartment()
   private sourceModeOn: boolean
   private statusTimer: ReturnType<typeof setTimeout> | null = null
+  /**
+   * 配置面里**可变**的那两项。
+   *
+   * 放在字段上而不是每次从 options 读：它们能被 setAssetResolver /
+   * setRenderInlineHtml 改，而配置面是全量替换的 —— 只带上其中一项去
+   * reconfigure，另一项就被悄悄退回默认值了。
+   */
+  private resolverOverride: AssetResolver | null = null
+  private renderInlineHtmlOn: boolean
 
   constructor(private readonly options: TypoEditorOptions) {
     this.sourceModeOn = options.sourceMode ?? false
+    this.renderInlineHtmlOn = options.renderInlineHtml ?? true
 
     this.view = new EditorView({
       parent: options.parent,
@@ -135,15 +147,23 @@ export class TypoEditor {
    * 而这个对象是**全量替换**的 —— 之前两处各写一份，加一个配置项就得记得
    * 改两处，漏掉一处的表现是「换了工作目录之后某个能力莫名失效」。
    */
-  private previewConfig(resolver?: AssetResolver): Partial<LivePreviewConfig> {
+  private previewConfig(): Partial<LivePreviewConfig> {
     const { options } = this
     return {
-      assetResolver: resolver ?? options.assetResolver ?? ((src) => src),
+      assetResolver: this.resolverOverride ?? options.assetResolver ?? ((src) => src),
       renderImages: true,
+      renderInlineHtml: this.renderInlineHtmlOn,
       onOpenLink: options.onOpenLink ?? null,
       imageSink: options.imageSink ?? null,
       onImageError: options.onImageError ?? null,
     }
+  }
+
+  /** 把配置面重新推给编辑器。改任何一项可变配置都走这里。 */
+  private reconfigure(): void {
+    this.view.dispatch({
+      effects: this.configCompartment.reconfigure(livePreviewConfig.of(this.previewConfig())),
+    })
   }
 
   private scheduleStatus(): void {
@@ -204,11 +224,15 @@ export class TypoEditor {
   }
 
   setAssetResolver(resolver: AssetResolver): void {
-    this.view.dispatch({
-      effects: this.configCompartment.reconfigure(
-        livePreviewConfig.of(this.previewConfig(resolver)),
-      ),
-    })
+    this.resolverOverride = resolver
+    this.reconfigure()
+  }
+
+  /** 开关行内 HTML 的渲染。关掉之后文档里的 `<b>` 按原文显示。 */
+  setRenderInlineHtml(on: boolean): void {
+    if (on === this.renderInlineHtmlOn) return
+    this.renderInlineHtmlOn = on
+    this.reconfigure()
   }
 
   isSourceMode(): boolean {

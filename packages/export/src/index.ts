@@ -1,2 +1,2 @@
 export { markdownToHtmlFragment, type ExportHooks, type HtmlOptions } from './html.js'
-export { buildDocument, type DocumentOptions } from './document.js'
+export { PRINT_FONT_CSS, buildDocument, type DocumentOptions } from './document.js'

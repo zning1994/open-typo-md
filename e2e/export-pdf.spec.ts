@@ -52,14 +52,9 @@ test('产物是一份真的 PDF', async ({ app, page }) => {
 })
 
 test('正文确实画进了 PDF，不是一页空白', async ({ app, page }) => {
-  // macOS 上这条是红的：产物里只有白底那个矩形，一条绘制文字的指令都没有 ——
-  // 也就是说 PDF 导出在 macOS 上目前给的是**空白页**。已经推翻了五个结论，
-  // 全过程记在 06 §3.3。
-  //
-  // 用 fixme 而不是删掉或跳过：这是产品缺陷不是测试问题，标记留在这里，
-  // 修好之后把这一行去掉就能立刻验证。
-  test.fixme(process.platform === 'darwin', 'PDF 导出在 macOS 上产出空白页，未解决')
-
+  // 这条曾经在 macOS 上红了六轮：版面照排、底色照画，就是一个字都没有。
+  // 根因是正文字体栈里的 `system-ui`（06 §3.3）—— 所以它同时也是那条修法的
+  // 回归守卫：字体栈一旦退回 system-ui，这里立刻变红。
   await pasteText(page, '# 标题\n\n正文一段')
   const content = contentStreams(await exportPdf(app, 'text.pdf'))
 
