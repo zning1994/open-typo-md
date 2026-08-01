@@ -80,6 +80,10 @@ export const test = base.extend<TypoFixtures>({
     // 关闭窗口会弹出原生的「是否保存」对话框，而原生对话框在无头环境里
     // 没人能点，worker 就会一直卡到超时。空文档 == 未修改的新建文档，
     // 所以清空之后关闭流程不会弹窗。
+    // 先关掉可能开着的浮层。命令面板的遮罩盖住整个窗口，
+    // 不关的话下面那次点击会一直等到超时（每个用例白白多花 5 秒）
+    await page.keyboard.press('Escape').catch(() => undefined)
+
     await page
       .locator('.cm-content')
       .click({ timeout: 5_000 })

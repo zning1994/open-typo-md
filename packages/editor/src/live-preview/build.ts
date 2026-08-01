@@ -15,6 +15,7 @@ import type { SyntaxNode, SyntaxNodeRef } from '@lezer/common'
 import {
   BLOCK_NODES,
   FOOTNOTE_NODES,
+  FRONTMATTER_NODES,
   INLINE_NODES,
   MARK_NODES,
   TABLE_NODES,
@@ -200,6 +201,15 @@ function handleNode(b: Builder, node: SyntaxNodeRef, clip: { from: number; to: n
 
     case BLOCK_NODES.horizontalRule:
       handleRule(b, node)
+      return
+
+    case FRONTMATTER_NODES.block:
+      // 整块弱化成「元数据」的样子。里面的 YAML 高亮由混合解析器产出的
+      // token 接管，不需要我们再加装饰
+      b.lines(node.from, node.to, 'cm-typo-frontmatter', clip)
+      return
+    case FRONTMATTER_NODES.mark:
+      b.mark(node.from, node.to, MARK_CLASS)
       return
 
     case TABLE_NODES.header:

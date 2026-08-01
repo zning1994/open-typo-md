@@ -1,6 +1,7 @@
 export * from './text.js'
 export * from './entities.js'
 export * from './footnote.js'
+export * from './frontmatter.js'
 export * from './language.js'
 export * from './nodes.js'
 export * from './outline.js'

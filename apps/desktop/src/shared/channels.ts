@@ -58,6 +58,8 @@ export type MenuCommand =
   | 'file.save'
   | 'file.saveAs'
   | 'view.toggleSource'
+  | 'view.toggleOutline'
+  | 'view.commandPalette'
   | 'edit.find'
   | 'format.bold'
   | 'format.italic'

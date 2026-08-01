@@ -204,3 +204,34 @@ describe('严格 CommonMark 方言下 GFM 全部退化为纯文本', () => {
     )
   })
 })
+
+describe('YAML front matter', () => {
+  const DOC = '---\ntitle: 我的文章\ntags: [笔记]\n---\n\n# 正文标题\n\n段落'
+
+  it('元数据一个字都不藏', () => {
+    // 它是内容，用户要能看见和改 —— 跟有序列表编号同一条理由。
+    //
+    // 必须显式给光标位置：preview() 默认会在文档前面垫一段「停车位」文本，
+    // 而 front matter 只认文档最开头，垫了就不成立了。
+    // 正文里的 `# ` 该藏还是藏，所以只比对元数据那几行。
+    const rendered = preview(DOC, { selection: DOC.length })
+    expect(rendered.split('\n\n')[0]).toBe('---\ntitle: 我的文章\ntags: [笔记]\n---')
+  })
+
+  it('元数据的每一行都带上样式', () => {
+    const state = mkState(DOC, { selection: DOC.length })
+    for (const line of [1, 2, 3, 4]) {
+      expect(lineClasses(state, line)).toContain('cm-typo-frontmatter')
+    }
+  })
+
+  it('正文不带元数据样式', () => {
+    const state = mkState(DOC, { selection: DOC.length })
+    expect(lineClasses(state, 6)).not.toContain('cm-typo-frontmatter')
+    expect(lineClasses(state, 6)).toContain('cm-typo-heading')
+  })
+
+  it('文档中间的 --- 仍然是分隔线', () => {
+    expect(preview('段落\n\n---\n\n后面')).toBe('段落\n\n─\n\n后面')
+  })
+})

@@ -10,6 +10,7 @@ import { LanguageDescription, type LanguageSupport } from '@codemirror/language'
 import { languages } from '@codemirror/language-data'
 import { GFM, type MarkdownConfig } from '@lezer/markdown'
 import { footnoteExtension } from './footnote.js'
+import { frontmatterExtension } from './frontmatter.js'
 
 /**
  * 方言。
@@ -45,6 +46,17 @@ export interface MarkdownLanguageOptions {
    * 传 `[]` 可以完全关掉（大文档降级、或体积敏感的宿主）。
    */
   codeLanguages?: readonly LanguageDescription[]
+  /**
+   * YAML front matter（文档开头 `---` 包起来的元数据块）。
+   *
+   * 默认**开启** —— 静态站点生成器、Obsidian、Hugo 全都用它，关掉的话
+   * 文档一开头就是一片没有高亮的纯文本，看着像坏了。
+   *
+   * 它不是 CommonMark 的一部分（03 §3 要求非 CommonMark 语法的默认开关状态
+   * 必须明示），所以留了开关；关掉之后 `---` 会退化成分隔线 + 普通段落，
+   * 内容一个字不少。**没写收尾 `---` 时同样退化** —— 见 frontmatter.ts 的说明。
+   */
+  frontmatter?: boolean
 }
 
 /**
@@ -74,10 +86,20 @@ function matchCodeLanguage(
 export function markdownLanguageSupport(
   options: MarkdownLanguageOptions = {},
 ): LanguageSupport {
-  const { dialect = 'gfm', extensions = [], codeLanguages = languages } = options
+  const {
+    dialect = 'gfm',
+    extensions = [],
+    codeLanguages = languages,
+    frontmatter = true,
+  } = options
+
   return markdown({
     base: commonmarkLanguage,
-    extensions: dialect === 'gfm' ? [...GFM_EXTENSIONS, ...extensions] : extensions,
+    extensions: [
+      ...(dialect === 'gfm' ? GFM_EXTENSIONS : []),
+      ...(frontmatter ? [frontmatterExtension] : []),
+      ...extensions,
+    ],
     // Lezer 的混合语言解析：``` 后面写的语言名会被交给对应的解析器，
     // 产出的 token 直接落进现有的 HighlightStyle，不需要第二套渲染路径。
     //

@@ -12,15 +12,27 @@ function parse(doc: string): Tree {
   return markdownLanguageSupport({ codeLanguages: [] }).language.parser.parse(doc)
 }
 
-/** 把树压成 `名字[原文]` 的嵌套字符串，断言起来一眼能看懂。 */
+/**
+ * 把树压成 `名字[原文]` 的嵌套字符串，断言起来一眼能看懂。
+ *
+ * `Document` / `Body` 这些结构性包装节点跳过，缩进按**第一个被输出的节点**
+ * 归零 —— 否则加一层外层语言（比如 YAML front matter）就会让所有断言
+ * 集体偏移两个空格，而树本身其实一点没变。
+ */
+const WRAPPERS = new Set(['Document', 'Body'])
+
 function shape(doc: string): string {
   const parts: string[] = []
+  let base = -1
   parse(doc).iterate({
     enter(node) {
-      if (node.name === 'Document') return
+      if (WRAPPERS.has(node.name)) return
       let depth = 0
       for (let n: SyntaxNode | null = node.node.parent; n; n = n.parent) depth++
-      parts.push(`${'  '.repeat(depth - 1)}${node.name}[${doc.slice(node.from, node.to)}]`)
+      if (base < 0) base = depth
+      parts.push(
+        `${'  '.repeat(Math.max(0, depth - base))}${node.name}[${doc.slice(node.from, node.to)}]`,
+      )
     },
   })
   return parts.join('\n')

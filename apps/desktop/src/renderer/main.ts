@@ -16,7 +16,10 @@ import {
   type ImageSink,
 } from '@typo/editor'
 import type { MenuCommand } from '../shared/channels.js'
+import { MENU_COMMAND_INFO, type Command } from './commands.js'
 import { DocumentController, type DocumentState } from './document.js'
+import { OutlinePanel } from './outline.js'
+import { CommandPalette } from './palette.js'
 import { createAssetResolver, createHostBridge, dirnameOf, getBridgeApi } from './host.js'
 import './styles.css'
 
@@ -29,6 +32,7 @@ function require$<T extends Element>(selector: string): T {
   return found
 }
 
+const workspace = require$<HTMLElement>('#workspace')
 const editorHost = require$<HTMLElement>('#editor')
 const statusName = require$<HTMLElement>('#status-name')
 const statusMeta = require$<HTMLElement>('#status-meta')
@@ -67,6 +71,7 @@ const editor = new TypoEditor({
     statusStats.textContent = `${status.stats.words} 字 · ${status.stats.line}:${status.stats.column}`
     statusMode.textContent = status.sourceMode ? '源码模式' : '实时预览'
     statusMode.setAttribute('aria-pressed', String(status.sourceMode))
+    outline.schedule()
   },
 })
 
@@ -135,6 +140,18 @@ async function openFileFlow(forceNewWindow: boolean): Promise<void> {
   }
 }
 
+const outline = new OutlinePanel(workspace, {
+  items: () => editor.outline(),
+  cursor: () => editor.cursor(),
+  jumpTo: (pos) => editor.jumpTo(pos),
+})
+
+const palette = new CommandPalette({
+  commands: () => COMMANDS,
+  restoreFocus: () => editor.focus(),
+  mac: api.platform.os === 'mac',
+})
+
 const MENU_ACTIONS: Record<MenuCommand, () => void> = {
   'file.open': () => void openFileFlow(false),
   'file.openInNewWindow': () => void openFileFlow(true),
@@ -144,6 +161,11 @@ const MENU_ACTIONS: Record<MenuCommand, () => void> = {
     editor.toggleSourceMode()
     editor.focus()
   },
+  'view.toggleOutline': () => {
+    outline.toggle()
+    editor.focus()
+  },
+  'view.commandPalette': () => palette.toggle(),
   'edit.find': () => {
     openSearchPanel(editor.view)
   },
@@ -158,6 +180,20 @@ const MENU_ACTIONS: Record<MenuCommand, () => void> = {
   'format.heading.5': () => runCommand(setHeading(5)),
   'format.heading.6': () => runCommand(setHeading(6)),
 }
+
+/**
+ * 命令表：菜单与命令面板共用同一份定义（见 commands.ts 的说明）。
+ *
+ * 从 MENU_ACTIONS 派生而不是另写一遍 —— 两份定义必然会漂移，
+ * 而漂移的表现是「菜单里有、面板里搜不到」，用户一眼就能看见。
+ */
+const COMMANDS: Command[] = (Object.keys(MENU_ACTIONS) as MenuCommand[]).map((id) => ({
+  id,
+  title: MENU_COMMAND_INFO[id].title,
+  keywords: id,
+  ...(MENU_COMMAND_INFO[id].binding ? { binding: MENU_COMMAND_INFO[id].binding } : {}),
+  run: () => MENU_ACTIONS[id](),
+}))
 
 api.on.menuCommand((command) => MENU_ACTIONS[command]?.())
 

@@ -158,6 +158,18 @@ export const baseTheme = EditorView.theme({
   '.cm-typo-td-right': { textAlign: 'right' },
   '.cm-typo-td-left': { textAlign: 'left' },
 
+  // —— YAML front matter ——
+  // 弱化成「这是元数据，不是正文」的样子：等宽、小一号、左侧一条边线。
+  // 不藏起来 —— 它是内容，用户要能看见和改（跟有序列表编号同一条理由）
+  '.cm-typo-frontmatter': {
+    fontFamily: v('font-mono', 'ui-monospace, Menlo, Consolas, monospace'),
+    fontSize: '0.85em',
+    color: v('fg-muted', '#6e7781'),
+    backgroundColor: v('code-bg', '#f0f2f4'),
+    borderLeft: `3px solid ${v('border', '#d0d7de')}`,
+    paddingLeft: '0.8em',
+  },
+
   // —— 任务列表 ——
   '.cm-typo-task': {
     verticalAlign: 'middle',

@@ -236,6 +236,26 @@ export class TypoEditor {
     this.view.focus()
   }
 
+  /**
+   * 把光标移到某个偏移并滚动过去（大纲跳转用）。
+   *
+   * `scrollIntoView` 用 `center` 而不是默认的最小滚动：从大纲点过去时，
+   * 目标标题贴在视口边缘会让人以为没跳对。
+   */
+  jumpTo(pos: number): void {
+    const clamped = Math.max(0, Math.min(pos, this.view.state.doc.length))
+    this.view.dispatch({
+      selection: { anchor: clamped },
+      effects: EditorView.scrollIntoView(clamped, { y: 'center' }),
+    })
+    this.view.focus()
+  }
+
+  /** 光标当前偏移。 */
+  cursor(): number {
+    return this.view.state.selection.main.head
+  }
+
   destroy(): void {
     if (this.statusTimer) clearTimeout(this.statusTimer)
     this.view.destroy()
