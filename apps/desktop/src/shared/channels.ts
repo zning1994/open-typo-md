@@ -23,6 +23,7 @@ export const CHANNELS = {
   fsExists: 'fs:exists',
   fsSaveAttachment: 'fs:save-attachment',
   fsWriteText: 'fs:write-text',
+  fsWritePdf: 'fs:write-pdf',
   clipboardWriteHtml: 'clipboard:write-html',
   fsWatch: 'fs:watch',
   draftWrite: 'draft:write',
@@ -60,6 +61,7 @@ export type MenuCommand =
   | 'file.save'
   | 'file.saveAs'
   | 'file.exportHtml'
+  | 'file.exportPdf'
   | 'view.toggleSource'
   | 'view.toggleOutline'
   | 'view.commandPalette'
@@ -104,6 +106,13 @@ export interface TypoBridgeApi {
      * 混用会让冲突检测的语义变得含糊。
      */
     writeText(path: string, text: string): Promise<void>
+    /**
+     * 把一份自包含 HTML 渲染成 PDF 并落盘。
+     *
+     * 渲染必须发生在 main 侧：`printToPDF` 是 `webContents` 的能力，
+     * 而渲染进程碰不到别的 `webContents`（也不该碰得到）。
+     */
+    writePdf(path: string, html: string): Promise<void>
   }
   clipboard: {
     /** 同时写 HTML 与纯文本兜底 —— 目标应用不支持富文本时才有东西可粘。 */

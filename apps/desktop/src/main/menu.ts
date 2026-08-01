@@ -58,6 +58,7 @@ export function buildMenu(actions: MenuActions): void {
         { label: '另存为…', accelerator: 'CmdOrCtrl+Shift+S', click: send('file.saveAs') },
         { type: 'separator' },
         { label: '导出为 HTML…', click: send('file.exportHtml') },
+        { label: '导出为 PDF…', click: send('file.exportPdf') },
         { type: 'separator' },
         isMac ? { role: 'close', label: '关闭窗口' } : { role: 'quit', label: '退出' },
       ],

@@ -97,6 +97,7 @@ export const MENU_COMMAND_INFO: Record<MenuCommand, { title: string; binding?: s
   'file.save': { title: '保存', binding: 'Mod+S' },
   'file.saveAs': { title: '另存为…', binding: 'Mod+Shift+S' },
   'file.exportHtml': { title: '导出为 HTML…' },
+  'file.exportPdf': { title: '导出为 PDF…' },
   'edit.copyRichText': { title: '复制为富文本' },
   'view.toggleSource': { title: '切换源码模式', binding: 'Mod+/' },
   'view.toggleOutline': { title: '显示 / 隐藏大纲', binding: 'Mod+Shift+E' },

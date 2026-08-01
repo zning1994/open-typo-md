@@ -15,7 +15,7 @@
  * KaTeX 的样式表引用二十来个 woff2，不内联的话公式在别人机器上是一堆方框。
  */
 import { buildDocument, markdownToHtmlFragment, type ExportHooks } from '@typo/export'
-import { THEME_VARIABLES } from './theme.js'
+import { THEME_VARIABLES, type ThemeId } from './theme.js'
 
 /**
  * 采集当前生效的主题变量。
@@ -24,14 +24,29 @@ import { THEME_VARIABLES } from './theme.js'
  * 也可能将来用了自定义主题 —— 计算值才是「他此刻看到的样子」，
  * 而那正是他期望导出的东西。
  */
-function themeCss(): string {
-  const computed = getComputedStyle(document.documentElement)
-  const lines = THEME_VARIABLES.map((name) => {
-    const value = computed.getPropertyValue(`--typo-${name}`).trim()
-    return value ? `  --typo-${name}: ${value};` : ''
-  }).filter(Boolean)
+function themeCss(force?: ThemeId): string {
+  // 取值的元素：不指定主题时就是文档根（= 用户此刻看到的样子）；
+  // 指定时挂一个临时探针，靠 themes.css 里 `[data-typo-theme='…']` 的定义取值。
+  // 探针必须真的进文档 —— 游离元素没有计算样式。
+  let probe: HTMLElement = document.documentElement
+  if (force) {
+    probe = document.createElement('div')
+    probe.dataset['typoTheme'] = force
+    probe.style.display = 'none'
+    document.body.appendChild(probe)
+  }
 
-  return `:root {\n${lines.join('\n')}\n}`
+  try {
+    const computed = getComputedStyle(probe)
+    const lines = THEME_VARIABLES.map((name) => {
+      const value = computed.getPropertyValue(`--typo-${name}`).trim()
+      return value ? `  --typo-${name}: ${value};` : ''
+    }).filter(Boolean)
+
+    return `:root {\n${lines.join('\n')}\n}`
+  } finally {
+    if (force) probe.remove()
+  }
 }
 
 /** 页面上加载过的 KaTeX 样式表地址；没渲染过公式时为 null。 */
@@ -126,14 +141,30 @@ function hooksFor(context: ExportContext): ExportHooks {
 }
 
 /** 生成一份自包含的 HTML 文档。 */
-export async function exportHtmlDocument(context: ExportContext): Promise<string> {
+export async function exportHtmlDocument(
+  context: ExportContext,
+  options: { theme?: ThemeId } = {},
+): Promise<string> {
   const fragment = await markdownToHtmlFragment(context.markdown, hooksFor(context))
   const katex = await katexCss()
+  const theme = themeCss(options.theme)
 
   return buildDocument(fragment, {
     title: context.title,
-    css: katex ? [themeCss(), katex] : [themeCss()],
+    css: katex ? [theme, katex] : [theme],
   })
+}
+
+/**
+ * 给 PDF 用的 HTML —— **一律浅色**。
+ *
+ * 深色主题打出来是一整页黑：既费墨，也几乎读不了。应用自己的打印样式
+ * （themes.css 的 `@media print`）已经这么做了，导出的 PDF 没有理由不一致。
+ *
+ * 这不是「建议」而是默认行为。真要一份深色的 PDF，可以先导出 HTML 再自己打印。
+ */
+export async function exportPdfHtml(context: ExportContext): Promise<string> {
+  return exportHtmlDocument(context, { theme: 'light' })
 }
 
 /**

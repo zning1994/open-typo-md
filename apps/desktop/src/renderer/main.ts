@@ -38,7 +38,12 @@ import {
   dirnameOf,
   getBridgeApi,
 } from './host.js'
-import { exportHtmlDocument, exportHtmlFragment, type ExportContext } from './export.js'
+import {
+  exportHtmlDocument,
+  exportHtmlFragment,
+  exportPdfHtml,
+  type ExportContext,
+} from './export.js'
 import './styles.css'
 
 const api = getBridgeApi()
@@ -224,6 +229,33 @@ async function exportHtmlFlow(): Promise<void> {
   }
 }
 
+/**
+ * 导出为 PDF。
+ *
+ * 复用 HTML 导出的全部产物（内联主题、内联 KaTeX 字体、图片转 data URI），
+ * 只是把「写文件」换成「交给 Chromium 打印」—— 分页归浏览器管（06 §3）。
+ */
+async function exportPdfFlow(): Promise<void> {
+  const state = controller.state()
+  const target = await host.dialog.saveFile({
+    title: '导出为 PDF',
+    defaultPath: currentPath
+      ? currentPath.replace(/\.md$/i, '.pdf')
+      : `${state.name.replace(/\.md$/i, '')}.pdf`,
+    filters: [{ name: 'PDF', extensions: ['pdf'] }],
+  })
+  if (!target) return
+
+  try {
+    await api.fs.writePdf(target, await exportPdfHtml(exportContext()))
+  } catch (error) {
+    await host.dialog.message({
+      message: '导出失败',
+      detail: error instanceof Error ? error.message : String(error),
+    })
+  }
+}
+
 /** 复制为富文本：写 HTML 片段 + 纯文本兜底。 */
 async function copyRichTextFlow(): Promise<void> {
   try {
@@ -243,6 +275,7 @@ const MENU_ACTIONS: Record<MenuCommand, () => void> = {
   'file.save': () => void controller.save(),
   'file.saveAs': () => void controller.saveAs(),
   'file.exportHtml': () => void exportHtmlFlow(),
+  'file.exportPdf': () => void exportPdfFlow(),
   'edit.copyRichText': () => void copyRichTextFlow(),
   'view.toggleSource': () => {
     editor.toggleSourceMode()

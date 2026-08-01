@@ -24,6 +24,7 @@ import { claimDrafts, dropDraft, dropDraftById, writeDraft } from './drafts.js'
 import { readTextFile, saveAttachment, writeTextFile } from './fs-service.js'
 import { watchFor } from './watcher.js'
 import { buildMenu } from './menu.js'
+import { renderPdf } from './pdf.js'
 import { assertAllowed, grantDirectory, grantFile } from './path-guard.js'
 import { getSetting, setSetting } from './settings.js'
 import {
@@ -149,6 +150,11 @@ function registerIpc(): void {
   handle(CHANNELS.fsWriteText, async (_sender, target: string, text: string) => {
     const real = await assertAllowed(target)
     await writeFile(real, text, 'utf8')
+  })
+
+  handle(CHANNELS.fsWritePdf, async (_sender, target: string, html: string) => {
+    const real = await assertAllowed(target)
+    await writeFile(real, await renderPdf(html))
   })
 
   handle(CHANNELS.clipboardWriteHtml, async (_sender, html: string, text: string) => {
