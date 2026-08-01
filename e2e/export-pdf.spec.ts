@@ -90,6 +90,45 @@ test('正文确实画进了 PDF，不是一页空白', async ({ app, page }) => 
   expect(content).toMatch(/\bT[jJ]\b/)
 })
 
+/**
+ * 下面两条把 `renderPdf`（main 侧那个隐藏窗口）从整条导出管线里**单独拎出来**测。
+ *
+ * 上面那条在 macOS 上是空白页，但从产物看不出该怪谁：可能是隐藏窗口根本没绘制，
+ * 可能是生成的 HTML 有问题，也可能是中文字体。喂一段写死的 HTML 进去就能分开：
+ *
+ * - 两条都挂 → 隐藏窗口那一侧的问题；
+ * - 只有中文那条挂 → 字体问题；
+ * - 两条都过 → 问题出在我们生成的 HTML（主题 CSS / KaTeX 那一批）。
+ */
+async function pdfFromHtml(page: Page, name: string, html: string): Promise<string> {
+  const target = path.join(dir, name)
+  await page.evaluate(
+    ([file, source]) => window.typo.fs.writePdf(file as string, source as string),
+    [target, html],
+  )
+  return contentStreams(await readFile(target))
+}
+
+const PLAIN_HTML = (body: string) =>
+  `<!doctype html><html><head><meta charset="utf-8"></head><body style="color:#000">${body}</body></html>`
+
+test('renderPdf 能把一段写死的 HTML 画成 PDF', async ({ app, page }) => {
+  // 先走一次正常导出，把目录授权下来 —— 授权只能由用户在系统对话框里给出
+  await pasteText(page, '占位')
+  await exportPdf(app, 'grant.pdf')
+
+  const content = await pdfFromHtml(page, 'plain.pdf', PLAIN_HTML('<h1>HELLO</h1><p>plain</p>'))
+  expect(content).toMatch(/\bT[jJ]\b/)
+})
+
+test('中文也画得进 PDF', async ({ app, page }) => {
+  await pasteText(page, '占位')
+  await exportPdf(app, 'grant2.pdf')
+
+  const content = await pdfFromHtml(page, 'cjk.pdf', PLAIN_HTML('<h1>中文标题</h1>'))
+  expect(content).toMatch(/\bT[jJ]\b/)
+})
+
 test('长文档会分页 —— 分页交给 Chromium，但它确实发生了', async ({ app, page }) => {
   await pasteText(page, `# 标题\n\n${'很长的一段正文。'.repeat(500)}`)
   const pdf = await exportPdf(app, 'long.pdf')
