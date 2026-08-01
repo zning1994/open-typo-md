@@ -16,6 +16,7 @@ export default defineConfig({
       ),
       '@typo/markdown': pkg('markdown'),
       '@typo/export': pkg('export'),
+      '@typo/import': pkg('import'),
       '@typo/editor': pkg('editor'),
     },
   },

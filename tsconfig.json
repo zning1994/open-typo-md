@@ -11,6 +11,9 @@
       "path": "./packages/export"
     },
     {
+      "path": "./packages/import"
+    },
+    {
       "path": "./packages/editor"
     },
     {

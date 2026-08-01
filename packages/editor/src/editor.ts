@@ -33,6 +33,7 @@ import { imageInsertion } from './images.js'
 import { inputBehavior } from './input.js'
 import { linkInteraction } from './links.js'
 import { livePreview } from './live-preview/index.js'
+import { richTextPaste } from './paste.js'
 import { typoTheme } from './theme.js'
 
 export interface EditorStats {
@@ -107,6 +108,7 @@ export class TypoEditor {
       typoCommands(),
       inputBehavior(),
       imageInsertion(),
+      richTextPaste(),
       codeBlockScrollSync(),
       search({ top: true }),
       // 正文必须自动折行 —— 这是散文编辑器，不是代码编辑器

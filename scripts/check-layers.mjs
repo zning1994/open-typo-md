@@ -19,8 +19,16 @@ const ALLOWED = {
   '@typo/markdown': ['@typo/plugin-api'],
   // 导出层认识语义解析，但**不认识编辑器** —— 导出不该依赖「界面上现在是什么样」
   '@typo/export': ['@typo/plugin-api', '@typo/markdown'],
-  '@typo/editor': ['@typo/plugin-api', '@typo/markdown'],
-  '@typo/desktop': ['@typo/plugin-api', '@typo/markdown', '@typo/export', '@typo/editor'],
+  // 导入层是纯转换，谁也不认识 —— 它比编辑器还低一层
+  '@typo/import': [],
+  '@typo/editor': ['@typo/plugin-api', '@typo/markdown', '@typo/import'],
+  '@typo/desktop': [
+    '@typo/plugin-api',
+    '@typo/markdown',
+    '@typo/export',
+    '@typo/import',
+    '@typo/editor',
+  ],
 }
 
 /** 这些包的源码里不允许出现的 import —— 内核必须与宿主无关（原则 P3）。 */
@@ -28,6 +36,7 @@ const FORBIDDEN_IMPORTS = {
   '@typo/plugin-api': [/^electron$/, /^node:/],
   '@typo/markdown': [/^electron$/, /^node:/],
   '@typo/export': [/^electron$/, /^node:/],
+  '@typo/import': [/^electron$/, /^node:/],
   '@typo/editor': [/^electron$/, /^node:/],
 }
 
