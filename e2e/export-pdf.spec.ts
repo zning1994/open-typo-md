@@ -8,11 +8,11 @@
  * 断言直接读 PDF 的内容流（Flate 解压后就是 PostScript 风格的绘制指令）。
  * 比「文件大于 0 字节」实在得多：填充色、页数、图片对象都能直接看见。
  */
-import { inflateSync } from 'node:zlib'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { clickMenu, expect, pasteText, test } from './fixtures.js'
+import { contentStreams, pageCount } from './pdf.js'
 import type { ElectronApplication, Page } from '@playwright/test'
 
 let dir: string
@@ -24,30 +24,6 @@ test.beforeEach(async () => {
 test.afterEach(async () => {
   await rm(dir, { recursive: true, force: true, maxRetries: 5 }).catch(() => undefined)
 })
-
-/** 解开 PDF 里所有 Flate 流，拼成一段可搜索的文本。 */
-function contentStreams(buf: Buffer): string {
-  const raw = buf.toString('latin1')
-  const out: string[] = []
-  const marker = /stream\r?\n/g
-  let match: RegExpExecArray | null
-  while ((match = marker.exec(raw))) {
-    const start = match.index + match[0].length
-    const end = raw.indexOf('endstream', start)
-    if (end < 0) continue
-    try {
-      out.push(inflateSync(Buffer.from(raw.slice(start, end), 'latin1')).toString('latin1'))
-    } catch {
-      // 非 Flate 流（图片可能用别的滤镜），跳过
-    }
-  }
-  return out.join('\n')
-}
-
-function pageCount(buf: Buffer): number {
-  const counts = buf.toString('latin1').match(/\/Count\s+(\d+)/g) ?? []
-  return Math.max(0, ...counts.map((c) => Number(c.replace(/\D/g, ''))))
-}
 
 async function exportPdf(app: ElectronApplication, name: string): Promise<Buffer> {
   const target = path.join(dir, name)

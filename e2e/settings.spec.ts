@@ -6,11 +6,11 @@
  *
  * 「设置项能保存」这件事本身不值得单独测 —— 值得测的是它有没有作用到东西上。
  */
-import { inflateSync } from 'node:zlib'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { clickMenu, docText, expect, resetDoc, test } from './fixtures.js'
+import { backgroundRect } from './pdf.js'
 import type { ElectronApplication, Page } from '@playwright/test'
 
 let dir: string
@@ -104,29 +104,6 @@ test('纸张设置真的传到了打印那一侧 —— 换成横向后页面变
       )
       .toBeGreaterThan(0)
     return readFile(target)
-  }
-
-  /** 页面内容流里那句背景填充矩形，宽高比能看出纸张方向。 */
-  const backgroundRect = (pdf: Buffer): [number, number] => {
-    const raw = pdf.toString('latin1')
-    const marker = /stream\r?\n/g
-    let match: RegExpExecArray | null
-    while ((match = marker.exec(raw))) {
-      const start = match.index + match[0].length
-      const end = raw.indexOf('endstream', start)
-      if (end < 0) continue
-      let text: string
-      try {
-        text = inflateSync(Buffer.from(raw.slice(start, end), 'latin1')).toString('latin1')
-      } catch {
-        continue
-      }
-      const rect = /^(\d+(?:\.\d+)?) (\d+(?:\.\d+)?) (\d+(?:\.\d+)?) (\d+(?:\.\d+)?) re$/m.exec(
-        text,
-      )
-      if (rect) return [Number(rect[3]), Number(rect[4])]
-    }
-    throw new Error('PDF 里找不到背景矩形')
   }
 
   const [portraitW, portraitH] = backgroundRect(await exportPdf('portrait.pdf'))
