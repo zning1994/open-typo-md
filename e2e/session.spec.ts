@@ -14,6 +14,14 @@ import type { ElectronApplication } from '@playwright/test'
 
 const appRoot = fileURLToPath(new URL('../apps/desktop', import.meta.url))
 
+/**
+ * 活动标签里的编辑区。
+ *
+ * 恢复出多个标签之后，`.cm-content` 会匹配到好几个，而其中只有活动的那个可见 ——
+ * 直接等 `.cm-content` 可见会永远等在第一个（隐藏的）身上。
+ */
+const ACTIVE_CONTENT = '.tab-page:not([hidden]) .cm-content'
+
 // 每条用例要完整启动两次 Electron（外加一次干净退出），Windows 的 CI 机器上
 // 这一套走下来就逼近默认的 60 秒了 —— 放宽的是耐心，不是断言
 test.setTimeout(150_000)
@@ -47,15 +55,22 @@ async function launch(): Promise<ElectronApplication> {
   })
 }
 
-/** 干净地退出：走 close 而不是 exit，会话才有机会落盘。 */
+/**
+ * 干净地退出：走 quit 而不是 exit，会话才有机会落盘。
+ *
+ * 退完还要**等进程真的没了**。Electron 的单实例锁是按 userData 目录算的，
+ * 而这两次启动共用同一个目录 —— 前一个进程还剩最后一口气时启动第二个，
+ * 后者会拿不到锁然后立刻自杀。表现是这条用例单跑必过、整套跑偶发失败，
+ * 典型的「测试自己的时序问题伪装成产品缺陷」。
+ */
 async function quit(app: ElectronApplication): Promise<void> {
+  const process_ = app.process()
   await app.evaluate(({ app: electronApp }) => electronApp.quit()).catch(() => undefined)
   await Promise.race([
     app.close().catch(() => undefined),
-    new Promise((resolve) => setTimeout(resolve, 8_000)).then(() =>
-      app.process().kill('SIGKILL'),
-    ),
+    new Promise((resolve) => setTimeout(resolve, 8_000)).then(() => process_.kill('SIGKILL')),
   ])
+  await expect.poll(() => process_.exitCode !== null, { timeout: 15_000 }).toBe(true)
 }
 
 test('重启之后恢复上次的工作区与标签', async () => {
@@ -66,7 +81,7 @@ test('重启之后恢复上次的工作区与标签', async () => {
 
   const app1 = await launch()
   const page1 = await app1.firstWindow()
-  await page1.waitForSelector('.cm-content', { state: 'visible' })
+  await page1.waitForSelector(ACTIVE_CONTENT, { state: 'visible' })
 
   await app1.evaluate(({ dialog }, dir) => {
     dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [dir] })) as never
@@ -91,7 +106,7 @@ test('重启之后恢复上次的工作区与标签', async () => {
 
   const app2 = await launch()
   const page2 = await app2.firstWindow()
-  await page2.waitForSelector('.cm-content', { state: 'visible' })
+  await page2.waitForSelector(ACTIVE_CONTENT, { state: 'visible' })
 
   // 工作区回来了
   await expect(page2.locator('.typo-files')).toBeVisible({ timeout: 20_000 })
@@ -110,7 +125,7 @@ test('上次的文件被删掉时，静默跳过它，其余照常恢复', async
 
   const app1 = await launch()
   const page1 = await app1.firstWindow()
-  await page1.waitForSelector('.cm-content', { state: 'visible' })
+  await page1.waitForSelector(ACTIVE_CONTENT, { state: 'visible' })
 
   await app1.evaluate(({ dialog }, dir) => {
     dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [dir] })) as never
@@ -134,7 +149,7 @@ test('上次的文件被删掉时，静默跳过它，其余照常恢复', async
 
   const app2 = await launch()
   const page2 = await app2.firstWindow()
-  await page2.waitForSelector('.cm-content', { state: 'visible' })
+  await page2.waitForSelector(ACTIVE_CONTENT, { state: 'visible' })
 
   // 上次会话里的某个文件不在了是很正常的事，不该为它弹错误框挡住启动
   await expect(page2.locator('.tab-bar')).toBeHidden({ timeout: 20_000 })

@@ -501,7 +501,10 @@ async function restoreSession(): Promise<void> {
 // 作用不到启动时那个标签上，用户会觉得这个设置时灵时不灵
 void (async () => {
   await Promise.all([themes.init(), preferences.init()])
-  tabs.open()
+  // 读设置是异步的，而「外部要求打开文件」的事件可能在这期间就到了 ——
+  // 那时 openPath 已经建过一个标签。无条件再开一个空白标签会把它顶掉，
+  // 表现是「从 Finder 双击打开的新窗口里是一篇空文档」
+  if (tabs.all().length === 0) tabs.open()
   render()
   await restoreSession()
   await offerDraftRecovery()

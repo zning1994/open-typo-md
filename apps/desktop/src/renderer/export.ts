@@ -140,13 +140,23 @@ function hooksFor(context: ExportContext): ExportHooks {
   return hooks
 }
 
-/** 生成一份自包含的 HTML 文档。 */
+/**
+ * 生成一份自包含的 HTML 文档。
+ *
+ * **只在文档真的有公式时才内联 KaTeX 那一整套。** 那套样式带着二十来个 woff2
+ * 的 base64，几 MB 起步 —— 一篇没有任何公式的文档背着它，产物大小要翻几十倍，
+ * 而多出来的字节一个都用不上。
+ *
+ * 这条不只是省体积：macOS 上 PDF 导出**曾经一律是空白页**，就是被这几 MB
+ * 拖出来的（06 §3.3）。判据放在片段上而不是原文上 —— `rehypeKatex` 只有
+ * 真渲染出公式时才会打上 `katex` 类，比在 Markdown 里数 `$` 靠谱得多。
+ */
 export async function exportHtmlDocument(
   context: ExportContext,
   options: { theme?: ThemeId } = {},
 ): Promise<string> {
   const fragment = await markdownToHtmlFragment(context.markdown, hooksFor(context))
-  const katex = await katexCss()
+  const katex = fragment.includes('katex') ? await katexCss() : null
   const theme = themeCss(options.theme)
 
   return buildDocument(fragment, {

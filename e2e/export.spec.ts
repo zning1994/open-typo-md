@@ -73,6 +73,18 @@ test('公式带上 KaTeX 样式，且字体是内联的', async ({ app, page }) 
   expect(html).not.toMatch(/url\(\s*['"]?[^'")]*\.woff2/)
 })
 
+test('没有公式的文档不背 KaTeX 那几 MB', async ({ app, page }) => {
+  // 那套样式带着二十来个 woff2 的 base64，几 MB 起步。一篇没有公式的文档背着它，
+  // 产物大小要翻几十倍，而多出来的字节一个都用不上。
+  //
+  // 这条不只是省体积：macOS 上 PDF 导出曾经一律是空白页，就是被这几 MB 拖出来的
+  await resetDoc(page, '# 标题\n\n正文一段')
+  const html = await exportTo(app, path.join(dir, 'nomath.html'))
+
+  expect(html).not.toContain('data:font')
+  expect(html).not.toContain('katex')
+})
+
 test('mermaid 图表导出成内联 SVG', async ({ app, page }) => {
   await resetDoc(page, '前文\n\n```mermaid\ngraph TD\nA-->B\n```\n\n后文')
   await expect(page.locator('.cm-typo-mermaid svg')).toHaveCount(1, { timeout: 30_000 })
