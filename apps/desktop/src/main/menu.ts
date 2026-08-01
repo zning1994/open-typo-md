@@ -10,9 +10,16 @@ import { EVENTS, type MenuCommand } from '../shared/channels.js'
 
 const isMac = process.platform === 'darwin'
 
-export function buildMenu(getWindow: () => BrowserWindow | null): void {
+export interface MenuActions {
+  /** 新建一个空窗口。窗口级动作由 main 直接执行，不必绕渲染进程一圈。 */
+  newWindow: () => void
+  /** 当前聚焦的窗口 —— 多窗口下菜单命令必须投递给它，不能有全局单例。 */
+  focusedWindow: () => BrowserWindow | null
+}
+
+export function buildMenu(actions: MenuActions): void {
   const send = (command: MenuCommand) => () => {
-    getWindow()?.webContents.send(EVENTS.menuCommand, command)
+    actions.focusedWindow()?.webContents.send(EVENTS.menuCommand, command)
   }
 
   const template: MenuItemConstructorOptions[] = [
@@ -37,8 +44,15 @@ export function buildMenu(getWindow: () => BrowserWindow | null): void {
     {
       label: '文件',
       submenu: [
-        { label: '新建', accelerator: 'CmdOrCtrl+N', click: send('file.new') },
+        // 还没有标签页，所以 ⌘N 直接给新窗口 —— 在当前窗口「新建」会把
+        // 用户正在写的东西顶掉。M3 加了标签之后 ⌘N 变成新标签、⌘⇧N 变成新窗口
+        { label: '新建窗口', accelerator: 'CmdOrCtrl+N', click: () => actions.newWindow() },
         { label: '打开…', accelerator: 'CmdOrCtrl+O', click: send('file.open') },
+        {
+          label: '在新窗口打开…',
+          accelerator: 'CmdOrCtrl+Shift+O',
+          click: send('file.openInNewWindow'),
+        },
         { type: 'separator' },
         { label: '保存', accelerator: 'CmdOrCtrl+S', click: send('file.save') },
         { label: '另存为…', accelerator: 'CmdOrCtrl+Shift+S', click: send('file.saveAs') },

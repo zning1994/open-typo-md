@@ -59,6 +59,15 @@ export class DocumentController {
     return this.editor.getDoc() !== this.savedText
   }
 
+  /**
+   * 当前窗口是否为「空白未命名文档」。
+   *
+   * 「打开文件」用它决定是就地打开还是另开窗口 —— 见 docs/adr/0005 §关键推论 3。
+   */
+  isEmptyUntitled(): boolean {
+    return this.filePath === null && !this.isDirty()
+  }
+
   private emit(): void {
     this.onChange(this.state())
   }

@@ -50,6 +50,9 @@ const api: TypoBridgeApi = {
   shell: {
     openExternal: (url) => invoke(CHANNELS.shellOpenExternal, url),
   },
+  window: {
+    create: (path) => invoke(CHANNELS.windowCreate, path),
+  },
   settings: {
     get: (key) => invoke(CHANNELS.settingsGet, key),
     set: (key, value) => invoke(CHANNELS.settingsSet, key, value),

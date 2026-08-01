@@ -8,20 +8,25 @@ import path from 'node:path'
 import { BrowserWindow, app, dialog, ipcMain, session, shell } from 'electron'
 import { ConflictError, UnsupportedEncodingError } from '@typo/plugin-api'
 import { CHANNELS, EVENTS, type IpcFailure } from '../shared/channels.js'
-import { APP_ORIGIN, registerAppHandler, registerAppSchemePrivileges } from './app-protocol.js'
+import { registerAppHandler, registerAppSchemePrivileges } from './app-protocol.js'
 import { registerAssetHandler, registerAssetScheme } from './asset-protocol.js'
 import { readTextFile, writeTextFile } from './fs-service.js'
 import { buildMenu } from './menu.js'
 import { assertAllowed, grantDirectory, grantFile } from './path-guard.js'
 import { getSetting, setSetting } from './settings.js'
+import {
+  allWindows,
+  beginQuit,
+  createWindow,
+  focusedWindow,
+  handleAllWindowsClosed,
+  resolveClose,
+} from './window-manager.js'
 
 const DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
 // main 与 preload 被 esbuild 打成 CJS，因此 __dirname 可用（import.meta 反而不可用）
 const dirname = __dirname
 
-let mainWindow: BrowserWindow | null = null
-/** 关闭确认：渲染进程回复「可以关」之后置位，避免再次拦截。 */
-let closeApproved = false
 /** 启动参数里带的待打开文件。 */
 let pendingOpenPath: string | null = null
 
@@ -47,11 +52,20 @@ function toFailure(error: unknown): IpcFailure {
   }
 }
 
-/** 统一的 handler 包装：把异常压成可跨 IPC 传递的结构。 */
-function handle<A extends unknown[], R>(channel: string, fn: (...args: A) => Promise<R>): void {
-  ipcMain.handle(channel, async (_event, ...args) => {
+/**
+ * 统一的 handler 包装：把异常压成可跨 IPC 传递的结构，
+ * 并把**发送方窗口**交给 handler。
+ *
+ * 后者是多窗口的硬性要求：对话框必须挂在发问的那个窗口上，
+ * 挂错窗口在 macOS 上会变成另一个窗口的工作表，用户根本找不到。
+ */
+function handle<A extends unknown[], R>(
+  channel: string,
+  fn: (sender: BrowserWindow | null, ...args: A) => Promise<R>,
+): void {
+  ipcMain.handle(channel, async (event, ...args) => {
     try {
-      return await fn(...(args as A))
+      return await fn(BrowserWindow.fromWebContents(event.sender), ...(args as A))
     } catch (error) {
       return toFailure(error)
     }
@@ -84,76 +98,12 @@ function applyContentSecurityPolicy(): void {
   })
 }
 
-function createWindow(): void {
-  applyContentSecurityPolicy()
-
-  mainWindow = new BrowserWindow({
-    width: 1100,
-    height: 780,
-    minWidth: 520,
-    minHeight: 400,
-    title: 'Typo',
-    backgroundColor: '#ffffff',
-    webPreferences: {
-      // 这三项是安全底线（架构 01 §3），任何改动都必须走 ADR
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true,
-      preload: path.join(dirname, '../preload/index.cjs'),
-      spellcheck: true,
-    },
-  })
-
-  // 外链一律交给系统浏览器，绝不在应用内开新窗口
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https?:/.test(url)) void shell.openExternal(url)
-    return { action: 'deny' }
-  })
-
-  // 渲染进程被诱导导航到外部页面 = 完全失守，直接掐掉
-  mainWindow.webContents.on('will-navigate', (event, url) => {
-    const allowed = DEV_SERVER_URL ? url.startsWith(DEV_SERVER_URL) : url.startsWith(APP_ORIGIN)
-    if (!allowed) {
-      event.preventDefault()
-      if (/^https?:/.test(url)) void shell.openExternal(url)
-    }
-  })
-
-  mainWindow.on('close', (event) => {
-    if (closeApproved || !mainWindow) return
-    // 有未保存内容时由渲染进程决定能否关闭
-    event.preventDefault()
-    mainWindow.webContents.send(EVENTS.requestClose)
-  })
-
-  mainWindow.on('closed', () => {
-    mainWindow = null
-  })
-
-  if (DEV_SERVER_URL) {
-    void mainWindow.loadURL(DEV_SERVER_URL)
-    mainWindow.webContents.openDevTools({ mode: 'detach' })
-  } else {
-    // 走 typo-app:// 而不是 loadFile —— 见 app-protocol.ts 里的原因
-    void mainWindow.loadURL(`${APP_ORIGIN}/index.html`)
-  }
-
-  mainWindow.webContents.once('did-finish-load', () => {
-    if (pendingOpenPath) {
-      void grantFile(pendingOpenPath).then(() => {
-        mainWindow?.webContents.send(EVENTS.openFile, pendingOpenPath)
-        pendingOpenPath = null
-      })
-    }
-  })
-}
-
 function registerIpc(): void {
-  handle(CHANNELS.fsRead, async (target: string) => readTextFile(target))
-  handle(CHANNELS.fsWrite, async (target: string, text: string, options) =>
+  handle(CHANNELS.fsRead, async (_sender, target: string) => readTextFile(target))
+  handle(CHANNELS.fsWrite, async (_sender, target: string, text: string, options) =>
     writeTextFile(target, text, options as Parameters<typeof writeTextFile>[2]),
   )
-  handle(CHANNELS.fsExists, async (target: string) => {
+  handle(CHANNELS.fsExists, async (_sender, target: string) => {
     try {
       await assertAllowed(target)
       return true
@@ -166,25 +116,28 @@ function registerIpc(): void {
     throw new Error('目录浏览尚未实现（M3）')
   })
 
-  handle(CHANNELS.dialogOpen, async (options: { title?: string; multiple?: boolean } = {}) => {
-    if (!mainWindow) return null
-    const result = await dialog.showOpenDialog(mainWindow, {
-      title: options.title ?? '打开 Markdown 文件',
-      properties: options.multiple ? ['openFile', 'multiSelections'] : ['openFile'],
-      filters: [
-        { name: 'Markdown', extensions: ['md', 'markdown', 'mdown', 'mkd', 'txt'] },
-        { name: '全部文件', extensions: ['*'] },
-      ],
-    })
-    if (result.canceled || result.filePaths.length === 0) return null
-    // 用户显式选择 = 授权。这是白名单唯一的入口
-    await Promise.all(result.filePaths.map(grantFile))
-    return result.filePaths
-  })
+  handle(
+    CHANNELS.dialogOpen,
+    async (sender, options: { title?: string; multiple?: boolean } = {}) => {
+      if (!sender) return null
+      const result = await dialog.showOpenDialog(sender, {
+        title: options.title ?? '打开 Markdown 文件',
+        properties: options.multiple ? ['openFile', 'multiSelections'] : ['openFile'],
+        filters: [
+          { name: 'Markdown', extensions: ['md', 'markdown', 'mdown', 'mkd', 'txt'] },
+          { name: '全部文件', extensions: ['*'] },
+        ],
+      })
+      if (result.canceled || result.filePaths.length === 0) return null
+      // 用户显式选择 = 授权。这是白名单唯一的入口
+      await Promise.all(result.filePaths.map(grantFile))
+      return result.filePaths
+    },
+  )
 
-  handle(CHANNELS.dialogSave, async (options: { defaultPath?: string } = {}) => {
-    if (!mainWindow) return null
-    const result = await dialog.showSaveDialog(mainWindow, {
+  handle(CHANNELS.dialogSave, async (sender, options: { defaultPath?: string } = {}) => {
+    if (!sender) return null
+    const result = await dialog.showSaveDialog(sender, {
       title: '另存为',
       defaultPath: options.defaultPath ?? '未命名.md',
       filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }],
@@ -197,15 +150,18 @@ function registerIpc(): void {
 
   handle(
     CHANNELS.dialogConfirm,
-    async (options: {
-      message: string
-      detail?: string
-      buttons: string[]
-      defaultId?: number
-      cancelId?: number
-    }) => {
-      if (!mainWindow) return options.cancelId ?? 0
-      const result = await dialog.showMessageBox(mainWindow, {
+    async (
+      sender,
+      options: {
+        message: string
+        detail?: string
+        buttons: string[]
+        defaultId?: number
+        cancelId?: number
+      },
+    ) => {
+      if (!sender) return options.cancelId ?? 0
+      const result = await dialog.showMessageBox(sender, {
         type: 'warning',
         message: options.message,
         detail: options.detail,
@@ -218,34 +174,57 @@ function registerIpc(): void {
     },
   )
 
-  handle(CHANNELS.dialogMessage, async (options: { message: string; detail?: string }) => {
-    if (!mainWindow) return
-    await dialog.showMessageBox(mainWindow, {
-      type: 'info',
-      message: options.message,
-      detail: options.detail,
-      buttons: ['好'],
-    })
-  })
+  handle(
+    CHANNELS.dialogMessage,
+    async (sender, options: { message: string; detail?: string }) => {
+      if (!sender) return
+      await dialog.showMessageBox(sender, {
+        type: 'info',
+        message: options.message,
+        detail: options.detail,
+        buttons: ['好'],
+      })
+    },
+  )
 
-  handle(CHANNELS.shellOpenExternal, async (url: string) => {
+  handle(CHANNELS.shellOpenExternal, async (_sender, url: string) => {
     // 只放行 http(s) 与 mailto —— file:// 和自定义协议可以被用来执行本地程序
     if (!/^(https?|mailto):/i.test(url)) throw new Error(`不允许打开该链接：${url}`)
     await shell.openExternal(url)
   })
 
-  handle(CHANNELS.settingsGet, async (key: string) => getSetting(key))
-  handle(CHANNELS.settingsSet, async (key: string, value: unknown) => setSetting(key, value))
+  handle(CHANNELS.settingsGet, async (_sender, key: string) => getSetting(key))
+  handle(CHANNELS.settingsSet, async (_sender, key: string, value: unknown) =>
+    setSetting(key, value),
+  )
   handle(CHANNELS.platformInfo, async () => ({
     os: process.platform === 'darwin' ? 'mac' : process.platform === 'win32' ? 'win' : 'linux',
     locale: app.getLocale(),
   }))
 
-  ipcMain.on('respond-close', (_event, canClose: boolean) => {
-    if (!canClose) return
-    closeApproved = true
-    mainWindow?.close()
+  handle(CHANNELS.windowCreate, async (_sender, target?: string) => {
+    if (target) await grantFile(target)
+    await createWindow(target ? { openPath: target } : {})
   })
+
+  // 关闭回应必须能反查是哪个窗口 —— 见 window-manager.ts 的 resolveClose
+  ipcMain.on('respond-close', (event, canClose: boolean) => {
+    const window = BrowserWindow.fromWebContents(event.sender)
+    if (window) resolveClose(window, canClose)
+  })
+}
+
+/** 把文件送到当前窗口；没有窗口就新开一个。 */
+async function openInFocusedWindow(target: string): Promise<void> {
+  await grantFile(target)
+  const window = focusedWindow()
+  if (!window) {
+    await createWindow({ openPath: target })
+    return
+  }
+  if (window.isMinimized()) window.restore()
+  window.focus()
+  window.webContents.send(EVENTS.openFile, target)
 }
 
 function fileFromArgv(argv: string[]): string | null {
@@ -261,40 +240,42 @@ if (!app.requestSingleInstanceLock()) {
 } else {
   app.on('second-instance', (_event, argv) => {
     const target = fileFromArgv(argv)
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore()
-      mainWindow.focus()
-      if (target)
-        void grantFile(target).then(() => mainWindow?.webContents.send(EVENTS.openFile, target))
-    }
+    if (target) void openInFocusedWindow(target)
+    else void createWindow()
   })
 
   // macOS：Finder 里双击文件
   app.on('open-file', (event, target) => {
     event.preventDefault()
-    if (mainWindow) {
-      void grantFile(target).then(() => mainWindow?.webContents.send(EVENTS.openFile, target))
-    } else {
-      pendingOpenPath = target
-    }
+    if (allWindows().length > 0) void openInFocusedWindow(target)
+    else pendingOpenPath = target
   })
 
   pendingOpenPath = fileFromArgv(process.argv)
 
+  // ⌘Q / 退出菜单：任一窗口的渲染进程说「取消」就会中止整个退出流程
+  app.on('before-quit', () => beginQuit())
+
   void app.whenReady().then(async () => {
+    // CSP 注册一次即可：它挂在 defaultSession 上，不是每个窗口一份
+    applyContentSecurityPolicy()
     registerAssetHandler()
     registerAppHandler(path.join(dirname, '../renderer'))
     registerIpc()
-    if (pendingOpenPath) await grantFile(pendingOpenPath)
-    createWindow()
-    buildMenu(() => mainWindow)
+
+    const startupPath = pendingOpenPath
+    pendingOpenPath = null
+    await createWindow(startupPath ? { openPath: startupPath } : {})
+
+    buildMenu({
+      newWindow: () => void createWindow(),
+      focusedWindow,
+    })
 
     app.on('activate', () => {
-      if (BrowserWindow.getAllWindows().length === 0) createWindow()
+      if (allWindows().length === 0) void createWindow()
     })
   })
 
-  app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') app.quit()
-  })
+  app.on('window-all-closed', handleAllWindowsClosed)
 }

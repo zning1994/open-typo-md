@@ -6,7 +6,8 @@
  * 这个文件只负责前者。
  */
 import { commonmarkLanguage, markdown, markdownLanguage } from '@codemirror/lang-markdown'
-import type { LanguageSupport } from '@codemirror/language'
+import type { LanguageDescription, LanguageSupport } from '@codemirror/language'
+import { languages } from '@codemirror/language-data'
 import type { MarkdownConfig } from '@lezer/markdown'
 
 /**
@@ -24,15 +25,26 @@ export interface MarkdownLanguageOptions {
   dialect?: MarkdownDialect
   /** 插件注册的语法扩展（三件套中的 Lezer 部分，见 docs/design/03 §2）。 */
   extensions?: MarkdownConfig[]
+  /**
+   * 围栏代码块的语言解析器。
+   *
+   * 默认接入 `@codemirror/language-data` 的全集：约百种语言，每种都是
+   * **动态 import**，用到才加载，主 bundle 不受影响（见 docs/design/03 §7）。
+   * 传 `[]` 可以完全关掉（大文档降级、或体积敏感的宿主）。
+   */
+  codeLanguages?: readonly LanguageDescription[]
 }
 
 export function markdownLanguageSupport(
   options: MarkdownLanguageOptions = {},
 ): LanguageSupport {
-  const { dialect = 'commonmark', extensions = [] } = options
+  const { dialect = 'commonmark', extensions = [], codeLanguages = languages } = options
   return markdown({
     base: dialect === 'gfm' ? markdownLanguage : commonmarkLanguage,
     extensions,
+    // Lezer 的混合语言解析：``` 后面写的语言名会被交给对应的解析器，
+    // 产出的 token 直接落进现有的 HighlightStyle，不需要第二套渲染路径
+    codeLanguages: [...codeLanguages],
     addKeymap: false, // 键位由 @typo/editor 统一管理，避免两处定义打架
   })
 }

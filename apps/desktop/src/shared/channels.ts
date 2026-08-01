@@ -27,21 +27,22 @@ export const CHANNELS = {
   settingsGet: 'settings:get',
   settingsSet: 'settings:set',
   platformInfo: 'platform:info',
+  windowCreate: 'window:create',
 } as const
 
 /** main → renderer 的推送。 */
 export const EVENTS = {
   /** 菜单项被点击。renderer 决定具体做什么。 */
   menuCommand: 'event:menu-command',
-  /** 用户通过「用 Typo 打开」等方式要求打开某个文件。 */
+  /** 用户通过「用 Brainforge Typo 打开」等方式要求打开某个文件。 */
   openFile: 'event:open-file',
   /** 窗口即将关闭，renderer 需要回应能否关闭（有未保存内容时要拦下）。 */
   requestClose: 'event:request-close',
 } as const
 
 export type MenuCommand =
-  | 'file.new'
   | 'file.open'
+  | 'file.openInNewWindow'
   | 'file.save'
   | 'file.saveAs'
   | 'view.toggleSource'
@@ -73,6 +74,10 @@ export interface TypoBridgeApi {
   shell: {
     openExternal(url: string): Promise<void>
   }
+  window: {
+    /** 新开一个窗口；带 path 则在新窗口里打开该文件。 */
+    create(path?: string): Promise<void>
+  }
   settings: {
     get(key: string): Promise<unknown>
     set(key: string, value: unknown): Promise<void>
@@ -86,7 +91,12 @@ export interface TypoBridgeApi {
     openFile(handler: (path: string) => void): () => void
     requestClose(handler: () => void): () => void
   }
-  /** 回应 requestClose：true 表示可以关。 */
+  /**
+   * 回应 requestClose：true 表示可以关。
+   *
+   * main 侧靠 `event.sender` 反查是哪个窗口在回应 —— 消息本身不带窗口 id，
+   * 否则渲染进程就能冒充别的窗口（见 docs/adr/0005 §关键推论 2）。
+   */
   respondClose(canClose: boolean): void
 }
 

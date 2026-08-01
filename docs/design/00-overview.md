@@ -34,7 +34,9 @@ Markdown 源码，可以直接改。
 - 内置的数学公式、图表、脚注等能力自身就用插件 API 实现，保证 API 不是二等公民。
 
 **G4 · 交付**
-- macOS / Windows / Linux 三平台，安装包体积 < 120MB，冷启动 < 1.5s。
+- macOS / Windows / Linux 三平台，安装包体积 < 180MB，冷启动 < 1.5s。
+  （原定 120MB，M1.5 放宽 —— Electron 运行时本身就占去 100MB 上下，
+  余量太小会逼着在语法高亮这类真实需求上做无谓妥协。）
 - 导出 HTML（自包含单文件）、PDF；检测到 Pandoc 时额外支持 DOCX / ePub / LaTeX。
 
 ## 3. 非目标（Non-Goals）

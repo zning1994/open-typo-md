@@ -151,11 +151,10 @@ markdown({ base: commonmarkLanguage, codeLanguages: languages })
 
 **需要注意的三件事**：
 
-1. **体积预算要重新核对**。语言包虽然懒加载，但**文件仍然会打进安装包**。
-   Linux 的 AppImage 已经贴着 120MB 的线（07 §2），加语言包之前必须先量。
-   如果超了，就从 `languages` 全集收窄成一份常用语言清单
-   （js/ts/py/go/rust/java/c/cpp/json/yaml/sh/sql/html/css/md），
-   其余按需下载或直接不支持。
+1. **体积预算要核对**。语言包虽然懒加载，但**文件仍然会打进安装包**。
+   预算已放宽到 180MB（07 §2），Linux 的 AppImage 约 118MB，余量够用；
+   但接入后仍要实测，超了就从 `languages` 全集收窄成常用语言清单
+   （js/ts/py/go/rust/java/c/cpp/json/yaml/sh/sql/html/css/md）。
 
 2. **别名要覆盖真实写法**。用户写的是 ```` ```js ````、```` ```JS ````、
    ```` ```node ````，`language-data` 自带 alias 表，但要确认大小写不敏感。

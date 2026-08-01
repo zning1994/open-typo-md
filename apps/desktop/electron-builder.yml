@@ -1,6 +1,6 @@
-appId: io.typo.editor
-productName: Typo
-copyright: Copyright © 2026 Typo Contributors
+appId: com.ohgiantai.typo
+productName: Brainforge Typo
+copyright: Copyright © 2026 Brainforge Typo Contributors
 
 directories:
   output: release
@@ -18,10 +18,12 @@ extraMetadata:
   main: dist/main/index.cjs
   # 覆盖掉带 scope 的包名 `@typo/desktop`：deb / rpm 会拿它当包名，
   # `@` 和 `/` 在文件路径里非法，构建会直接失败
-  name: typo
+  name: brainforge-typo
 
 # 显式指定产物文件名，同样是为了不让 scope 名漏进文件路径
-artifactName: ${productName}-${version}-${arch}.${ext}
+# 刻意写死无空格的 slug，不用 ${productName} —— 产品名里有空格，
+# 而空格进文件路径是自找麻烦（M0 已经因为 scope 名进路径吃过一次亏）
+artifactName: BrainforgeTypo-${version}-${arch}.${ext}
 
 fileAssociations:
   - ext: md
@@ -61,7 +63,7 @@ nsis:
 linux:
   # 必须显式指定：否则 electron-builder 会从包名 `@typo/desktop` 推出
   # `@typodesktop`，而 AppImage 不接受文件名里的 `@`
-  executableName: typo
+  executableName: brainforge-typo
   category: Office
   target:
     - target: AppImage

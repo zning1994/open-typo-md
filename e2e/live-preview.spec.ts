@@ -146,3 +146,52 @@ test.describe('状态栏', () => {
     await expect(page.locator('#status-stats')).toContainText('5 字')
   })
 })
+
+test.describe('代码块', () => {
+  test('代码不折行，长行产生横向滚动', async ({ page }) => {
+    const long = 'const x = ' + '"很长的一行代码".repeat(1) + '.repeat(30) + '1'
+    await resetDoc(page, '```js\n' + long + '\n```')
+
+    const codeLine = page.locator('.cm-typo-code-block').nth(1)
+    // scrollWidth > clientWidth 就说明内容溢出而不是折行了
+    const overflows = await codeLine.evaluate((el) => el.scrollWidth > el.clientWidth + 1)
+    expect(overflows).toBe(true)
+
+    const whiteSpace = await codeLine.evaluate((el) => getComputedStyle(el).whiteSpace)
+    expect(whiteSpace).toBe('pre')
+  })
+
+  test('散文仍然折行', async ({ page }) => {
+    await resetDoc(page, '这是一段很长的正文。'.repeat(40))
+    const line = page.locator('.cm-line').first()
+
+    // 断言行为而不是具体的 white-space 取值 —— CodeMirror 的折行用的是
+    // `break-spaces` 而非 `pre-wrap`，两者都折行，写死取值只会测到实现细节
+    const overflows = await line.evaluate((el) => el.scrollWidth > el.clientWidth + 1)
+    expect(overflows).toBe(false)
+    expect(await line.evaluate((el) => getComputedStyle(el).whiteSpace)).not.toBe('pre')
+  })
+
+  test('同一个代码块内各行的横向滚动保持同步', async ({ page }) => {
+    const long = 'x'.repeat(400)
+    await resetDoc(page, '```js\nconst a = "' + long + '"\nconst b = "' + long + '"\n```')
+
+    const lines = page.locator('.cm-typo-code-block')
+    await lines.nth(1).evaluate((el) => {
+      el.scrollLeft = 120
+      el.dispatchEvent(new Event('scroll', { bubbles: false }))
+    })
+
+    await expect.poll(() => lines.nth(2).evaluate((el) => el.scrollLeft)).toBe(120)
+  })
+
+  test('按语言高亮：js 代码块里出现关键字 token', async ({ page }) => {
+    await resetDoc(page, '```js\nconst answer = 42\n```')
+    // 语言解析器是异步加载的，加载完才会重新解析出 token
+    await expect
+      .poll(() => page.locator('.cm-typo-code-block .ͼb, .cm-typo-code-block span').count(), {
+        timeout: 15_000,
+      })
+      .toBeGreaterThan(0)
+  })
+})

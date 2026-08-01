@@ -62,7 +62,7 @@ function render(state: DocumentState): void {
   if (state.readOnly) bits.push('只读')
   statusMeta.textContent = bits.join(' · ')
 
-  document.title = `${state.dirty ? '● ' : ''}${state.name} — Typo`
+  document.title = `${state.dirty ? '● ' : ''}${state.name} — Brainforge Typo`
 }
 
 /** 跑一条编辑命令并把焦点还给编辑器。 */
@@ -71,9 +71,27 @@ function runCommand(command: StateCommand): void {
   editor.focus()
 }
 
+/**
+ * 「打开」的落点规则（docs/adr/0005 §关键推论 3）。
+ *
+ * 当前窗口还是一份空白未命名文档时就地复用 —— 为了一个空窗口再开一个新窗口，
+ * 然后让原来那个空着，很蠢。其余情况一律开新窗口，绝不顶掉用户正在写的东西。
+ */
+async function openFileFlow(forceNewWindow: boolean): Promise<void> {
+  const picked = await host.dialog.openFile()
+  const target = picked?.[0]
+  if (!target) return
+
+  if (!forceNewWindow && controller.isEmptyUntitled()) {
+    await controller.openPath(target, { alreadyConfirmed: true })
+  } else {
+    await api.window.create(target)
+  }
+}
+
 const MENU_ACTIONS: Record<MenuCommand, () => void> = {
-  'file.new': () => void controller.newFile(),
-  'file.open': () => void controller.openViaDialog(),
+  'file.open': () => void openFileFlow(false),
+  'file.openInNewWindow': () => void openFileFlow(true),
   'file.save': () => void controller.save(),
   'file.saveAs': () => void controller.saveAs(),
   'view.toggleSource': () => {

@@ -23,5 +23,6 @@ export {
   typoCommands,
   typoKeymap,
 } from './commands.js'
+export { CODE_LINE_CLASS, codeBlockScrollSync } from './code-block.js'
 export { linkInteraction, linkTargetAt } from './links.js'
 export { baseTheme, markdownHighlight, typoTheme } from './theme.js'

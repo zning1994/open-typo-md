@@ -73,7 +73,15 @@ export const baseTheme = EditorView.theme({
     fontFamily: v('font-mono', 'ui-monospace, Menlo, Consolas, monospace'),
     fontSize: '0.9em',
     backgroundColor: v('code-bg', '#f0f2f4'),
+    // 代码不跟着散文折行：缩进结构靠列对齐传达信息，一折就读不出层级。
+    // 这里设在 .cm-line 上，直接覆盖掉 .cm-content 继承下来的 pre-wrap
+    // （不同元素之间是继承关系，不存在选择器优先级之争）。
+    whiteSpace: 'pre',
+    overflowX: 'auto',
+    // 每行一条滚动条太吵；横向滚动由 codeBlockScrollSync 统一驱动
+    scrollbarWidth: 'none',
   },
+  '.cm-typo-code-block::-webkit-scrollbar': { display: 'none' },
   '.cm-typo-hr-line': { display: 'flex', alignItems: 'center', minHeight: '1.7em' },
   '.cm-typo-hr': {
     display: 'inline-block',

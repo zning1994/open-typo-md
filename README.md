@@ -2,8 +2,8 @@
 
 一个开源的 Markdown 「所见即所得」编辑器 —— 无分屏、无预览窗格，写下的就是看到的。
 
-> **状态：M1 完成**（实时预览内核可用）。可以打开、编辑、保存 CommonMark 文档。
-> 表格、多窗口、代码块语法高亮尚未实现，下一步就做 —— 见[路线图](docs/design/08-roadmap.md)。
+> **状态：M1.5 完成**。可以多窗口编辑 CommonMark 文档，代码块按语言高亮且不折行。
+> 表格等 GFM 语法是下一步（M2）—— 见[路线图](docs/design/08-roadmap.md)。
 >
 > 仓库名 `open-typo-md` 与内部包名 `@typo/*` 保持不变，它们不是用户可见的部分。
 
@@ -62,11 +62,12 @@ Linux 上跑端到端测试需要一个显示环境：`xvfb-run -a pnpm test:e2e
 - 加粗 / 斜体 / 行内代码 / 标题层级的快捷键，回车续列表，撤销重做，查找替换
 - Ctrl / Cmd + 点击链接用系统浏览器打开（普通点击只定位光标）
 - 源码模式一键切换
+- **多窗口**：⌘N 新建窗口，⌘O 打开（当前窗口为空则复用），⌘⇧O 强制新窗口
+- **代码块**：按语言语法高亮，不跟随散文折行，整块横向滚动
 
 **还没有**（按路线图排期）
 
-- 多窗口（当前只有单窗口单文档）、代码块不折行与语法高亮（M1.5，下一步）
-- 表格、任务列表、删除线等 GFM 语法（M2）
+- 表格、任务列表、删除线等 GFM 语法（M2，下一步）
 - 文件树、标签页、大纲、数学公式、图表（M3）
 - 主题引擎、HTML / PDF 导出（M4）
 - 插件系统（M5）
@@ -78,20 +79,17 @@ Linux 上跑端到端测试需要一个显示环境：`xvfb-run -a pnpm test:e2e
 
 每次推到 `main`，[Actions](https://github.com/zning1994/open-typo-md/actions) 里会产出三个平台的安装包。
 注意页面上显示的 `typo-macos-arm64-dmg` 这类名字是**产物包**的名称，不是文件名 ——
-GitHub 一律把产物打成 zip，解开之后才是 `Typo-0.1.0-arm64.dmg`。
-
-（下面出现的文件名与应用名会随 M1.5 的改名一起变成 `BrainforgeTypo-*`，
-届时这一节会同步更新。）
+GitHub 一律把产物打成 zip，解开之后才是 `BrainforgeTypo-0.1.0-arm64.dmg`。
 
 **这些包都没有签名**，因为签名证书还没配（M6 的发布工程内容，见 docs/design/07 §7）。
 所以首次打开会被系统拦下来：
 
-**macOS** —— 提示「"Typo" 已损坏，无法打开。你应该将它移到废纸篓」。
+**macOS** —— 提示「"Brainforge Typo" 已损坏，无法打开。你应该将它移到废纸篓」。
 应用没有损坏，这是 Gatekeeper 对未签名应用的（相当误导人的）说法。
-把应用拖进 `/Applications` 之后执行：
+把应用拖进 `/Applications` 之后执行（路径含空格，引号不能省）：
 
 ```bash
-xattr -dr com.apple.quarantine /Applications/Typo.app
+xattr -dr com.apple.quarantine "/Applications/Brainforge Typo.app"
 ```
 
 **Windows** —— SmartScreen 提示「Windows 已保护你的电脑」，点「更多信息」→「仍要运行」。
@@ -99,7 +97,7 @@ xattr -dr com.apple.quarantine /Applications/Typo.app
 **Linux** —— AppImage 需要先加执行权限：
 
 ```bash
-chmod +x Typo-*.AppImage && ./Typo-*.AppImage
+chmod +x BrainforgeTypo-*.AppImage && ./BrainforgeTypo-*.AppImage
 ```
 
 ## 仓库结构

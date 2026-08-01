@@ -21,6 +21,7 @@ import {
   type MarkdownDialect,
   type OutlineItem,
 } from '@typo/markdown'
+import { codeBlockScrollSync } from './code-block.js'
 import { currentHeadingLevel, typoCommands } from './commands.js'
 import { livePreviewConfig, type AssetResolver } from './config.js'
 import { linkInteraction } from './links.js'
@@ -97,6 +98,7 @@ export class TypoEditor {
       this.readOnlyCompartment.of(EditorState.readOnly.of(options.readOnly ?? false)),
       typoTheme(),
       typoCommands(),
+      codeBlockScrollSync(),
       search({ top: true }),
       // 正文必须自动折行 —— 这是散文编辑器，不是代码编辑器
       EditorView.lineWrapping,
