@@ -10,7 +10,9 @@ import { ConflictError, UnsupportedEncodingError } from '@typo/plugin-api'
 import { CHANNELS, EVENTS, type IpcFailure } from '../shared/channels.js'
 import { registerAppHandler, registerAppSchemePrivileges } from './app-protocol.js'
 import { registerAssetHandler, registerAssetScheme } from './asset-protocol.js'
+import { claimDrafts, dropDraft, dropDraftById, writeDraft } from './drafts.js'
 import { readTextFile, saveAttachment, writeTextFile } from './fs-service.js'
+import { ignoreNextWrite, watchFor } from './watcher.js'
 import { buildMenu } from './menu.js'
 import { assertAllowed, grantDirectory, grantFile } from './path-guard.js'
 import { getSetting, setSetting } from './settings.js'
@@ -100,9 +102,17 @@ function applyContentSecurityPolicy(): void {
 
 function registerIpc(): void {
   handle(CHANNELS.fsRead, async (_sender, target: string) => readTextFile(target))
-  handle(CHANNELS.fsWrite, async (_sender, target: string, text: string, options) =>
-    writeTextFile(target, text, options as Parameters<typeof writeTextFile>[2]),
-  )
+  handle(CHANNELS.fsWrite, async (sender, target: string, text: string, options) => {
+    const result = await writeTextFile(
+      target,
+      text,
+      options as Parameters<typeof writeTextFile>[2],
+    )
+    // 登记「这份内容是我们自己写的」，否则监听器会把每一次保存
+    // 都报成「文件被外部修改」（见 watcher.ts 的说明）
+    if (sender) ignoreNextWrite(sender, result.hash)
+    return result
+  })
   handle(CHANNELS.fsExists, async (_sender, target: string) => {
     try {
       await assertAllowed(target)
@@ -116,6 +126,17 @@ function registerIpc(): void {
     async (_sender, baseDir: string, mime: string, bytes: Uint8Array) =>
       saveAttachment(baseDir, mime, bytes),
   )
+  handle(CHANNELS.fsWatch, async (sender, target: string | null) => {
+    if (sender) await watchFor(sender, target)
+  })
+
+  handle(CHANNELS.draftWrite, async (_sender, key: string, text: string, meta) =>
+    writeDraft(key, text, meta as Parameters<typeof writeDraft>[2]),
+  )
+  handle(CHANNELS.draftDrop, async (_sender, key: string) => dropDraft(key))
+  handle(CHANNELS.draftClaim, async () => claimDrafts())
+  handle(CHANNELS.draftDiscard, async (_sender, id: string) => dropDraftById(id))
+
   handle(CHANNELS.fsList, async () => {
     // 文件树是 M3 的内容，先明确报错而不是返回一个骗人的空数组
     throw new Error('目录浏览尚未实现（M3）')

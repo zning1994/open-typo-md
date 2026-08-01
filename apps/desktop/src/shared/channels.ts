@@ -4,6 +4,8 @@
  * 架构 01 §5 的约定：通道名集中在这里，一律 invoke/handle（请求-响应），
  * 双端共用类型。散落的字符串通道名是这类应用最容易腐烂的地方。
  */
+import type { Draft, DraftMeta } from '../main/drafts.js'
+import type { FileChangeNotice } from '../main/watcher.js'
 import type {
   ConfirmOptions,
   DirEntry,
@@ -20,6 +22,11 @@ export const CHANNELS = {
   fsList: 'fs:list',
   fsExists: 'fs:exists',
   fsSaveAttachment: 'fs:save-attachment',
+  fsWatch: 'fs:watch',
+  draftWrite: 'draft:write',
+  draftDrop: 'draft:drop',
+  draftClaim: 'draft:claim',
+  draftDiscard: 'draft:discard',
   dialogOpen: 'dialog:open',
   dialogSave: 'dialog:save',
   dialogConfirm: 'dialog:confirm',
@@ -39,7 +46,11 @@ export const EVENTS = {
   openFile: 'event:open-file',
   /** 窗口即将关闭，renderer 需要回应能否关闭（有未保存内容时要拦下）。 */
   requestClose: 'event:request-close',
+  /** 正在编辑的文件在磁盘上变了（外部程序改的，不是我们自己保存的）。 */
+  fileChanged: 'event:file-changed',
 } as const
+
+export type { Draft, DraftMeta, FileChangeNotice }
 
 export type MenuCommand =
   | 'file.open'
@@ -67,6 +78,22 @@ export interface TypoBridgeApi {
     exists(path: string): Promise<boolean>
     /** 存图片，返回相对 baseDir 的 POSIX 路径。 */
     saveAttachment(baseDir: string, mime: string, bytes: Uint8Array): Promise<string>
+    /** 监听当前窗口打开的文件；传 null 表示停止监听。 */
+    watch(path: string | null): Promise<void>
+  }
+  drafts: {
+    write(key: string, text: string, meta: DraftMeta): Promise<void>
+    drop(key: string): Promise<void>
+    /**
+     * 认领可恢复的草稿。**整个应用生命周期里只有第一次调用会返回内容**，
+     * 之后一律返回空数组。
+     *
+     * 为什么要这条规则：恢复提示只该出现一次，而多窗口下每个渲染进程启动时
+     * 都会问一遍 —— 没有这条约束，开三个窗口就会弹三次「上次未正常退出」。
+     * 把「只有一次」做进协议里，比让每个渲染进程自己想办法协调可靠得多。
+     */
+    claim(): Promise<Draft[]>
+    discard(id: string): Promise<void>
   }
   dialog: {
     open(options?: OpenDialogOptions): Promise<string[] | null>
@@ -93,6 +120,7 @@ export interface TypoBridgeApi {
     menuCommand(handler: (command: MenuCommand) => void): () => void
     openFile(handler: (path: string) => void): () => void
     requestClose(handler: () => void): () => void
+    fileChanged(handler: (notice: FileChangeNotice) => void): () => void
   }
   /**
    * 回应 requestClose：true 表示可以关。

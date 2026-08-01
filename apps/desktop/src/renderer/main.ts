@@ -70,7 +70,32 @@ const editor = new TypoEditor({
   },
 })
 
-const controller = new DocumentController(host, editor, render)
+/**
+ * 本窗口的稳定标识，用作未命名文档的草稿 key。
+ *
+ * 不能用「窗口序号」之类会变的东西：崩溃重启后序号全变了，
+ * 旧草稿就成了永远认不出来的孤儿。随机 id 存进 sessionStorage ——
+ * 它随窗口活、随窗口死，正是我们要的生命周期。
+ */
+function windowKey(): string {
+  const existing = sessionStorage.getItem('typo:window-key')
+  if (existing) return existing
+  const created = crypto.randomUUID()
+  sessionStorage.setItem('typo:window-key', created)
+  return created
+}
+
+const controller = new DocumentController(
+  host,
+  editor,
+  render,
+  {
+    watch: (path) => api.fs.watch(path),
+    writeDraft: (key, text, meta) => api.drafts.write(key, text, meta),
+    dropDraft: (key) => api.drafts.drop(key),
+  },
+  windowKey(),
+)
 
 function render(state: DocumentState): void {
   currentPath = state.path
@@ -80,6 +105,7 @@ function render(state: DocumentState): void {
   const bits = [state.meta.encoding.toUpperCase(), state.meta.eol.toUpperCase()]
   if (state.meta.mixedEol) bits.push('混合换行')
   if (state.readOnly) bits.push('只读')
+  if (state.deleted) bits.push('文件已删除')
   statusMeta.textContent = bits.join(' · ')
 
   document.title = `${state.dirty ? '● ' : ''}${state.name} — Brainforge Typo`
@@ -151,6 +177,10 @@ api.on.openFile((path) => {
     }
   })()
 })
+api.on.fileChanged((notice) => {
+  void controller.handleExternalChange(notice.hash, notice.deleted)
+})
+
 api.on.requestClose(() => {
   void controller.canClose().then((canClose) => api.respondClose(canClose))
 })
@@ -160,5 +190,40 @@ statusMode.addEventListener('click', () => {
   editor.focus()
 })
 
+/**
+ * 崩溃恢复（docs/design/04 §4）。
+ *
+ * `claim` 在整个应用生命周期里只有第一次调用会返回内容，所以多窗口下
+ * 这段代码可以无脑跑，不会弹好几次。
+ */
+async function offerDraftRecovery(): Promise<void> {
+  const drafts = await api.drafts.claim()
+  if (drafts.length === 0) return
+
+  const names = drafts.map((d) => d.path ?? '未命名文档').join('\n')
+  const choice = await host.dialog.confirm({
+    message: '上次未正常退出，有未保存的修改',
+    detail: `${names}\n\n恢复之后仍然需要你手动保存。`,
+    buttons: ['恢复', '丢弃', '暂不处理'],
+    defaultId: 0,
+    cancelId: 2,
+  })
+
+  if (choice === 1) {
+    await Promise.all(drafts.map((d) => api.drafts.discard(d.id)))
+    return
+  }
+  // 「暂不处理」：草稿留在原地，下次启动还会问。这比默默丢掉安全
+  if (choice !== 0) return
+
+  const [first, ...rest] = drafts
+  if (first) await controller.restoreDraft(first.text, first.path)
+  // 一窗一文档，剩下的各开一个窗口 —— 标签页在 M4.5，搁置
+  for (const draft of rest) {
+    if (draft.path) await api.window.create(draft.path)
+  }
+}
+
 render(controller.state())
 editor.focus()
+void offerDraftRecovery()

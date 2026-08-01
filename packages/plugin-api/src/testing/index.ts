@@ -59,6 +59,8 @@ export interface MemoryHost extends HostBridge {
   readonly dialogLog: string[]
   /** 预置 confirm 的返回值队列。 */
   answerConfirmWith(...indices: number[]): void
+  /** 预置「另存为」对话框的返回路径队列。不预置时返回 null（等同用户取消）。 */
+  answerSaveWith(...paths: string[]): void
 }
 
 export function createMemoryHost(options: { os?: 'mac' | 'win' | 'linux' } = {}): MemoryHost {
@@ -67,6 +69,7 @@ export function createMemoryHost(options: { os?: 'mac' | 'win' | 'linux' } = {})
   const settings = new Map<string, unknown>()
   const dialogLog: string[] = []
   const confirmAnswers: number[] = []
+  const saveAnswers: string[] = []
   let clock = 1_000
 
   const touch = () => (clock += 1_000)
@@ -139,7 +142,7 @@ export function createMemoryHost(options: { os?: 'mac' | 'win' | 'linux' } = {})
       },
       async saveFile() {
         dialogLog.push('saveFile')
-        return null
+        return saveAnswers.shift() ?? null
       },
       async confirm(opts) {
         dialogLog.push(`confirm:${opts.message}`)
@@ -190,6 +193,9 @@ export function createMemoryHost(options: { os?: 'mac' | 'win' | 'linux' } = {})
     dialogLog,
     answerConfirmWith(...indices) {
       confirmAnswers.push(...indices)
+    },
+    answerSaveWith(...paths) {
+      saveAnswers.push(...paths)
     },
   }
   return host

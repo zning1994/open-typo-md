@@ -42,6 +42,13 @@ const api: TypoBridgeApi = {
     exists: (path) => invoke(CHANNELS.fsExists, path),
     saveAttachment: (baseDir, mime, bytes) =>
       invoke(CHANNELS.fsSaveAttachment, baseDir, mime, bytes),
+    watch: (path) => invoke(CHANNELS.fsWatch, path),
+  },
+  drafts: {
+    write: (key, text, meta) => invoke(CHANNELS.draftWrite, key, text, meta),
+    drop: (key) => invoke(CHANNELS.draftDrop, key),
+    claim: () => invoke(CHANNELS.draftClaim),
+    discard: (id) => invoke(CHANNELS.draftDiscard, id),
   },
   dialog: {
     open: (options) => invoke(CHANNELS.dialogOpen, options),
@@ -70,6 +77,8 @@ const api: TypoBridgeApi = {
     openFile: (handler) => subscribe(EVENTS.openFile, handler as (...args: never[]) => void),
     requestClose: (handler) =>
       subscribe(EVENTS.requestClose, handler as (...args: never[]) => void),
+    fileChanged: (handler) =>
+      subscribe(EVENTS.fileChanged, handler as (...args: never[]) => void),
   },
   respondClose: (canClose) => ipcRenderer.send('respond-close', canClose),
 }

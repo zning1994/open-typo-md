@@ -12,6 +12,7 @@ import { EVENTS } from '../shared/channels.js'
 import { APP_ORIGIN } from './app-protocol.js'
 import { getSetting, setSetting } from './settings.js'
 import { grantFile } from './path-guard.js'
+import { stopWatching } from './watcher.js'
 
 const DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
 
@@ -144,6 +145,9 @@ export async function createWindow(options: CreateWindowOptions = {}): Promise<B
 
   window.on('resized', () => rememberBounds(window))
   window.on('moved', () => rememberBounds(window))
+
+  // 窗口没了就把它的文件监听一起撤掉，否则 watcher 会攥着一个已销毁的窗口
+  window.on('closed', () => stopWatching(window))
 
   if (DEV_SERVER_URL) {
     void window.loadURL(DEV_SERVER_URL)
