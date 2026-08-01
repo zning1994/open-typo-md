@@ -118,3 +118,52 @@ describe('块级装饰的结构不变量', () => {
     }
   })
 })
+
+describe('Mermaid 图表', () => {
+  const DIAGRAM = '前文\n\n```mermaid\ngraph TD\n  A --> B\n```\n\n后文'
+
+  /**
+   * 块级装饰里被 widget **替换掉**的区间。
+   *
+   * 必须排掉零宽的点 widget —— 代码块的语言选择器就是那种，
+   * 它挂在内容首行的行首，`from === to`，不替换任何东西。
+   */
+  function widgets(doc: string, selection: number): Array<[number, number]> {
+    const state = mkState(doc, { selection })
+    const set = computeBlockDecorations(state)
+    const out: Array<[number, number]> = []
+    const iter = set.iter()
+    while (iter.value) {
+      if (iter.to > iter.from && (iter.value.spec as { widget?: unknown }).widget) {
+        out.push([iter.from, iter.to])
+      }
+      iter.next()
+    }
+    return out
+  }
+
+  it('整块换成一个 widget，围栏和内容一起消失', () => {
+    const found = widgets(DIAGRAM, 0)
+    expect(found).toHaveLength(1)
+    const [from, to] = found[0]!
+    expect(DIAGRAM.slice(from, to)).toBe('```mermaid\ngraph TD\n  A --> B\n```')
+  })
+
+  it('光标进块时还原成源码 —— 图画错了总得能改', () => {
+    expect(widgets(DIAGRAM, DIAGRAM.indexOf('graph TD'))).toEqual([])
+  })
+
+  it('空图不渲染，留着源码', () => {
+    expect(widgets('前文\n\n```mermaid\n```\n', 0)).toEqual([])
+  })
+
+  it('别的语言不受影响，仍然走「藏围栏、留内容」那条路', () => {
+    const doc = '前文\n\n```js\nconst a = 1\n```\n\n后文'
+    expect(widgets(doc, 0)).toEqual([])
+    expect(hidden(doc, 0).length).toBe(2) // 开闭两条围栏各被盖住
+  })
+
+  it('大小写不敏感', () => {
+    expect(widgets('前文\n\n```Mermaid\ngraph TD\n  A --> B\n```\n', 0)).toHaveLength(1)
+  })
+})

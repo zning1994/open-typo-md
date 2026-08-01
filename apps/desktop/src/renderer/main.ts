@@ -20,6 +20,7 @@ import { MENU_COMMAND_INFO, type Command } from './commands.js'
 import { DocumentController, type DocumentState } from './document.js'
 import { OutlinePanel } from './outline.js'
 import { CommandPalette } from './palette.js'
+import { ThemeManager, THEMES } from './theme.js'
 import { createAssetResolver, createHostBridge, dirnameOf, getBridgeApi } from './host.js'
 import './styles.css'
 
@@ -140,6 +141,8 @@ async function openFileFlow(forceNewWindow: boolean): Promise<void> {
   }
 }
 
+const themes = new ThemeManager(host.settings)
+
 const outline = new OutlinePanel(workspace, {
   items: () => editor.outline(),
   cursor: () => editor.cursor(),
@@ -166,6 +169,9 @@ const MENU_ACTIONS: Record<MenuCommand, () => void> = {
     editor.focus()
   },
   'view.commandPalette': () => palette.toggle(),
+  ...(Object.fromEntries(
+    THEMES.map((t) => [`view.theme.${t.id}`, () => void themes.select(t.id)]),
+  ) as Record<`view.theme.${(typeof THEMES)[number]['id']}`, () => void>),
   'edit.find': () => {
     openSearchPanel(editor.view)
   },
@@ -262,4 +268,5 @@ async function offerDraftRecovery(): Promise<void> {
 
 render(controller.state())
 editor.focus()
+void themes.init()
 void offerDraftRecovery()

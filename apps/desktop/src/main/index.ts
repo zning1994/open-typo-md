@@ -12,7 +12,7 @@ import { registerAppHandler, registerAppSchemePrivileges } from './app-protocol.
 import { registerAssetHandler, registerAssetScheme } from './asset-protocol.js'
 import { claimDrafts, dropDraft, dropDraftById, writeDraft } from './drafts.js'
 import { readTextFile, saveAttachment, writeTextFile } from './fs-service.js'
-import { ignoreNextWrite, watchFor } from './watcher.js'
+import { watchFor } from './watcher.js'
 import { buildMenu } from './menu.js'
 import { assertAllowed, grantDirectory, grantFile } from './path-guard.js'
 import { getSetting, setSetting } from './settings.js'
@@ -102,17 +102,11 @@ function applyContentSecurityPolicy(): void {
 
 function registerIpc(): void {
   handle(CHANNELS.fsRead, async (_sender, target: string) => readTextFile(target))
-  handle(CHANNELS.fsWrite, async (sender, target: string, text: string, options) => {
-    const result = await writeTextFile(
-      target,
-      text,
-      options as Parameters<typeof writeTextFile>[2],
-    )
-    // 登记「这份内容是我们自己写的」，否则监听器会把每一次保存
-    // 都报成「文件被外部修改」（见 watcher.ts 的说明）
-    if (sender) ignoreNextWrite(sender, result.hash)
-    return result
-  })
+  handle(CHANNELS.fsWrite, async (_sender, target: string, text: string, options) =>
+    // 「这是我们自己写的」由 fs-service 在**动手写之前**登记 —— 放在这里
+    // （写完之后）会输给文件系统事件的去抖窗口，见 watcher.ts 文件头第 2 条
+    writeTextFile(target, text, options as Parameters<typeof writeTextFile>[2]),
+  )
   handle(CHANNELS.fsExists, async (_sender, target: string) => {
     try {
       await assertAllowed(target)

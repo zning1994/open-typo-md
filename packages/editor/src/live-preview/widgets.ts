@@ -43,6 +43,24 @@ export class RuleWidget extends WidgetType {
 }
 
 /**
+ * 让「整块替换」型的 widget 点一下就还原成源码。
+ *
+ * 为什么需要它：块级 widget 盖住了原来那几行，浏览器把点击落在 widget 内部，
+ * CodeMirror 映射出来的位置未必落进被替换的区间里 —— 表现就是**点了没反应**，
+ * 用户只能靠方向键摸进去。而「点一下改它」是看到一张图/一个公式之后
+ * 最自然的动作。
+ *
+ * `posAtDOM` 给的是被替换区间的起点，落在显形判定的闭区间内，正好。
+ */
+export function revealOnClick(view: EditorView, host: HTMLElement): void {
+  host.addEventListener('mousedown', (event) => {
+    event.preventDefault()
+    view.dispatch({ selection: { anchor: view.posAtDOM(host) } })
+    view.focus()
+  })
+}
+
+/**
  * 代码块右上角的语言选择器。
  *
  * 之前这里是纯 CSS 的 `::after { content: attr(data-typo-lang) }`，只能看不能点。

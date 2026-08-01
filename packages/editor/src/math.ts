@@ -18,6 +18,7 @@
  * 而不是一片空白或者一个异常。
  */
 import { EditorView, WidgetType } from '@codemirror/view'
+import { revealOnClick } from './live-preview/widgets.js'
 
 type KatexModule = typeof import('katex')
 
@@ -65,9 +66,10 @@ export class MathWidget extends WidgetType {
     return other.tex === this.tex && other.display === this.display
   }
 
-  toDOM(): HTMLElement {
+  toDOM(view: EditorView): HTMLElement {
     const host = document.createElement(this.display ? 'div' : 'span')
     host.className = this.display ? 'cm-typo-math cm-typo-math--block' : 'cm-typo-math'
+    revealOnClick(view, host)
 
     if (katexReady) {
       render(katexReady, host, this.tex, this.display)
@@ -89,9 +91,9 @@ export class MathWidget extends WidgetType {
     return host
   }
 
-  override ignoreEvent(): boolean {
-    // 让点击冒泡给编辑器，这样点公式能把光标放到对应源码位置
-    return false
+  override ignoreEvent(event: Event): boolean {
+    // mousedown 我们自己处理（把光标放进公式里），其余交给编辑器
+    return event.type === 'mousedown'
   }
 }
 

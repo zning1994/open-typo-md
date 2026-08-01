@@ -12,6 +12,28 @@ files:
   - dist/**
   - package.json
 
+  # —— 下面两条排除，各自都实测省下了可观的体积 ——
+
+  # 1. node_modules 整个不要。
+  #
+  # electron-builder **默认会把生产依赖复制进 app.asar**，`files` 里列了
+  # `dist/**` 也拦不住它 —— 那是两套机制。上面那句「不需要把 node_modules
+  # 装进包里」原来只是句愿望，实际一直在打包：接 mermaid 之后
+  # app.asar 里躺着 8298 个 node_modules 条目、145MB。
+  #
+  # 之所以能整个删掉，是因为三个进程的产物都是自包含的：
+  # 渲染层由 Vite 打成 chunk，main/preload 由 esbuild 打成 CJS，
+  # 运行时不 require 任何外部包。加回任何一条运行时依赖之前，
+  # 必须先确认它是否需要在这里开口子。
+  - '!node_modules/**'
+
+  # 2. source map 不进安装包。
+  #
+  # 它们占了渲染层产物的七成上下（接 mermaid 之后 18MB 对 5.5MB），
+  # 而打包版的开发者工具是关着的，用户手里根本用不上。
+  # 构建输出里仍然生成，本地调试与 CI 产物照常可用。
+  - '!dist/**/*.map'
+
 asar: true
 
 extraMetadata:

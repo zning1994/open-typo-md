@@ -24,6 +24,7 @@ import {
   resolveCodeLanguage,
 } from '@typo/markdown'
 import { MathWidget } from '../math.js'
+import { MermaidWidget } from '../mermaid.js'
 import { CodeLanguageWidget } from './widgets.js'
 import { delimiterRowOf, tableIsActive } from './tables.js'
 
@@ -143,6 +144,37 @@ function closingFrom(state: EditorState, node: SyntaxNode, last: { from: number 
   return closes ? Math.max(node.from, last.from - 1) : node.to
 }
 
+/** 认得的图表语言。目前只有 mermaid；将来加 plantuml 之类从这里扩。 */
+function resolveDiagram(info: string): boolean {
+  return info.trim().toLowerCase() === 'mermaid'
+}
+
+/**
+ * 图表块：整块换成渲染结果。
+ *
+ * 跟块级公式同一个形状，包括「光标进块即还原成源码」——
+ * 图画错了总得能改，而围栏是删掉整块的唯一抓手。
+ */
+function renderDiagram(
+  state: EditorState,
+  node: SyntaxNode,
+  firstLine: { number: number; to: number },
+  lastLine: { number: number; from: number; text: string },
+  ranges: Range<Decoration>[],
+): void {
+  const closes = /^\s*[`~]{3,}\s*$/.test(lastLine.text)
+  const contentEnd = closes ? Math.max(firstLine.to, lastLine.from - 1) : node.to
+  const code = state.doc.sliceString(firstLine.to + 1, contentEnd).trim()
+  if (!code) return // 空图渲染出来是个空盒子，不如留着源码
+
+  ranges.push(
+    Decoration.replace({ block: true, widget: new MermaidWidget(code) }).range(
+      node.from,
+      node.to,
+    ),
+  )
+}
+
 function computeBlockDecorations(state: EditorState): DecorationSet {
   const ranges: Range<Decoration>[] = []
   const doc = state.doc
@@ -178,6 +210,13 @@ function computeBlockDecorations(state: EditorState): DecorationSet {
       if (active) {
         // 显形状态下不藏，只给首行挂角标（此时角标是多余的，去掉更干净）
         return
+      }
+
+      // ```mermaid：整块换成图。放在藏围栏之前 —— 一旦渲染成图，
+      // 围栏和内容一起消失，下面那套「藏围栏 + 留内容」就不适用了
+      if (resolveDiagram(info)) {
+        renderDiagram(state, node.node, firstLine, lastLine, ranges)
+        return false
       }
 
       const closes = /^\s*[`~]{3,}\s*$/.test(lastLine.text)

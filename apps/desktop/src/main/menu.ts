@@ -108,6 +108,17 @@ export function buildMenu(actions: MenuActions): void {
           accelerator: 'CmdOrCtrl+Shift+P',
           click: send('view.commandPalette'),
         },
+        {
+          label: '主题',
+          submenu: [
+            { label: '跟随系统', click: send('view.theme.auto') },
+            { label: '浅色', click: send('view.theme.light') },
+            { label: '深色', click: send('view.theme.dark') },
+            { label: '护眼（Sepia）', click: send('view.theme.sepia') },
+            { label: '高对比', click: send('view.theme.high-contrast') },
+            { label: 'GitHub', click: send('view.theme.github') },
+          ],
+        },
         { type: 'separator' },
         { role: 'resetZoom', label: '实际大小' },
         { role: 'zoomIn', label: '放大' },

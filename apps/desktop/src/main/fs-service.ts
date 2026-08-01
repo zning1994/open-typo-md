@@ -28,6 +28,7 @@ import {
 } from '@typo/plugin-api'
 import { decodeText, encodeText } from '@typo/markdown/text'
 import { assertAllowed } from './path-guard.js'
+import { noteSelfWrite } from './watcher.js'
 
 /** 超过这个体积拒绝以编辑器打开（docs/design/04 §8）。 */
 export const MAX_FILE_BYTES = 50 * 1024 * 1024
@@ -95,6 +96,10 @@ export async function writeTextFile(
     }
   }
 
+  // 在**动手写之前**登记，否则文件系统事件会跑在登记前面，
+  // 自己的保存被报成外部修改（见 watcher.ts 文件头第 2 条）
+  noteSelfWrite(hashBytes(bytes))
+
   const dir = path.dirname(real)
   const tmp = path.join(dir, `.${path.basename(real)}.tmp-${randomBytes(6).toString('hex')}`)
 
@@ -139,6 +144,7 @@ export async function writeTextFileNonAtomic(
 ): Promise<WriteResult> {
   const real = await assertAllowed(target)
   const bytes = encodeText(text, options.meta)
+  noteSelfWrite(hashBytes(bytes))
   await writeFile(real, bytes)
   const info = await stat(real)
   return { mtimeMs: info.mtimeMs, hash: hashBytes(bytes) }

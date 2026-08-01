@@ -14,6 +14,7 @@ import {
   EntityWidget,
   ImageWidget,
   MathWidget,
+  MermaidWidget,
   RuleWidget,
   TaskCheckboxWidget,
 } from '@typo/editor'
@@ -76,6 +77,7 @@ export function decorationsOf(state: EditorState) {
  *   ☐ / ☑        任务列表复选框
  *   ⟦img:src|alt⟧  图片
  *   ⟦math:tex⟧   数学公式
+ *   ⟦mermaid⟧    图表
  *   实体直接显示解码后的字符
  */
 export function preview(doc: string, options: StateOptions = {}): string {
@@ -109,6 +111,7 @@ function renderPreview(doc: string, options: StateOptions): string {
     else if (widget instanceof TaskCheckboxWidget) out += widget.checked ? '☑' : '☐'
     else if (widget instanceof EntityWidget) out += widget.text
     else if (widget instanceof MathWidget) out += `⟦math:${widget.tex}⟧`
+    else if (widget instanceof MermaidWidget) out += `⟦mermaid⟧`
     else if (widget instanceof ImageWidget) out += `⟦img:${widget.src}|${widget.alt}⟧`
     pos = to
   }

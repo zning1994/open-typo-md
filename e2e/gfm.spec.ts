@@ -164,3 +164,49 @@ test.describe('数学公式', () => {
     await expect(page.locator('.cm-typo-math')).toHaveCount(0)
   })
 })
+
+test.describe('Mermaid 图表', () => {
+  const DIAGRAM = '前文\n\n```mermaid\ngraph TD\n  A[开始] --> B[结束]\n```\n\n后文'
+
+  test('渲染成 SVG', async ({ page }) => {
+    await resetDoc(page, DIAGRAM)
+    // mermaid 近 3MB，第一次要等 chunk 下来
+    await expect(page.locator('.cm-typo-mermaid svg')).toHaveCount(1, { timeout: 30_000 })
+    await expect(page.locator('.cm-typo-mermaid')).not.toHaveClass(/--pending/)
+  })
+
+  test('光标进块时还原成源码', async ({ page }) => {
+    await resetDoc(page, DIAGRAM)
+    await expect(page.locator('.cm-typo-mermaid svg')).toHaveCount(1, { timeout: 30_000 })
+
+    await page.locator('.cm-typo-mermaid').click()
+    await expect(page.locator('.cm-typo-mermaid')).toHaveCount(0)
+    expect(await docText(page)).toContain('```mermaid')
+  })
+
+  test('语法写错时显示源码，不留白、不往 body 上塞错误 SVG', async ({ page }) => {
+    // suppressErrorRendering —— 否则改一次错一次，页面底部会攒一堆孤儿元素
+    await resetDoc(page, '前文\n\n```mermaid\n这不是合法的图\n```\n\n后文')
+
+    const broken = page.locator('.cm-typo-mermaid--broken')
+    await expect(broken).toHaveCount(1, { timeout: 30_000 })
+    await expect(broken).toContainText('这不是合法的图')
+    // body 上没有多出来的 mermaid 元素
+    expect(await page.locator('body > [id^="typo-mermaid"]').count()).toBe(0)
+  })
+
+  test('源码保真：图表一个字节都没变', async ({ page }) => {
+    // 图的正文刻意不带缩进：代码块里回车会沿用上一行的缩进（那是**对的**
+    // 输入行为），照着敲一段带缩进的文本会得到不同的结果
+    const flat = '前文\n\n```mermaid\ngraph TD\nA --> B\n```\n\n后文'
+    await resetDoc(page)
+    await page.keyboard.type(flat)
+    expect(await docText(page)).toBe(flat)
+  })
+
+  test('普通代码块不受影响', async ({ page }) => {
+    await resetDoc(page, '前文\n\n```js\nconst a = 1\n```\n\n后文')
+    await expect(page.locator('.cm-typo-mermaid')).toHaveCount(0)
+    await expect(page.locator('.cm-typo-code-block').first()).toBeVisible()
+  })
+})

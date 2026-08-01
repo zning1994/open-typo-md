@@ -86,17 +86,20 @@ test('自己保存不会惊动自己', async ({ page }) => {
     })
   })
 
-  // 走**产品保存文件用的同一个 IPC 通道**，登记 selfWritten 的就是它
-  await doc.evaluate(
-    async ({ path, text }) => {
-      await window.typo.fs.write(path, text, {
-        meta: { encoding: 'utf8', eol: 'lf', mixedEol: false },
-        expectedHash: null,
-      })
-    },
-    { path: target, text: '我们自己写的内容\n' },
-  )
-  expect(await readFile(target, 'utf8')).toContain('我们自己写的内容')
+  // 走**产品保存文件用的同一个 IPC 通道**。连写三次：单次通过可能只是
+  // 侥幸赢了去抖窗口，连续几次才能把「登记发生在写入之前」真正验出来
+  for (const n of [1, 2, 3]) {
+    await doc.evaluate(
+      async ({ path, text }) => {
+        await window.typo.fs.write(path, text, {
+          meta: { encoding: 'utf8', eol: 'lf', mixedEol: false },
+          expectedHash: null,
+        })
+      },
+      { path: target, text: `我们自己写的内容 ${n}\n` },
+    )
+  }
+  expect(await readFile(target, 'utf8')).toContain('我们自己写的内容 3')
 
   // 去抖窗口 120ms，给足时间让误报有机会发生
   await page.waitForTimeout(800)

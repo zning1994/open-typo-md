@@ -60,6 +60,7 @@ export type MenuCommand =
   | 'view.toggleSource'
   | 'view.toggleOutline'
   | 'view.commandPalette'
+  | `view.theme.${'auto' | 'light' | 'dark' | 'sepia' | 'high-contrast' | 'github'}`
   | 'edit.find'
   | 'format.bold'
   | 'format.italic'

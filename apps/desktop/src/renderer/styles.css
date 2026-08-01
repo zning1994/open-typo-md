@@ -1,36 +1,11 @@
 /*
- * 外壳样式。
+ * 外壳布局。
  *
- * 编辑区自身的样式由 @typo/editor 的 baseTheme 提供；这里只管窗口布局与状态栏。
- * 所有颜色都用 CSS 变量，M4 的主题引擎会接管它们（docs/design/05）。
+ * 编辑区自身的样式由 @typo/editor 的 baseTheme 提供；
+ * **颜色与排版变量全部在 themes.css 里**，这里只用不定义 ——
+ * 两处都定义的话，改主题时总有一处被漏掉。
  */
-:root {
-  --typo-bg: #ffffff;
-  --typo-fg: #24292f;
-  --typo-fg-muted: #6e7781;
-  --typo-accent: #0969da;
-  --typo-border: #d0d7de;
-  --typo-code-bg: #f0f2f4;
-  --typo-selection: #b4d5fe;
-  --typo-marker-fg: #b0b6bd;
-  --typo-danger: #cf222e;
-  --typo-status-bg: #f6f8fa;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --typo-bg: #0d1117;
-    --typo-fg: #e6edf3;
-    --typo-fg-muted: #8b949e;
-    --typo-accent: #4493f8;
-    --typo-border: #30363d;
-    --typo-code-bg: #161b22;
-    --typo-selection: #1f4b7f;
-    --typo-marker-fg: #6e7681;
-    --typo-danger: #f85149;
-    --typo-status-bg: #161b22;
-  }
-}
+@import './themes.css';
 
 * {
   box-sizing: border-box;
@@ -42,13 +17,8 @@ body {
   height: 100%;
   background: var(--typo-bg);
   color: var(--typo-fg);
-  font-family:
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    'PingFang SC',
-    'Microsoft YaHei',
-    sans-serif;
+  /* 走契约变量而不是再写一份字体栈 —— Sepia 主题换衬线体靠的就是它 */
+  font-family: var(--typo-font-body);
 }
 
 body {

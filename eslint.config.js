@@ -32,7 +32,9 @@ export default tseslint.config(
   },
   {
     // 构建脚本是 JS，不走类型规则
-    files: ['scripts/**/*.mjs', 'apps/*/scripts/**/*.mjs'],
+    // 构建脚本与打包产物的冒烟测试：它们的输出**就是**接口（CI 读它），
+    // console 不是调试残留
+    files: ['scripts/**/*.mjs', 'apps/*/scripts/**/*.mjs', 'e2e/**/*.mjs'],
     ...tseslint.configs.disableTypeChecked,
     rules: { 'no-console': 'off' },
   },

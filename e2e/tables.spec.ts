@@ -21,7 +21,13 @@ const TABLE = ['| 姓名 | 城市 |', '| --- | ---: |', '| 张三 | 北京 |', '
   '\n',
 )
 
-/** 逐行输入，避免自动配对之类的输入行为把内容改掉。 */
+/**
+ * 敲出表格并**等装饰真正落地**再返回。
+ *
+ * 最后那次等待不是保险起见：装饰是在语法树就绪之后才应用的，
+ * 敲完立刻断言会跑在它前面 —— 机器空闲时侥幸能过，一忙就翻。
+ * 表头 + 两行数据 = 3 个表格行，分隔行此时应当已经藏起来。
+ */
 async function typeTable(page: import('@playwright/test').Page): Promise<void> {
   await resetDoc(page)
   await page.keyboard.type(TABLE)
@@ -29,6 +35,8 @@ async function typeTable(page: import('@playwright/test').Page): Promise<void> {
   await page.keyboard.press('Enter')
   await page.keyboard.press('Enter')
   await page.keyboard.type('表格后面的段落')
+
+  await expect(page.locator('.cm-typo-tr')).toHaveCount(3)
 }
 
 test('分隔行藏起来，竖线折叠', async ({ page }) => {
@@ -76,6 +84,9 @@ test('中间夹一行普通段落会断成两张表', async ({ page }) => {
   await page.keyboard.type('| a | b |\n| --- | --- |\n| 1 | 2 |\n')
   await page.keyboard.press('Enter')
   await page.keyboard.type('结尾')
+
+  // 同 typeTable：等装饰落地再量尺寸。两张表各 2 行 = 4 个表格行
+  await expect(page.locator('.cm-typo-tr')).toHaveCount(4)
 
   const widths = await page.evaluate(() =>
     Array.from(document.querySelectorAll('.cm-typo-tr')).map((row) =>
@@ -161,6 +172,8 @@ test('表格内容不折行', async ({ page }) => {
   await page.keyboard.press('Enter')
   await page.keyboard.press('Enter')
   await page.keyboard.type('结尾')
+
+  await expect(page.locator('.cm-typo-tr')).toHaveCount(2)
 
   const measured = await page.evaluate(() => {
     const rows = document.querySelectorAll('.cm-typo-tr')

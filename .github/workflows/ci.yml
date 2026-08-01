@@ -173,6 +173,20 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
+      # 打包产物的冒烟测试。
+      #
+      # e2e 跑的是**源码目录**，验不到「装进 asar 之后还能不能起来」——
+      # 而打包配置的改动恰恰只在产物里才出问题。这条是被一个真实事故逼出来的：
+      # electron-builder 默认会把生产依赖复制进 app.asar，`files` 里列了
+      # `dist/**` 也拦不住（那是两套机制），app.asar 一度是 145MB。
+      # 排掉 node_modules 之后必须有东西证明产物还能跑。
+      #
+      # 只在 Linux 上跑：xvfb 现成，而这条验的是打包配置，跟平台无关。
+      - name: 冒烟测试打包产物
+        if: runner.os == 'Linux'
+        working-directory: apps/desktop
+        run: xvfb-run -a node ../../e2e/packaged.smoke.mjs
+
       # 名字里写清平台/架构/格式：Actions 页面上显示的是「产物包」的名称，
       # 不是文件名（GitHub 一律把产物打成 zip），叫得含糊会让人以为安装包没后缀
       - name: 上传安装包

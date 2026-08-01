@@ -10,6 +10,7 @@ import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
 import { tags } from '@lezer/highlight'
 import type { Extension } from '@codemirror/state'
 import { mathTheme } from './math.js'
+import { mermaidTheme } from './mermaid.js'
 
 const v = (name: string, fallback: string) => `var(--typo-${name}, ${fallback})`
 
@@ -240,5 +241,5 @@ export const markdownHighlight = HighlightStyle.define([
 ])
 
 export function typoTheme(): Extension {
-  return [baseTheme, mathTheme, syntaxHighlighting(markdownHighlight)]
+  return [baseTheme, mathTheme, mermaidTheme, syntaxHighlighting(markdownHighlight)]
 }
