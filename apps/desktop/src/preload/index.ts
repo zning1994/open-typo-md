@@ -34,6 +34,24 @@ function subscribe(channel: string, handler: (...args: never[]) => void): () => 
   return () => ipcRenderer.off(channel, listener)
 }
 
+/**
+ * 平台信息必须**同步**拿到。
+ *
+ * 原来这里是 `invoke().then(…)` 之后往已经暴露出去的对象上写值 —— 那行不通：
+ * contextBridge 把值**拷贝**进主世界，事后改 preload 这一侧的原对象，
+ * 渲染进程那边一无所知，永远读到默认值 `'linux'`。
+ *
+ * 后果不只是「macOS 上快捷键提示按 Windows 的样子显示」：快捷键录制会去看
+ * `ctrlKey` 而不是 `metaKey`，⌘⇧B 录出来是 `Shift+B`。
+ *
+ * 所以走 `sendSync`。preload 在页面脚本之前执行，一次同步 IPC 的代价可以忽略，
+ * 换来的是「渲染进程任何时刻读到的都是真值」这个简单得多的契约。
+ */
+const platform = ipcRenderer.sendSync(CHANNELS.platformInfo) as {
+  os: 'mac' | 'win' | 'linux'
+  locale: string
+}
+
 const api: TypoBridgeApi = {
   fs: {
     read: (path) => invoke(CHANNELS.fsRead, path),
@@ -75,11 +93,7 @@ const api: TypoBridgeApi = {
     get: (key) => invoke(CHANNELS.settingsGet, key),
     set: (key, value) => invoke(CHANNELS.settingsSet, key, value),
   },
-  platform: {
-    // 同步值，启动时由 main 注入（见下方 bootstrap）
-    os: 'linux',
-    locale: 'zh-CN',
-  },
+  platform,
   on: {
     menuCommand: (handler) =>
       subscribe(EVENTS.menuCommand, handler as (...args: never[]) => void),
@@ -91,14 +105,6 @@ const api: TypoBridgeApi = {
   },
   respondClose: (canClose) => ipcRenderer.send('respond-close', canClose),
 }
-
-// 平台信息在暴露之前先取到，让渲染进程可以同步读取（用于快捷键提示等）
-void invoke<{ os: 'mac' | 'win' | 'linux'; locale: string }>(CHANNELS.platformInfo)
-  .then((info) => {
-    api.platform.os = info.os
-    api.platform.locale = info.locale
-  })
-  .catch(() => undefined)
 
 contextBridge.exposeInMainWorld('typo', api)
 

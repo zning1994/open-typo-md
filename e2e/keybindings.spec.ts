@@ -45,6 +45,17 @@ test.afterEach(async ({ app, page }) => {
   await expect(page.locator('.typo-settings')).toBeHidden()
 })
 
+test('渲染进程读到的平台信息是真的', async ({ app, page }) => {
+  // 这条在 Linux 上恒绿 —— 它守的是**另外两个平台**。
+  //
+  // 原来 preload 是先暴露一个默认值 `'linux'`、再异步把真值写回去；而
+  // contextBridge 是按值拷贝的，那次写回根本传不过去。Linux 上「默认值恰好是
+  // 对的」，于是它一直躲着，直到 macOS 的快捷键录制把 ⌘ 认成了 Ctrl。
+  const real = await app.evaluate(() => process.platform)
+  const expected = real === 'darwin' ? 'mac' : real === 'win32' ? 'win' : 'linux'
+  expect(await page.evaluate(() => window.typo.platform.os)).toBe(expected)
+})
+
 test('录下一个新组合，原生菜单上的加速键当场就变了', async ({ app, page }) => {
   expect(await acceleratorOf(app, ['格式', '加粗'])).toBe('CmdOrCtrl+B')
 

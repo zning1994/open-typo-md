@@ -27,10 +27,12 @@ export interface SettingsPanelOptions {
   /** 有快捷键可配的命令，按显示顺序。 */
   commands: readonly MenuCommand[]
   /**
-   * 当前平台是不是 macOS。**必须是取值函数，不能是快照** ——
-   * `api.platform.os` 是 preload 异步填上的，模块初始化那一刻它还是默认值
-   * `'linux'`。写成快照的后果不止是显示错：录制时会去看 `ctrlKey` 而不是
-   * `metaKey`，于是 macOS 上按 ⌘⇧B 录出来的是 `Shift+B`。
+   * 当前平台是不是 macOS。它决定录制时看 `metaKey` 还是 `ctrlKey`，
+   * 认错了的表现是「macOS 上按 ⌘⇧B 录出来是 `Shift+B`」。
+   *
+   * 写成取值函数而不是布尔快照，是不想让这个判断依赖「谁先初始化」——
+   * 平台信息现在是同步可读的（见 preload/index.ts），但那是个容易被后人改掉的
+   * 前提，而这里多一层函数的成本是零。
    */
   mac: () => boolean
   /** 当前主题 / 切换主题。主题的归属仍在 ThemeManager，这里只是借个入口。 */

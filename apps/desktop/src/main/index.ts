@@ -335,10 +335,16 @@ function registerIpc(): void {
     // 命令面板显示新的、菜单还挂着旧的，而**真正生效的是菜单那份**
     if (key.startsWith(BINDING_KEY_PREFIX)) await refreshMenu()
   })
-  handle(CHANNELS.platformInfo, async () => ({
-    os: process.platform === 'darwin' ? 'mac' : process.platform === 'win32' ? 'win' : 'linux',
-    locale: app.getLocale(),
-  }))
+  // 平台信息走**同步** IPC：preload 要在暴露 API 之前就把它填进去。
+  // 走 invoke 的话渲染进程会先读到一个默认值，而 contextBridge 是按值拷贝的，
+  // 事后再改 preload 那一侧的对象根本传不过去（这个坑真踩过，见 preload/index.ts）
+  ipcMain.on(CHANNELS.platformInfo, (event) => {
+    event.returnValue = {
+      os:
+        process.platform === 'darwin' ? 'mac' : process.platform === 'win32' ? 'win' : 'linux',
+      locale: app.getLocale(),
+    }
+  })
 
   handle(CHANNELS.sessionReport, async (sender, session: WindowSession) => {
     if (sender) await reportSession(sender, session)

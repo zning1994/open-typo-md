@@ -19,11 +19,7 @@ export interface PaletteOptions {
   commands: () => readonly Command[]
   /** 关闭后把焦点还回去。 */
   restoreFocus: () => void
-  /**
-   * 当前平台是不是 macOS。**必须是取值函数，不能是快照** ——
-   * `api.platform.os` 是 preload 异步填上的，模块初始化那一刻它还是默认值
-   * `'linux'`。写成快照的表现是：macOS 上快捷键提示全按 Windows 的样子显示。
-   */
+  /** 当前平台是不是 macOS —— 只影响快捷键怎么显示。 */
   mac: () => boolean
 }
 
