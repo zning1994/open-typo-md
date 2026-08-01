@@ -25,5 +25,9 @@
     "electron-builder": "^26.15.3",
     "esbuild": "^0.28.1",
     "vite": "^7.3.6"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zning1994/open-typo-md.git"
   }
 }
