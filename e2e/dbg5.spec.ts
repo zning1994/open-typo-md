@@ -38,7 +38,9 @@ test('诊断5', async ({ app, page }) => {
   await save(basePdf)
   await clickMenu(app, ['文件', '导出为 PDF…'])
   await waitFor(basePdf)
-  console.log(`DBG5 [真导出PDF] Tj=${/\bT[jJ]\b/.test(contentStreams(await readFile(basePdf)))}`)
+  console.log(
+    `DBG5 [真导出PDF] Tj=${/\bT[jJ]\b/.test(contentStreams(await readFile(basePdf)))}`,
+  )
 
   // 2）真导出一次 HTML，拿到产品真正生成的那份文档
   const outHtml = path.join(dir, 'out.html')
@@ -81,7 +83,10 @@ test('诊断5', async ({ app, page }) => {
   await probe('e-只留主题样式', withStyles(themeCss))
   await probe('f-去colorscheme', withStyles(styles.replace(/color-scheme:[^;]*;/g, '')))
   await probe('g-去fontfamily', withStyles(styles.replace(/font-family:[^;]*;/g, '')))
-  await probe('h-去color与background', withStyles(styles.replace(/\b(color|background):[^;]*;/g, '')))
+  await probe(
+    'h-去color与background',
+    withStyles(styles.replace(/\b(color|background):[^;]*;/g, '')),
+  )
   await probe(
     'i-裸外壳只留正文',
     `<!doctype html><html><head><meta charset="utf-8"></head><body>${body}</body></html>`,
