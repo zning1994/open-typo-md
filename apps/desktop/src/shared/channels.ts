@@ -22,6 +22,8 @@ export const CHANNELS = {
   fsList: 'fs:list',
   fsExists: 'fs:exists',
   fsSaveAttachment: 'fs:save-attachment',
+  fsWriteText: 'fs:write-text',
+  clipboardWriteHtml: 'clipboard:write-html',
   fsWatch: 'fs:watch',
   draftWrite: 'draft:write',
   draftDrop: 'draft:drop',
@@ -57,11 +59,13 @@ export type MenuCommand =
   | 'file.openInNewWindow'
   | 'file.save'
   | 'file.saveAs'
+  | 'file.exportHtml'
   | 'view.toggleSource'
   | 'view.toggleOutline'
   | 'view.commandPalette'
   | `view.theme.${'auto' | 'light' | 'dark' | 'sepia' | 'high-contrast' | 'github'}`
   | 'edit.find'
+  | 'edit.copyRichText'
   | 'format.bold'
   | 'format.italic'
   | 'format.code'
@@ -83,6 +87,18 @@ export interface TypoBridgeApi {
     saveAttachment(baseDir: string, mime: string, bytes: Uint8Array): Promise<string>
     /** 监听当前窗口打开的文件；传 null 表示停止监听。 */
     watch(path: string | null): Promise<void>
+    /**
+     * 写一份**派生产物**（导出的 HTML）。
+     *
+     * 跟 `write` 分开是有意的：`write` 带保真元数据与冲突检测，那些是给
+     * 「用户正在编辑的文档」准备的；导出产物没有基线可比，也不需要保真。
+     * 混用会让冲突检测的语义变得含糊。
+     */
+    writeText(path: string, text: string): Promise<void>
+  }
+  clipboard: {
+    /** 同时写 HTML 与纯文本兜底 —— 目标应用不支持富文本时才有东西可粘。 */
+    writeHtml(html: string, text: string): Promise<void>
   }
   drafts: {
     write(key: string, text: string, meta: DraftMeta): Promise<void>

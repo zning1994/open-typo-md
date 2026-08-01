@@ -12,6 +12,7 @@
   "references": [
     { "path": "../../packages/plugin-api" },
     { "path": "../../packages/markdown" },
+    { "path": "../../packages/export" },
     { "path": "../../packages/editor" }
   ]
 }

@@ -74,6 +74,13 @@ export interface OpenDialogOptions {
 export interface SaveDialogOptions {
   title?: string
   defaultPath?: string
+  /**
+   * 文件类型过滤器。不传时按 Markdown。
+   *
+   * 导出需要它：不然「导出为 HTML」弹出来的对话框只让存 `.md`，
+   * 用户得自己把扩展名改回去。
+   */
+  filters?: readonly { name: string; extensions: readonly string[] }[]
 }
 
 export interface ConfirmOptions {

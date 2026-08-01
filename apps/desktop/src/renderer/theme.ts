@@ -26,6 +26,36 @@ export const THEMES = [
 
 export type ThemeId = (typeof THEMES)[number]['id']
 
+/**
+ * 变量契约的完整清单（不带 `--typo-` 前缀）。
+ *
+ * 跟 themes.css 里 `[data-typo-theme='light']` 那一份**必须一致** ——
+ * 导出时按这张表采集当前生效的计算值，漏一个，导出的文件里那一处就会退回
+ * 兜底色。放在这里而不是 CSS 里，是因为只有 TS 这边能被别的代码读到。
+ */
+export const THEME_VARIABLES = [
+  'font-body',
+  'font-mono',
+  'font-size',
+  'line-height',
+  'content-width',
+  'bg',
+  'fg',
+  'fg-muted',
+  'accent',
+  'border',
+  'border-strong',
+  'code-bg',
+  'selection',
+  'danger',
+  'marker-fg',
+  'cursor',
+  'status-bg',
+  'string-fg',
+  'number-fg',
+  'type-fg',
+] as const
+
 const DEFAULT: ThemeId = 'auto'
 const SETTING_KEY = 'appearance.theme'
 

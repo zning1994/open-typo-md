@@ -17,14 +17,27 @@ import { assertAllowed } from './path-guard.js'
 
 export const ASSET_SCHEME = 'typo-asset'
 
-/** 必须在 app ready 之前调用。 */
-export function registerAssetScheme(): void {
-  protocol.registerSchemesAsPrivileged([
-    {
-      scheme: ASSET_SCHEME,
-      privileges: { standard: true, secure: true, supportFetchAPI: true, bypassCSP: false },
-    },
-  ])
+/**
+ * 这个协议的特权声明。
+ *
+ * **不在这里直接调 `registerSchemesAsPrivileged`** —— Electron 只认**一次**
+ * 调用，后一次会把前一次整个盖掉。以前这里和 app-protocol 各调一次，
+ * 结果是本协议的特权被静默丢弃：图片照样能显示（`<img>` 不需要特权），
+ * 但 `fetch()` 一律报「URL scheme not supported」，
+ * 导出「自包含单文件」时图片因此永远内联不进去。
+ *
+ * 现在改成各自导出声明，由 index.ts 汇总后一次注册。
+ */
+export const ASSET_SCHEME_PRIVILEGES = {
+  scheme: ASSET_SCHEME,
+  privileges: {
+    standard: true,
+    secure: true,
+    // 导出要 fetch 图片再转 data URI；跨协议取用还需要 corsEnabled
+    supportFetchAPI: true,
+    corsEnabled: true,
+    bypassCSP: false,
+  },
 }
 
 const MIME: Record<string, string> = {

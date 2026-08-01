@@ -30,19 +30,20 @@ const MIME: Record<string, string> = {
   '.ttf': 'font/ttf',
 }
 
-/** 必须在 app ready 之前调用。 */
-export function registerAppSchemePrivileges(): void {
-  protocol.registerSchemesAsPrivileged([
-    {
-      scheme: APP_SCHEME,
-      privileges: {
-        standard: true,
-        secure: true,
-        supportFetchAPI: true,
-        corsEnabled: true,
-      },
-    },
-  ])
+/**
+ * 这个协议的特权声明。
+ *
+ * 跟 asset-protocol 一样只导出声明、不自己注册 ——
+ * `registerSchemesAsPrivileged` 只认一次调用，各调各的会互相覆盖。
+ */
+export const APP_SCHEME_PRIVILEGES = {
+  scheme: APP_SCHEME,
+  privileges: {
+    standard: true,
+    secure: true,
+    supportFetchAPI: true,
+    corsEnabled: true,
+  },
 }
 
 /**

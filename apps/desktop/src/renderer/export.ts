@@ -1,0 +1,147 @@
+/**
+ * 导出：把当前文档变成一份能发出去的 HTML（docs/design/06 §2）。
+ *
+ * 转换本身在 `@typo/export` 里（纯函数、可脱离 Electron 单测）；
+ * 这个文件负责**只有宿主才做得到的那几件事**：
+ *
+ * - 采集当前主题的实际配色；
+ * - 把图片读成 data URI；
+ * - 调 mermaid 把图渲染成 SVG；
+ * - 把 KaTeX 的样式与字体内联进去。
+ *
+ * ## 「自包含」的标准
+ *
+ * 一个文件发出去，收件人双击就能看。所以外链一律不许有 —— 包括字体。
+ * KaTeX 的样式表引用二十来个 woff2，不内联的话公式在别人机器上是一堆方框。
+ */
+import { buildDocument, markdownToHtmlFragment, type ExportHooks } from '@typo/export'
+import { THEME_VARIABLES } from './theme.js'
+
+/**
+ * 采集当前生效的主题变量。
+ *
+ * 直接读**计算值**而不是把 themes.css 原样搬过去：用户可能选的是「跟随系统」，
+ * 也可能将来用了自定义主题 —— 计算值才是「他此刻看到的样子」，
+ * 而那正是他期望导出的东西。
+ */
+function themeCss(): string {
+  const computed = getComputedStyle(document.documentElement)
+  const lines = THEME_VARIABLES.map((name) => {
+    const value = computed.getPropertyValue(`--typo-${name}`).trim()
+    return value ? `  --typo-${name}: ${value};` : ''
+  }).filter(Boolean)
+
+  return `:root {\n${lines.join('\n')}\n}`
+}
+
+/** 页面上加载过的 KaTeX 样式表地址；没渲染过公式时为 null。 */
+function katexStylesheetHref(): string | null {
+  for (const sheet of Array.from(document.styleSheets)) {
+    if (sheet.href?.includes('katex')) return sheet.href
+  }
+  return null
+}
+
+async function fetchAsDataUri(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url)
+    if (!response.ok) return null
+    const blob = await response.blob()
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result))
+      reader.onerror = () => reject(reader.error)
+      reader.readAsDataURL(blob)
+    })
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 取 KaTeX 样式并把字体一并内联。
+ *
+ * 字体不内联的话公式在别人机器上会变成方框 —— 那还不如不导出公式样式。
+ * 任何一个字体取不到就跳过它（保留原 url），不因为一个字体失败而放弃整张表。
+ */
+async function katexCss(): Promise<string | null> {
+  const href = katexStylesheetHref()
+  if (!href) return null
+
+  let text: string
+  try {
+    const response = await fetch(href)
+    if (!response.ok) return null
+    text = await response.text()
+  } catch {
+    return null
+  }
+
+  const urls = [...text.matchAll(/url\(([^)]+)\)/g)].map((m) =>
+    (m[1] ?? '').replace(/['"]/g, ''),
+  )
+  const unique = [...new Set(urls)].filter((u) => u && !u.startsWith('data:'))
+
+  const resolved = await Promise.all(
+    unique.map(async (relative) => {
+      const absolute = new URL(relative, href).toString()
+      return [relative, await fetchAsDataUri(absolute)] as const
+    }),
+  )
+
+  let out = text
+  for (const [relative, dataUri] of resolved) {
+    if (dataUri) out = out.split(relative).join(dataUri)
+  }
+  return out
+}
+
+export interface ExportContext {
+  /** 当前文档的 Markdown 源码。 */
+  markdown: string
+  /** 页面标题，通常是文件名。 */
+  title: string
+  /** 文档所在目录，用于解析相对图片路径；未保存时为 null。 */
+  baseDir: string | null
+  /** 把相对路径解析成可 fetch 的 URL（宿主的资源协议）。 */
+  resolveAsset: (src: string, baseDir: string) => string
+  /** 渲染 mermaid 图。由渲染进程注入 —— mermaid 只在那边加载过。 */
+  renderDiagram?: (code: string) => Promise<string | null>
+}
+
+function hooksFor(context: ExportContext): ExportHooks {
+  const hooks: ExportHooks = {}
+
+  if (context.baseDir) {
+    const baseDir = context.baseDir
+    hooks.inlineImage = async (src) => {
+      // 绝对 URL（http、data）原样保留：它们本来就不依赖本地文件
+      if (/^[a-z][a-z\d+.-]*:/i.test(src)) return null
+      return fetchAsDataUri(context.resolveAsset(src, baseDir))
+    }
+  }
+  if (context.renderDiagram) hooks.renderDiagram = context.renderDiagram
+
+  return hooks
+}
+
+/** 生成一份自包含的 HTML 文档。 */
+export async function exportHtmlDocument(context: ExportContext): Promise<string> {
+  const fragment = await markdownToHtmlFragment(context.markdown, hooksFor(context))
+  const katex = await katexCss()
+
+  return buildDocument(fragment, {
+    title: context.title,
+    css: katex ? [themeCss(), katex] : [themeCss()],
+  })
+}
+
+/**
+ * 生成「复制为富文本」用的片段。
+ *
+ * 只要片段，不要外壳：往剪贴板写整份带 `<head>` 的文档，
+ * 粘进 Word 会多出一堆空行。样式靠内联 —— 目标应用不会带上我们的 CSS。
+ */
+export async function exportHtmlFragment(context: ExportContext): Promise<string> {
+  return markdownToHtmlFragment(context.markdown, hooksFor(context))
+}

@@ -43,6 +43,10 @@ const api: TypoBridgeApi = {
     saveAttachment: (baseDir, mime, bytes) =>
       invoke(CHANNELS.fsSaveAttachment, baseDir, mime, bytes),
     watch: (path) => invoke(CHANNELS.fsWatch, path),
+    writeText: (path, text) => invoke(CHANNELS.fsWriteText, path, text),
+  },
+  clipboard: {
+    writeHtml: (html, text) => invoke(CHANNELS.clipboardWriteHtml, html, text),
   },
   drafts: {
     write: (key, text, meta) => invoke(CHANNELS.draftWrite, key, text, meta),

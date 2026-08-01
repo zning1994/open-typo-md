@@ -5,11 +5,21 @@
  * **不做任何 Markdown 解析** —— 那是渲染进程的事。
  */
 import path from 'node:path'
-import { BrowserWindow, app, dialog, ipcMain, session, shell } from 'electron'
+import { writeFile } from 'node:fs/promises'
+import {
+  BrowserWindow,
+  app,
+  clipboard,
+  dialog,
+  ipcMain,
+  protocol,
+  session,
+  shell,
+} from 'electron'
 import { ConflictError, UnsupportedEncodingError } from '@typo/plugin-api'
 import { CHANNELS, EVENTS, type IpcFailure } from '../shared/channels.js'
-import { registerAppHandler, registerAppSchemePrivileges } from './app-protocol.js'
-import { registerAssetHandler, registerAssetScheme } from './asset-protocol.js'
+import { APP_SCHEME_PRIVILEGES, registerAppHandler } from './app-protocol.js'
+import { ASSET_SCHEME_PRIVILEGES, registerAssetHandler } from './asset-protocol.js'
 import { claimDrafts, dropDraft, dropDraftById, writeDraft } from './drafts.js'
 import { readTextFile, saveAttachment, writeTextFile } from './fs-service.js'
 import { watchFor } from './watcher.js'
@@ -32,8 +42,10 @@ const dirname = __dirname
 /** 启动参数里带的待打开文件。 */
 let pendingOpenPath: string | null = null
 
-registerAssetScheme()
-registerAppSchemePrivileges()
+// 所有自定义协议的特权**必须一次性注册**：Electron 只认最后一次调用，
+// 各模块各调各的会互相覆盖 —— 而被覆盖掉的那个协议表现得像「部分能用」
+// （<img> 加载正常，fetch 一律失败），极难看出问题出在这里
+protocol.registerSchemesAsPrivileged([ASSET_SCHEME_PRIVILEGES, APP_SCHEME_PRIVILEGES])
 
 function toFailure(error: unknown): IpcFailure {
   if (error instanceof ConflictError) {
@@ -83,7 +95,14 @@ function applyContentSecurityPolicy(): void {
     // 注意：不含 http(s) —— 远程图片默认不加载，避免文档变成追踪信标
     'img-src typo-asset: data: blob:',
     "font-src 'self' data:",
-    DEV_SERVER_URL ? "connect-src 'self' ws: http://localhost:*" : "connect-src 'self'",
+    // `typo-asset:` 必须在 connect-src 里，不只在 img-src 里：
+    // 导出「自包含单文件」时要 **fetch** 图片再转 data URI，而 fetch 归
+    // connect-src 管。少了它，导出的产物里图片仍是相对路径 —— 而且是**静默**的，
+    // 因为 fetch 失败被当成「拿不到就保留原路径」的正常降级。
+    // 不扩大权限：这个协议的路径白名单在 main 侧照常生效。
+    DEV_SERVER_URL
+      ? "connect-src 'self' typo-asset: ws: http://localhost:*"
+      : "connect-src 'self' typo-asset:",
     "form-action 'none'",
     "frame-src 'none'",
     "object-src 'none'",
@@ -120,6 +139,23 @@ function registerIpc(): void {
     async (_sender, baseDir: string, mime: string, bytes: Uint8Array) =>
       saveAttachment(baseDir, mime, bytes),
   )
+  /**
+   * 写导出产物。
+   *
+   * 跟 fsWrite 分开：那条带保真元数据与冲突检测，是给「用户正在编辑的文档」
+   * 准备的；导出产物没有基线可比。路径仍然过白名单 —— 导出目标由用户在
+   * 保存对话框里选，选完即授权。
+   */
+  handle(CHANNELS.fsWriteText, async (_sender, target: string, text: string) => {
+    const real = await assertAllowed(target)
+    await writeFile(real, text, 'utf8')
+  })
+
+  handle(CHANNELS.clipboardWriteHtml, async (_sender, html: string, text: string) => {
+    // 同时写纯文本兜底：目标应用不支持富文本时才有东西可粘
+    clipboard.write({ html, text })
+  })
+
   handle(CHANNELS.fsWatch, async (sender, target: string | null) => {
     if (sender) await watchFor(sender, target)
   })
@@ -155,18 +191,28 @@ function registerIpc(): void {
     },
   )
 
-  handle(CHANNELS.dialogSave, async (sender, options: { defaultPath?: string } = {}) => {
-    if (!sender) return null
-    const result = await dialog.showSaveDialog(sender, {
-      title: '另存为',
-      defaultPath: options.defaultPath ?? '未命名.md',
-      filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }],
-    })
-    if (result.canceled || !result.filePath) return null
-    await grantFile(result.filePath)
-    grantDirectory(path.dirname(result.filePath))
-    return result.filePath
-  })
+  handle(
+    CHANNELS.dialogSave,
+    async (
+      sender,
+      options: {
+        title?: string
+        defaultPath?: string
+        filters?: { name: string; extensions: string[] }[]
+      } = {},
+    ) => {
+      if (!sender) return null
+      const result = await dialog.showSaveDialog(sender, {
+        title: options.title ?? '另存为',
+        defaultPath: options.defaultPath ?? '未命名.md',
+        filters: options.filters ?? [{ name: 'Markdown', extensions: ['md', 'markdown'] }],
+      })
+      if (result.canceled || !result.filePath) return null
+      await grantFile(result.filePath)
+      grantDirectory(path.dirname(result.filePath))
+      return result.filePath
+    },
+  )
 
   handle(
     CHANNELS.dialogConfirm,

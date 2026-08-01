@@ -57,6 +57,8 @@ export function buildMenu(actions: MenuActions): void {
         { label: '保存', accelerator: 'CmdOrCtrl+S', click: send('file.save') },
         { label: '另存为…', accelerator: 'CmdOrCtrl+Shift+S', click: send('file.saveAs') },
         { type: 'separator' },
+        { label: '导出为 HTML…', click: send('file.exportHtml') },
+        { type: 'separator' },
         isMac ? { role: 'close', label: '关闭窗口' } : { role: 'quit', label: '退出' },
       ],
     },
@@ -73,6 +75,8 @@ export function buildMenu(actions: MenuActions): void {
         { role: 'selectAll', label: '全选' },
         { type: 'separator' },
         { label: '查找与替换', accelerator: 'CmdOrCtrl+F', click: send('edit.find') },
+        { type: 'separator' },
+        { label: '复制为富文本', click: send('edit.copyRichText') },
       ],
     },
     {

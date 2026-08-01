@@ -53,6 +53,26 @@ function loadMermaid(): Promise<MermaidModule | null> {
   return mermaidPromise
 }
 
+/**
+ * 把一段 mermaid 源码渲染成 SVG 字符串。
+ *
+ * 导出管线要用它。**刻意复用编辑器这份实例**而不是让导出层自己再加载一次：
+ * mermaid 的配置（主题、securityLevel）是全局的，两份实例意味着导出的图
+ * 跟屏幕上看到的可能长得不一样。
+ *
+ * 渲染不出来返回 null，由调用方决定退化行为（导出那边会保留代码块）。
+ */
+export async function renderMermaid(code: string): Promise<string | null> {
+  const mermaid = mermaidReady ?? (await loadMermaid())
+  if (!mermaid) return null
+  try {
+    const { svg } = await mermaid.default.render(`typo-mermaid-${nextId++}`, code)
+    return svg
+  } catch {
+    return null
+  }
+}
+
 export class MermaidWidget extends WidgetType {
   constructor(readonly code: string) {
     super()

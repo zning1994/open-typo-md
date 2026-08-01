@@ -96,6 +96,8 @@ export const MENU_COMMAND_INFO: Record<MenuCommand, { title: string; binding?: s
   'file.openInNewWindow': { title: '在新窗口打开…', binding: 'Mod+Shift+O' },
   'file.save': { title: '保存', binding: 'Mod+S' },
   'file.saveAs': { title: '另存为…', binding: 'Mod+Shift+S' },
+  'file.exportHtml': { title: '导出为 HTML…' },
+  'edit.copyRichText': { title: '复制为富文本' },
   'view.toggleSource': { title: '切换源码模式', binding: 'Mod+/' },
   'view.toggleOutline': { title: '显示 / 隐藏大纲', binding: 'Mod+Shift+E' },
   'view.commandPalette': { title: '命令面板', binding: 'Mod+Shift+P' },

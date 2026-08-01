@@ -15,6 +15,7 @@ export default defineConfig({
         new URL('./packages/markdown/src/text.ts', import.meta.url),
       ),
       '@typo/markdown': pkg('markdown'),
+      '@typo/export': pkg('export'),
       '@typo/editor': pkg('editor'),
     },
   },

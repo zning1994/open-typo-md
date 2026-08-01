@@ -9,6 +9,7 @@ import { openSearchPanel } from '@codemirror/search'
 import type { StateCommand } from '@codemirror/state'
 import {
   TypoEditor,
+  renderMermaid,
   setHeading,
   toggleBold,
   toggleInlineCode,
@@ -21,7 +22,14 @@ import { DocumentController, type DocumentState } from './document.js'
 import { OutlinePanel } from './outline.js'
 import { CommandPalette } from './palette.js'
 import { ThemeManager, THEMES } from './theme.js'
-import { createAssetResolver, createHostBridge, dirnameOf, getBridgeApi } from './host.js'
+import {
+  buildAssetUrl,
+  createAssetResolver,
+  createHostBridge,
+  dirnameOf,
+  getBridgeApi,
+} from './host.js'
+import { exportHtmlDocument, exportHtmlFragment, type ExportContext } from './export.js'
 import './styles.css'
 
 const api = getBridgeApi()
@@ -155,11 +163,66 @@ const palette = new CommandPalette({
   mac: api.platform.os === 'mac',
 })
 
+/** 导出与复制共用的上下文。 */
+function exportContext(): ExportContext {
+  const state = controller.state()
+  return {
+    markdown: editor.getDoc(),
+    title: state.name.replace(/\.md$/i, ''),
+    baseDir: currentPath ? dirnameOf(currentPath) : null,
+    resolveAsset: (src, baseDir) => buildAssetUrl(baseDir, src),
+    // 复用编辑器那份 mermaid 实例：配置是全局的，两份实例会让导出的图
+    // 跟屏幕上看到的长得不一样
+    renderDiagram: renderMermaid,
+  }
+}
+
+/**
+ * 导出为 HTML。
+ *
+ * 默认文件名跟着文档走 —— 让用户在保存框里自己敲一遍是多余的。
+ */
+async function exportHtmlFlow(): Promise<void> {
+  const state = controller.state()
+  const target = await host.dialog.saveFile({
+    title: '导出为 HTML',
+    defaultPath: currentPath
+      ? currentPath.replace(/\.md$/i, '.html')
+      : `${state.name.replace(/\.md$/i, '')}.html`,
+    filters: [{ name: 'HTML', extensions: ['html', 'htm'] }],
+  })
+  if (!target) return
+
+  try {
+    await api.fs.writeText(target, await exportHtmlDocument(exportContext()))
+  } catch (error) {
+    await host.dialog.message({
+      message: '导出失败',
+      detail: error instanceof Error ? error.message : String(error),
+    })
+  }
+}
+
+/** 复制为富文本：写 HTML 片段 + 纯文本兜底。 */
+async function copyRichTextFlow(): Promise<void> {
+  try {
+    const html = await exportHtmlFragment(exportContext())
+    await api.clipboard.writeHtml(html, editor.getDoc())
+  } catch (error) {
+    await host.dialog.message({
+      message: '复制失败',
+      detail: error instanceof Error ? error.message : String(error),
+    })
+  }
+}
+
 const MENU_ACTIONS: Record<MenuCommand, () => void> = {
   'file.open': () => void openFileFlow(false),
   'file.openInNewWindow': () => void openFileFlow(true),
   'file.save': () => void controller.save(),
   'file.saveAs': () => void controller.saveAs(),
+  'file.exportHtml': () => void exportHtmlFlow(),
+  'edit.copyRichText': () => void copyRichTextFlow(),
   'view.toggleSource': () => {
     editor.toggleSourceMode()
     editor.focus()
