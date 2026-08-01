@@ -159,17 +159,42 @@ function chain(...commands: Command[]): Command {
   return (view) => commands.some((command) => command(view))
 }
 
-export const typoKeymap: KeyBinding[] = [
-  { key: 'Mod-b', run: toggleBold, preventDefault: true },
-  { key: 'Mod-i', run: toggleItalic, preventDefault: true },
-  { key: 'Mod-e', run: toggleInlineCode, preventDefault: true },
-  { key: 'Mod-Shift-x', run: toggleStrikethrough, preventDefault: true },
-  { key: 'Mod-0', run: setHeading(0), preventDefault: true },
-  ...([1, 2, 3, 4, 5, 6] as const).map((level) => ({
-    key: `Mod-${level}`,
-    run: setHeading(level),
-    preventDefault: true,
-  })),
+/**
+ * 可以被重新绑定的格式命令。
+ *
+ * id 是内核自己的命名（`bold`、`heading3`），**不是宿主那套** ——
+ * 编辑器内核不认识 `format.bold` 这种菜单命令名（原则 P3）。
+ * 宿主负责把两边对起来。
+ */
+export const FORMAT_COMMANDS: Record<string, Command> = {
+  bold: toggleBold,
+  italic: toggleItalic,
+  code: toggleInlineCode,
+  strikethrough: toggleStrikethrough,
+  ...Object.fromEntries(
+    ([0, 1, 2, 3, 4, 5, 6] as const).map((level) => [`heading${level}`, setHeading(level)]),
+  ),
+}
+
+/** 出厂键位。宿主可以整份换掉，见 `typoCommands`。 */
+export const DEFAULT_FORMAT_KEYS: Record<string, string> = {
+  bold: 'Mod-b',
+  italic: 'Mod-i',
+  code: 'Mod-e',
+  strikethrough: 'Mod-Shift-x',
+  ...Object.fromEntries(
+    ([0, 1, 2, 3, 4, 5, 6] as const).map((level) => [`heading${level}`, `Mod-${level}`]),
+  ),
+}
+
+/**
+ * 结构性键位：Tab / Enter / Backspace。
+ *
+ * **刻意不可配置。** 它们不是「某个功能的快捷键」，而是编辑行为本身 ——
+ * 表格里的 Tab 是「下一个单元格」，列表里的 Enter 是「续写标记」。
+ * 让用户把 Enter 改掉，等于让他把换行改掉。
+ */
+export const structuralKeymap: KeyBinding[] = [
   {
     key: 'Tab',
     run: chain(tableNextCell, indentListOrTab),
@@ -180,15 +205,40 @@ export const typoKeymap: KeyBinding[] = [
   { key: 'Backspace', run: deleteMarkupBackward },
 ]
 
+/** 把「命令 id → 键位」的表变成 CodeMirror 的 keymap。 */
+export function formatKeymap(keys: Record<string, string>): KeyBinding[] {
+  const bindings: KeyBinding[] = []
+  for (const [id, key] of Object.entries(keys)) {
+    const run = FORMAT_COMMANDS[id]
+    // 认不出来的 id 直接跳过：宿主与内核的命令表可能不同版本，
+    // 为此让整个键位表失效是最糟的降级
+    if (run && key) bindings.push({ key, run, preventDefault: true })
+  }
+  return bindings
+}
+
+export const typoKeymap: KeyBinding[] = [
+  ...formatKeymap(DEFAULT_FORMAT_KEYS),
+  ...structuralKeymap,
+]
+
 /**
  * 键位与历史。
  *
- * 顺序有讲究：typoKeymap 在前，defaultKeymap 在后 —— 前者要能覆盖后者的
+ * 顺序有讲究：格式与结构键位在前，defaultKeymap 在后 —— 前者要能覆盖后者的
  * Enter / Backspace / Tab 默认行为。
  */
-export function typoCommands(): Extension {
+export function typoCommands(
+  formatKeys: Record<string, string> = DEFAULT_FORMAT_KEYS,
+): Extension {
   return [
     history(),
-    keymap.of([...typoKeymap, ...searchKeymap, ...historyKeymap, ...defaultKeymap]),
+    keymap.of([
+      ...formatKeymap(formatKeys),
+      ...structuralKeymap,
+      ...searchKeymap,
+      ...historyKeymap,
+      ...defaultKeymap,
+    ]),
   ]
 }

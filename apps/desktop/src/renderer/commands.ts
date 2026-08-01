@@ -6,7 +6,8 @@
  * 而这种不一致用户一眼就能看见。
  *
  * 这张表也是「可配置快捷键」的前提：命令有稳定 id 之后，按键绑定才有东西可绑。
- * 绑定的**编辑界面**属于设置界面，已随 M4.5 搁置，所以现在只有默认绑定。
+ * **绑定本身不在这里** —— 它在 `shared/keys.ts`，由 main 与渲染进程共用
+ * （见那个文件开头「为什么必须先有这个文件」）。
  */
 import type { MenuCommand } from '../shared/channels.js'
 
@@ -20,14 +21,7 @@ export interface Command {
   run: () => void
 }
 
-/** 把平台无关的 `Mod` 写法渲染成当前平台的样子。 */
-export function formatBinding(binding: string, mac: boolean): string {
-  return binding
-    .replace(/Mod/g, mac ? '⌘' : 'Ctrl')
-    .replace(/Shift/g, mac ? '⇧' : 'Shift')
-    .replace(/Alt/g, mac ? '⌥' : 'Alt')
-    .replace(/\+/g, mac ? '' : '+')
-}
+export { formatBinding } from '../shared/keys.js'
 
 /**
  * 模糊匹配：查询里的字符按顺序出现在候选里即可命中。
@@ -90,43 +84,43 @@ export function searchCommands(
     .map(({ command, hits }) => ({ command, hits }))
 }
 
-/** 菜单命令 → 面板里显示的标题与快捷键。跟 main/menu.ts 里的菜单项一一对应。 */
-export const MENU_COMMAND_INFO: Record<MenuCommand, { title: string; binding?: string }> = {
-  'file.open': { title: '打开…', binding: 'Mod+O' },
-  'file.openInNewWindow': { title: '在新窗口打开…', binding: 'Mod+Shift+O' },
-  'file.save': { title: '保存', binding: 'Mod+S' },
-  'file.saveAs': { title: '另存为…', binding: 'Mod+Shift+S' },
-  'file.newTab': { title: '新建标签页', binding: 'Mod+T' },
-  'file.closeTab': { title: '关闭标签页', binding: 'Mod+W' },
-  'file.openFolder': { title: '打开文件夹…', binding: 'Mod+Shift+K' },
+/** 菜单命令 → 面板里显示的标题。快捷键查 `shared/keys.ts`，不在这儿重复一份。 */
+export const MENU_COMMAND_INFO: Record<MenuCommand, { title: string }> = {
+  'file.open': { title: '打开…' },
+  'file.openInNewWindow': { title: '在新窗口打开…' },
+  'file.save': { title: '保存' },
+  'file.saveAs': { title: '另存为…' },
+  'file.newTab': { title: '新建标签页' },
+  'file.closeTab': { title: '关闭标签页' },
+  'file.openFolder': { title: '打开文件夹…' },
   'file.closeFolder': { title: '关闭文件夹' },
-  'view.toggleFiles': { title: '显示 / 隐藏文件树', binding: 'Mod+Shift+B' },
+  'view.toggleFiles': { title: '显示 / 隐藏文件树' },
   'view.nextTab': { title: '下一个标签页' },
   'view.prevTab': { title: '上一个标签页' },
   'file.exportHtml': { title: '导出为 HTML…' },
   'file.exportPdf': { title: '导出为 PDF…' },
   'edit.copyRichText': { title: '复制为富文本' },
-  'view.toggleSource': { title: '切换源码模式', binding: 'Mod+/' },
-  'view.toggleOutline': { title: '显示 / 隐藏大纲', binding: 'Mod+Shift+E' },
-  'view.commandPalette': { title: '命令面板', binding: 'Mod+Shift+P' },
-  'view.settings': { title: '设置…', binding: 'Mod+,' },
+  'view.toggleSource': { title: '切换源码模式' },
+  'view.toggleOutline': { title: '显示 / 隐藏大纲' },
+  'view.commandPalette': { title: '命令面板' },
+  'view.settings': { title: '设置…' },
   'view.theme.auto': { title: '主题：跟随系统' },
   'view.theme.light': { title: '主题：浅色' },
   'view.theme.dark': { title: '主题：深色' },
   'view.theme.sepia': { title: '主题：护眼（Sepia）' },
   'view.theme.high-contrast': { title: '主题：高对比' },
   'view.theme.github': { title: '主题：GitHub' },
-  'edit.find': { title: '查找与替换', binding: 'Mod+F' },
-  'format.bold': { title: '加粗', binding: 'Mod+B' },
-  'format.italic': { title: '斜体', binding: 'Mod+I' },
-  'format.code': { title: '行内代码', binding: 'Mod+E' },
-  'format.heading.0': { title: '普通段落', binding: 'Mod+0' },
-  'format.heading.1': { title: '一级标题', binding: 'Mod+1' },
-  'format.heading.2': { title: '二级标题', binding: 'Mod+2' },
-  'format.heading.3': { title: '三级标题', binding: 'Mod+3' },
-  'format.heading.4': { title: '四级标题', binding: 'Mod+4' },
-  'format.heading.5': { title: '五级标题', binding: 'Mod+5' },
-  'format.heading.6': { title: '六级标题', binding: 'Mod+6' },
+  'edit.find': { title: '查找与替换' },
+  'format.bold': { title: '加粗' },
+  'format.italic': { title: '斜体' },
+  'format.code': { title: '行内代码' },
+  'format.heading.0': { title: '普通段落' },
+  'format.heading.1': { title: '一级标题' },
+  'format.heading.2': { title: '二级标题' },
+  'format.heading.3': { title: '三级标题' },
+  'format.heading.4': { title: '四级标题' },
+  'format.heading.5': { title: '五级标题' },
+  'format.heading.6': { title: '六级标题' },
   'table.insert': { title: '插入表格' },
   'table.rowAbove': { title: '表格：在上方插入行' },
   'table.rowBelow': { title: '表格：在下方插入行' },

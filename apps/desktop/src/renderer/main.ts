@@ -31,6 +31,8 @@ import { FileTreePanel } from './filetree.js'
 import { OutlinePanel } from './outline.js'
 import { CommandPalette } from './palette.js'
 import { PreferenceStore } from './preferences.js'
+import { EDITOR_FORMAT_IDS, KeybindingStore } from './keybindings.js'
+import { toCodeMirrorKey } from '../shared/keys.js'
 import { SettingsPanel } from './settings-panel.js'
 import { TabManager } from './tabs.js'
 import { ThemeManager, THEMES } from './theme.js'
@@ -111,6 +113,7 @@ const tabs: TabManager = new TabManager({
       // 改一个设置就把所有标签的视图切一遍，是很吓人的行为
       sourceMode: preferences.get('sourceModeByDefault'),
       renderInlineHtml: preferences.get('renderInlineHtml'),
+      formatKeys: editorFormatKeys(),
       assetResolver: createAssetResolver(() => {
         const path = pathOf()
         return path ? dirnameOf(path) : null
@@ -247,6 +250,7 @@ async function openFolderFlow(): Promise<void> {
 
 const themes = new ThemeManager(host.settings)
 const preferences = new PreferenceStore(host.settings)
+const keys = new KeybindingStore(host.settings)
 
 const files = new FileTreePanel(workspace, {
   list: (dir) => host.fs.list(dir),
@@ -409,22 +413,33 @@ const MENU_ACTIONS: Record<MenuCommand, () => void> = {
  * 从 MENU_ACTIONS 派生而不是另写一遍 —— 两份定义必然会漂移，
  * 而漂移的表现是「菜单里有、面板里搜不到」，用户一眼就能看见。
  */
-const COMMANDS: Command[] = (Object.keys(MENU_ACTIONS) as MenuCommand[]).map((id) => ({
-  id,
-  title: MENU_COMMAND_INFO[id].title,
-  keywords: id,
-  ...(MENU_COMMAND_INFO[id].binding ? { binding: MENU_COMMAND_INFO[id].binding } : {}),
-  run: () => MENU_ACTIONS[id](),
-}))
+const COMMAND_IDS = Object.keys(MENU_ACTIONS) as MenuCommand[]
+
+/** 命令表。绑定每次现查 —— 用户在设置里改完，面板里显示的必须当场就对。 */
+function allCommands(): Command[] {
+  return COMMAND_IDS.map((id) => {
+    const binding = keys.get(id)
+    return {
+      id,
+      title: MENU_COMMAND_INFO[id].title,
+      keywords: id,
+      ...(binding ? { binding } : {}),
+      run: () => MENU_ACTIONS[id](),
+    }
+  })
+}
 
 const palette = new CommandPalette({
-  commands: () => COMMANDS,
+  commands: allCommands,
   restoreFocus: () => activeEditor().focus(),
   mac: api.platform.os === 'mac',
 })
 
 const settings = new SettingsPanel({
   preferences,
+  keys,
+  commands: COMMAND_IDS,
+  mac: api.platform.os === 'mac',
   theme: () => themes.theme,
   selectTheme: (theme) => themes.select(theme),
   restoreFocus: () => activeEditor().focus(),
@@ -507,8 +522,30 @@ preferences.onChange((values) => {
   for (const tab of tabs.all()) tab.editor.setRenderInlineHtml(values.renderInlineHtml)
 })
 
+/**
+ * 落到 CodeMirror 上的那几条格式键位。
+ *
+ * 只有格式命令会落下去 —— 其余命令走原生菜单。而**菜单的加速键优先于网页**，
+ * 所以这一份平时其实碰不到；它存在是为了「用户把加粗从 ⌘B 挪走之后，
+ * ⌘B 不能还在编辑器里偷偷生效」。整份替换，不合并。
+ */
+function editorFormatKeys(): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const [command, editorId] of Object.entries(EDITOR_FORMAT_IDS)) {
+    const binding = keys.get(command as MenuCommand)
+    const key = binding ? toCodeMirrorKey(binding) : null
+    if (key) out[editorId] = key
+  }
+  return out
+}
+
+keys.onChange(() => {
+  const formatKeys = editorFormatKeys()
+  for (const tab of tabs.all()) tab.editor.setFormatKeys(formatKeys)
+})
+
 void (async () => {
-  await Promise.all([themes.init(), preferences.init()])
+  await Promise.all([themes.init(), preferences.init(), keys.init(COMMAND_IDS)])
   // 读设置是异步的，而「外部要求打开文件」的事件可能在这期间就到了 ——
   // 那时 openPath 已经建过一个标签。无条件再开一个空白标签会把它顶掉，
   // 表现是「从 Finder 双击打开的新窗口里是一篇空文档」

@@ -52,6 +52,10 @@ export {
   toggleStrikethrough,
   toggleWrap,
   typoCommands,
+  formatKeymap,
+  structuralKeymap,
+  DEFAULT_FORMAT_KEYS,
+  FORMAT_COMMANDS,
   typoKeymap,
 } from './commands.js'
 export {

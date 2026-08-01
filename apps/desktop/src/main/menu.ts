@@ -4,9 +4,14 @@
  * 菜单项不直接执行动作，只往渲染进程发一个命令名 —— 具体做什么由渲染进程
  * 决定。这样菜单、快捷键、命令面板（M3）走的是同一条路径，不会出现
  * 「菜单能用但快捷键行为不一样」这种经典分裂。
+ *
+ * **加速键不写在这里**，从 `shared/keys.ts` 那张表查（`item()` 那个 helper）。
+ * 用户改了绑定就重建一遍整个菜单 —— Electron 没有「改一个 accelerator」的
+ * 接口，而重建的代价是几毫秒，不值得为它设计增量更新。
  */
 import { Menu, app, shell, type BrowserWindow, type MenuItemConstructorOptions } from 'electron'
 import { EVENTS, type MenuCommand } from '../shared/channels.js'
+import { DEFAULT_BINDINGS, toAccelerator, type BindingMap } from '../shared/keys.js'
 
 const isMac = process.platform === 'darwin'
 
@@ -17,9 +22,19 @@ export interface MenuActions {
   focusedWindow: () => BrowserWindow | null
 }
 
-export function buildMenu(actions: MenuActions): void {
+export function buildMenu(actions: MenuActions, bindings: BindingMap = DEFAULT_BINDINGS): void {
   const send = (command: MenuCommand) => () => {
     actions.focusedWindow()?.webContents.send(EVENTS.menuCommand, command)
+  }
+
+  /**
+   * 一个命令菜单项。加速键查表得到 —— 表里没有就是没有快捷键，
+   * 那也是用户能设置出来的合法状态（把绑定清空）。
+   */
+  const item = (label: string, command: MenuCommand): MenuItemConstructorOptions => {
+    const binding = bindings[command]
+    const accelerator = binding ? toAccelerator(binding) : null
+    return { label, click: send(command), ...(accelerator ? { accelerator } : {}) }
   }
 
   const template: MenuItemConstructorOptions[] = [
@@ -47,26 +62,18 @@ export function buildMenu(actions: MenuActions): void {
         // 还没有标签页，所以 ⌘N 直接给新窗口 —— 在当前窗口「新建」会把
         // 用户正在写的东西顶掉。M3 加了标签之后 ⌘N 变成新标签、⌘⇧N 变成新窗口
         { label: '新建窗口', accelerator: 'CmdOrCtrl+N', click: () => actions.newWindow() },
-        { label: '新建标签页', accelerator: 'CmdOrCtrl+T', click: send('file.newTab') },
-        { label: '打开…', accelerator: 'CmdOrCtrl+O', click: send('file.open') },
-        {
-          label: '打开文件夹…',
-          accelerator: 'CmdOrCtrl+Shift+K',
-          click: send('file.openFolder'),
-        },
-        { label: '关闭文件夹', click: send('file.closeFolder') },
-        { label: '关闭标签页', accelerator: 'CmdOrCtrl+W', click: send('file.closeTab') },
-        {
-          label: '在新窗口打开…',
-          accelerator: 'CmdOrCtrl+Shift+O',
-          click: send('file.openInNewWindow'),
-        },
+        item('新建标签页', 'file.newTab'),
+        item('打开…', 'file.open'),
+        item('打开文件夹…', 'file.openFolder'),
+        item('关闭文件夹', 'file.closeFolder'),
+        item('关闭标签页', 'file.closeTab'),
+        item('在新窗口打开…', 'file.openInNewWindow'),
         { type: 'separator' },
-        { label: '保存', accelerator: 'CmdOrCtrl+S', click: send('file.save') },
-        { label: '另存为…', accelerator: 'CmdOrCtrl+Shift+S', click: send('file.saveAs') },
+        item('保存', 'file.save'),
+        item('另存为…', 'file.saveAs'),
         { type: 'separator' },
-        { label: '导出为 HTML…', click: send('file.exportHtml') },
-        { label: '导出为 PDF…', click: send('file.exportPdf') },
+        item('导出为 HTML…', 'file.exportHtml'),
+        item('导出为 PDF…', 'file.exportPdf'),
         { type: 'separator' },
         isMac ? { role: 'close', label: '关闭窗口' } : { role: 'quit', label: '退出' },
       ],
@@ -83,44 +90,42 @@ export function buildMenu(actions: MenuActions): void {
         { role: 'pasteAndMatchStyle', label: '粘贴为纯文本' },
         { role: 'selectAll', label: '全选' },
         { type: 'separator' },
-        { label: '查找与替换', accelerator: 'CmdOrCtrl+F', click: send('edit.find') },
+        item('查找与替换', 'edit.find'),
         { type: 'separator' },
-        { label: '复制为富文本', click: send('edit.copyRichText') },
+        item('复制为富文本', 'edit.copyRichText'),
       ],
     },
     {
       label: '格式',
       submenu: [
-        { label: '加粗', accelerator: 'CmdOrCtrl+B', click: send('format.bold') },
-        { label: '斜体', accelerator: 'CmdOrCtrl+I', click: send('format.italic') },
-        { label: '行内代码', accelerator: 'CmdOrCtrl+E', click: send('format.code') },
+        item('加粗', 'format.bold'),
+        item('斜体', 'format.italic'),
+        item('行内代码', 'format.code'),
         { type: 'separator' },
-        ...([1, 2, 3, 4, 5, 6] as const).map((level) => ({
-          label: `${level} 级标题`,
-          accelerator: `CmdOrCtrl+${level}`,
-          click: send(`format.heading.${level}`),
-        })),
-        { label: '普通段落', accelerator: 'CmdOrCtrl+0', click: send('format.heading.0') },
+        ...([1, 2, 3, 4, 5, 6] as const).map((level) =>
+          item(`${level} 级标题`, `format.heading.${level}`),
+        ),
+        item('普通段落', 'format.heading.0'),
         { type: 'separator' },
         {
           label: '表格',
           submenu: [
-            { label: '插入表格', click: send('table.insert') },
+            item('插入表格', 'table.insert'),
             { type: 'separator' },
-            { label: '在上方插入行', click: send('table.rowAbove') },
-            { label: '在下方插入行', click: send('table.rowBelow') },
-            { label: '删除本行', click: send('table.deleteRow') },
+            item('在上方插入行', 'table.rowAbove'),
+            item('在下方插入行', 'table.rowBelow'),
+            item('删除本行', 'table.deleteRow'),
             { type: 'separator' },
-            { label: '在左侧插入列', click: send('table.columnBefore') },
-            { label: '在右侧插入列', click: send('table.columnAfter') },
-            { label: '删除本列', click: send('table.deleteColumn') },
+            item('在左侧插入列', 'table.columnBefore'),
+            item('在右侧插入列', 'table.columnAfter'),
+            item('删除本列', 'table.deleteColumn'),
             { type: 'separator' },
-            { label: '本列左对齐', click: send('table.align.left') },
-            { label: '本列居中', click: send('table.align.center') },
-            { label: '本列右对齐', click: send('table.align.right') },
-            { label: '本列取消对齐', click: send('table.align.none') },
+            item('本列左对齐', 'table.align.left'),
+            item('本列居中', 'table.align.center'),
+            item('本列右对齐', 'table.align.right'),
+            item('本列取消对齐', 'table.align.none'),
             { type: 'separator' },
-            { label: '整理表格', click: send('table.format') },
+            item('整理表格', 'table.format'),
           ],
         },
       ],
@@ -128,50 +133,22 @@ export function buildMenu(actions: MenuActions): void {
     {
       label: '视图',
       submenu: [
-        {
-          label: '源码模式',
-          accelerator: 'CmdOrCtrl+/',
-          click: send('view.toggleSource'),
-        },
-        {
-          label: '文件树',
-          accelerator: 'CmdOrCtrl+Shift+B',
-          click: send('view.toggleFiles'),
-        },
-        {
-          label: '下一个标签页',
-          accelerator: 'Control+Tab',
-          click: send('view.nextTab'),
-        },
-        {
-          label: '上一个标签页',
-          accelerator: 'Control+Shift+Tab',
-          click: send('view.prevTab'),
-        },
-        {
-          label: '大纲',
-          accelerator: 'CmdOrCtrl+Shift+E',
-          click: send('view.toggleOutline'),
-        },
-        {
-          label: '设置…',
-          accelerator: 'CmdOrCtrl+,',
-          click: send('view.settings'),
-        },
-        {
-          label: '命令面板',
-          accelerator: 'CmdOrCtrl+Shift+P',
-          click: send('view.commandPalette'),
-        },
+        item('源码模式', 'view.toggleSource'),
+        item('文件树', 'view.toggleFiles'),
+        item('下一个标签页', 'view.nextTab'),
+        item('上一个标签页', 'view.prevTab'),
+        item('大纲', 'view.toggleOutline'),
+        item('设置…', 'view.settings'),
+        item('命令面板', 'view.commandPalette'),
         {
           label: '主题',
           submenu: [
-            { label: '跟随系统', click: send('view.theme.auto') },
-            { label: '浅色', click: send('view.theme.light') },
-            { label: '深色', click: send('view.theme.dark') },
-            { label: '护眼（Sepia）', click: send('view.theme.sepia') },
-            { label: '高对比', click: send('view.theme.high-contrast') },
-            { label: 'GitHub', click: send('view.theme.github') },
+            item('跟随系统', 'view.theme.auto'),
+            item('浅色', 'view.theme.light'),
+            item('深色', 'view.theme.dark'),
+            item('护眼（Sepia）', 'view.theme.sepia'),
+            item('高对比', 'view.theme.high-contrast'),
+            item('GitHub', 'view.theme.github'),
           ],
         },
         { type: 'separator' },

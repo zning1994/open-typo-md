@@ -16,14 +16,62 @@
  */
 import { THEMES, type ThemeId } from './theme.js'
 import { PAGE_SIZES, type PageSize, type PreferenceStore } from './preferences.js'
+import { MENU_COMMAND_INFO } from './commands.js'
+import type { KeybindingStore } from './keybindings.js'
+import type { MenuCommand } from '../shared/channels.js'
+import { formatBinding, normalizeBinding } from '../shared/keys.js'
 
 export interface SettingsPanelOptions {
   preferences: PreferenceStore
+  keys: KeybindingStore
+  /** 有快捷键可配的命令，按显示顺序。 */
+  commands: readonly MenuCommand[]
+  /** 当前平台是不是 macOS —— 只影响快捷键怎么显示。 */
+  mac: boolean
   /** 当前主题 / 切换主题。主题的归属仍在 ThemeManager，这里只是借个入口。 */
   theme: () => ThemeId
   selectTheme: (theme: ThemeId) => Promise<void>
   /** 关掉之后把焦点还回去。 */
   restoreFocus: () => void
+}
+
+/** 浏览器的 `event.key` → 我们那张表认的主键名。 */
+const KEY_ALIASES: Record<string, string> = {
+  ' ': 'Space',
+  ArrowUp: 'Up',
+  ArrowDown: 'Down',
+  ArrowLeft: 'Left',
+  ArrowRight: 'Right',
+  Esc: 'Escape',
+  Del: 'Delete',
+}
+
+const MODIFIER_KEYS = new Set(['Control', 'Meta', 'Alt', 'Shift', 'AltGraph', 'CapsLock'])
+
+/**
+ * 一次 keydown → 一个规范化的绑定；只按了修饰键则返回 null。
+ *
+ * `metaKey` 在 macOS 上映射成 `Mod`，在其他平台上 `ctrlKey` 才是 —— 记的是
+ * 「用户按的那个『主修饰键』」而不是物理键，这样同一份设置换台机器仍然合理。
+ *
+ * 用 `event.code` 而不是 `event.key` 取字母：按住 ⌥ 时 macOS 的 `key` 会变成
+ * 重音符号（⌥+B 是 `∫`），拿它去绑等于绑了个打不出来的东西。
+ */
+function comboFrom(event: KeyboardEvent, mac: boolean): string | null {
+  if (MODIFIER_KEYS.has(event.key)) return null
+
+  const parts: string[] = []
+  if (mac ? event.metaKey : event.ctrlKey) parts.push('Mod')
+  if (mac && event.ctrlKey) parts.push('Ctrl')
+  if (event.altKey) parts.push('Alt')
+  if (event.shiftKey) parts.push('Shift')
+
+  const letter = /^Key([A-Z])$/.exec(event.code)
+  const digit = /^Digit(\d)$/.exec(event.code)
+  const key = letter?.[1] ?? digit?.[1] ?? KEY_ALIASES[event.key] ?? event.key
+  parts.push(key)
+
+  return normalizeBinding(parts.join('+'))
 }
 
 const PAGE_SIZE_LABELS: Record<PageSize, string> = {
@@ -124,7 +172,14 @@ export class SettingsPanel {
     return !this.root.hidden
   }
 
-  private render(): void {
+  /**
+   * 重画。
+   *
+   * `focusCommand` 是给录制流程用的：录完一个键之后整块表被重建，
+   * 焦点会掉到 body 上 —— 那时 Esc 关不掉面板（键盘事件挂在浮层上），
+   * 用户会以为面板卡住了。把焦点还回那一行，顺带还能接着录下一个。
+   */
+  private render(focusCommand?: MenuCommand): void {
     const prefs = this.options.preferences.all()
     this.body.replaceChildren(
       this.section('外观', [
@@ -149,6 +204,7 @@ export class SettingsPanel {
           (value) => this.options.preferences.set('renderInlineHtml', value),
         ),
       ]),
+      this.section('快捷键', [this.keysTable()]),
       this.section('导出 PDF', [
         this.selectRow(
           '纸张',
@@ -164,6 +220,130 @@ export class SettingsPanel {
         ),
       ]),
     )
+
+    if (focusCommand) {
+      this.body
+        .querySelector<HTMLElement>(`.typo-keys__binding[data-command="${focusCommand}"]`)
+        ?.focus()
+    }
+  }
+
+  /**
+   * 快捷键表。
+   *
+   * 每条命令一行，右边那个按钮点一下进入「录制」状态，直接按你想要的组合。
+   * 用输入框而不是让用户敲字符串（「Mod+Shift+K」）的理由很简单：
+   * **用户知道自己想按什么，未必知道该怎么拼它。**
+   */
+  private keysTable(): HTMLElement {
+    const table = document.createElement('div')
+    table.className = 'typo-keys'
+
+    const conflicts = this.options.keys.conflicts()
+
+    for (const command of this.options.commands) {
+      const binding = this.options.keys.get(command)
+      const row = document.createElement('div')
+      row.className = 'typo-keys__row'
+
+      const label = document.createElement('span')
+      label.className = 'typo-keys__label'
+      label.textContent = MENU_COMMAND_INFO[command].title
+      row.appendChild(label)
+
+      // 撞车只警告不阻止：两个命令共用一个键在别的应用里也常见（上下文不同时
+      // 各自生效），我们判断不了用户的上下文，所以只把事实摆出来
+      if (binding && (conflicts.get(binding)?.length ?? 0) > 1) {
+        const warn = document.createElement('span')
+        warn.className = 'typo-keys__conflict'
+        warn.textContent = '冲突'
+        warn.title = (conflicts.get(binding) ?? [])
+          .map((id) => MENU_COMMAND_INFO[id].title)
+          .join(' / ')
+        row.appendChild(warn)
+      }
+
+      row.appendChild(this.captureButton(command, binding))
+
+      const clear = document.createElement('button')
+      clear.type = 'button'
+      clear.className = 'typo-keys__clear'
+      clear.textContent = '×'
+      clear.title = '取消这个快捷键'
+      clear.addEventListener('click', () => {
+        void this.options.keys.set(command, '').then(() => this.render())
+      })
+      row.appendChild(clear)
+
+      table.appendChild(row)
+    }
+
+    const reset = document.createElement('button')
+    reset.type = 'button'
+    reset.className = 'typo-keys__reset'
+    reset.textContent = '快捷键全部恢复默认'
+    reset.addEventListener('click', () => {
+      void this.options.keys.reset(this.options.commands).then(() => this.render())
+    })
+    table.appendChild(reset)
+
+    return table
+  }
+
+  /**
+   * 录制按钮。
+   *
+   * 录制期间**吞掉所有按键**（`preventDefault` + `stopPropagation`）——
+   * 否则你按 ⌘S 想绑它，结果文档存了一次。修饰键单独按下不算数：
+   * 光按住 ⌘ 不构成一个绑定，得等到真正的主键落下。
+   */
+  private captureButton(command: MenuCommand, binding: string | undefined): HTMLElement {
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.className = 'typo-keys__binding'
+    button.dataset['command'] = command
+    button.textContent = binding ? formatBinding(binding, this.options.mac) : '未设置'
+    if (!binding) button.classList.add('typo-keys__binding--empty')
+
+    let capturing = false
+    const stop = (): void => {
+      capturing = false
+      button.classList.remove('typo-keys__binding--capturing')
+      button.textContent = binding ? formatBinding(binding, this.options.mac) : '未设置'
+    }
+
+    button.addEventListener('click', () => {
+      capturing = true
+      button.classList.add('typo-keys__binding--capturing')
+      button.textContent = '按下组合键…'
+      button.focus()
+    })
+    button.addEventListener('blur', stop)
+
+    button.addEventListener('keydown', (event) => {
+      if (!capturing) return
+      event.preventDefault()
+      event.stopPropagation()
+
+      if (event.key === 'Escape') {
+        stop()
+        return
+      }
+
+      const captured = comboFrom(event, this.options.mac)
+      // 只按住修饰键还不算一个绑定，继续等
+      if (!captured) return
+
+      void this.options.keys.set(command, captured).then((ok) => {
+        if (!ok) {
+          button.textContent = '这个组合不能用'
+          return
+        }
+        this.render(command)
+      })
+    })
+
+    return button
   }
 
   private section(title: string, rows: HTMLElement[]): HTMLElement {

@@ -33,7 +33,8 @@ import {
   grantDirectory,
   grantFile,
 } from './path-guard.js'
-import { getSetting, setSetting } from './settings.js'
+import { allSettings, getSetting, setSetting } from './settings.js'
+import { BINDING_KEY_PREFIX, resolveBindings } from '../shared/keys.js'
 import {
   allWindows,
   beginQuit,
@@ -125,6 +126,19 @@ function applyContentSecurityPolicy(): void {
       },
     })
   })
+}
+
+/**
+ * 按当前设置重建原生菜单。
+ *
+ * 每次都从设置里重读而不是缓存一份：菜单重建是几毫秒的事，而缓存意味着多一个
+ * 「什么时候失效」的问题 —— 设置文件可以被用户直接改，也可以被另一个窗口改。
+ */
+async function refreshMenu(): Promise<void> {
+  buildMenu(
+    { newWindow: () => void createWindow(), focusedWindow },
+    resolveBindings(await allSettings()),
+  )
 }
 
 function registerIpc(): void {
@@ -315,9 +329,12 @@ function registerIpc(): void {
   })
 
   handle(CHANNELS.settingsGet, async (_sender, key: string) => getSetting(key))
-  handle(CHANNELS.settingsSet, async (_sender, key: string, value: unknown) =>
-    setSetting(key, value),
-  )
+  handle(CHANNELS.settingsSet, async (_sender, key: string, value: unknown) => {
+    await setSetting(key, value)
+    // 快捷键写进设置之后，菜单上的加速键要跟着变 —— 否则用户改了绑定，
+    // 命令面板显示新的、菜单还挂着旧的，而**真正生效的是菜单那份**
+    if (key.startsWith(BINDING_KEY_PREFIX)) await refreshMenu()
+  })
   handle(CHANNELS.platformInfo, async () => ({
     os: process.platform === 'darwin' ? 'mac' : process.platform === 'win32' ? 'win' : 'linux',
     locale: app.getLocale(),
@@ -440,10 +457,7 @@ if (!app.requestSingleInstanceLock()) {
     pendingOpenPath = null
     await openStartupWindows(startupPath)
 
-    buildMenu({
-      newWindow: () => void createWindow(),
-      focusedWindow,
-    })
+    await refreshMenu()
 
     app.on('activate', () => {
       if (allWindows().length === 0) void createWindow()

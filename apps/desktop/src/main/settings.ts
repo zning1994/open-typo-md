@@ -25,13 +25,20 @@ async function load(): Promise<Record<string, unknown>> {
   return cache
 }
 
+/** 整份设置。给「一次要看一批键」的场景用（例如把 `keys.*` 全捞出来）。 */
+export async function allSettings(): Promise<Record<string, unknown>> {
+  return { ...(await load()) }
+}
+
 export async function getSetting(key: string): Promise<unknown> {
   return (await load())[key]
 }
 
+/** 写一个值。传 `undefined` 表示**删掉这一项**（回到默认值，而不是存一个空值）。 */
 export async function setSetting(key: string, value: unknown): Promise<void> {
   const data = await load()
-  data[key] = value
+  if (value === undefined) delete data[key]
+  else data[key] = value
 
   const target = settingsPath()
   await mkdir(path.dirname(target), { recursive: true })

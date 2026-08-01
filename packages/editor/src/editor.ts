@@ -22,7 +22,7 @@ import {
   type OutlineItem,
 } from '@typo/markdown'
 import { codeBlockScrollSync } from './code-block.js'
-import { currentHeadingLevel, typoCommands } from './commands.js'
+import { DEFAULT_FORMAT_KEYS, currentHeadingLevel, typoCommands } from './commands.js'
 import {
   livePreviewConfig,
   type AssetResolver,
@@ -66,6 +66,13 @@ export interface TypoEditorOptions {
   sourceMode?: boolean
   /** 渲染文档里的行内 HTML。默认开，见 config.ts 的 `renderInlineHtml`。 */
   renderInlineHtml?: boolean
+  /**
+   * 格式命令的键位（`{ bold: 'Mod-b', … }`）。不传就用出厂键位。
+   *
+   * 宿主要让用户改快捷键时，把整份换掉 —— **不是合并**。合并的话用户
+   * 「把加粗从 ⌘B 挪到 ⌘⇧B」会得到两个都能用的绑定，旧的那个还赖着不走。
+   */
+  formatKeys?: Record<string, string>
   readOnly?: boolean
   /** 文档内容变化时调用。频率等同于按键，实现方需自行控制开销。 */
   onDocChange?: (text: string) => void
@@ -81,6 +88,7 @@ export class TypoEditor {
   private readonly previewCompartment = new Compartment()
   private readonly configCompartment = new Compartment()
   private readonly readOnlyCompartment = new Compartment()
+  private readonly keymapCompartment = new Compartment()
   private sourceModeOn: boolean
   private statusTimer: ReturnType<typeof setTimeout> | null = null
   /**
@@ -92,10 +100,12 @@ export class TypoEditor {
    */
   private resolverOverride: AssetResolver | null = null
   private renderInlineHtmlOn: boolean
+  private formatKeys: Record<string, string>
 
   constructor(private readonly options: TypoEditorOptions) {
     this.sourceModeOn = options.sourceMode ?? false
     this.renderInlineHtmlOn = options.renderInlineHtml ?? true
+    this.formatKeys = options.formatKeys ?? DEFAULT_FORMAT_KEYS
 
     this.view = new EditorView({
       parent: options.parent,
@@ -117,7 +127,7 @@ export class TypoEditor {
       linkInteraction(),
       this.readOnlyCompartment.of(EditorState.readOnly.of(options.readOnly ?? false)),
       typoTheme(),
-      typoCommands(),
+      this.keymapCompartment.of(typoCommands(this.formatKeys)),
       inputBehavior(),
       imageInsertion(),
       richTextPaste(),
@@ -226,6 +236,14 @@ export class TypoEditor {
   setAssetResolver(resolver: AssetResolver): void {
     this.resolverOverride = resolver
     this.reconfigure()
+  }
+
+  /** 换掉格式命令的键位。整份替换，见 `TypoEditorOptions.formatKeys`。 */
+  setFormatKeys(keys: Record<string, string>): void {
+    this.formatKeys = keys
+    this.view.dispatch({
+      effects: this.keymapCompartment.reconfigure(typoCommands(keys)),
+    })
   }
 
   /** 开关行内 HTML 的渲染。关掉之后文档里的 `<b>` 按原文显示。 */

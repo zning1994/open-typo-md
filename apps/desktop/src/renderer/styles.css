@@ -615,3 +615,93 @@ body {
   font-size: 11px;
   color: var(--typo-fg-muted);
 }
+
+/* —— 快捷键表 —— */
+/* 一条命令一行。行数比别的设置项多一个量级，所以行距压得更紧，
+   而且整块可以自己滚动，不至于把纸张、页边距那些顶出视野 */
+.typo-keys {
+  display: flex;
+  flex-direction: column;
+  max-height: 260px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.typo-keys__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+}
+
+.typo-keys__label {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.typo-keys__conflict {
+  flex: none;
+  font-size: 11px;
+  color: var(--typo-danger);
+  border: 1px solid currentcolor;
+  border-radius: 3px;
+  padding: 0 4px;
+}
+
+.typo-keys__binding {
+  flex: none;
+  min-width: 7em;
+  font: inherit;
+  font-size: 12px;
+  color: var(--typo-fg);
+  background: var(--typo-bg);
+  border: 1px solid var(--typo-border);
+  border-radius: 5px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.typo-keys__binding--empty {
+  color: var(--typo-fg-muted);
+}
+
+/* 录制中必须一眼看出来 —— 这个状态下所有按键都被吞掉，
+   用户要是没意识到自己在录制，会以为应用卡死了 */
+.typo-keys__binding--capturing {
+  color: var(--typo-accent);
+  border-color: var(--typo-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--typo-accent) 25%, transparent);
+}
+
+.typo-keys__clear {
+  flex: none;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--typo-fg-muted);
+  background: none;
+  border: 0;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+
+.typo-keys__clear:hover {
+  color: var(--typo-danger);
+}
+
+.typo-keys__reset {
+  align-self: flex-start;
+  margin-top: 8px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--typo-fg);
+  background: var(--typo-bg);
+  border: 1px solid var(--typo-border);
+  border-radius: 5px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
