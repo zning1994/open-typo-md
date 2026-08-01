@@ -22,7 +22,7 @@
  * 而且往用户的项目目录里写状态文件，是要被 git 记一笔的 —— 除非用户主动要求，
  * 否则不该发生。
  */
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, realpath, rename, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { app, type BrowserWindow } from 'electron'
 
@@ -58,11 +58,21 @@ function schedulePersist(): void {
   }, PERSIST_DEBOUNCE_MS)
 }
 
+/**
+ * 写盘。**先写临时文件再改名**，跟文档的原子保存是同一个道理（04 §2）。
+ *
+ * 这不是洁癖：退出时会立刻刷一次盘，而进程随时可能在 `writeFile` 已经把文件
+ * 截断、还没写完内容的那一瞬间结束 —— 留下的是一个长度为零或者半截的 JSON。
+ * 下次启动解析失败，会话就这么没了，而且是**时有时无**地没，最难查的那一类。
+ * rename 是原子的：要么是旧的完整内容，要么是新的完整内容。
+ */
 async function persist(): Promise<void> {
   const file = sessionFile()
+  const temp = `${file}.tmp`
   try {
     await mkdir(path.dirname(file), { recursive: true })
-    await writeFile(file, JSON.stringify({ windows: [...live.values()] }, null, 2), 'utf8')
+    await writeFile(temp, JSON.stringify({ windows: [...live.values()] }, null, 2), 'utf8')
+    await rename(temp, file)
   } catch {
     // 会话恢复是锦上添花，写不进去不该影响任何别的事
   }
@@ -108,9 +118,33 @@ export function claimSession(window: BrowserWindow): WindowSession | null {
   return found
 }
 
+/**
+ * 把路径规范化成真实路径再存。
+ *
+ * 会话文件是**跨进程**的，两次启动之间没有任何共享上下文，路径的写法就是唯一
+ * 的身份。而同一个目录在不同写法下随处可见：Windows 的临时目录常是 8.3 短名
+ * （`RUNNER~1`），macOS 的 `/tmp` 是指向 `/private/tmp` 的符号链接。
+ * 存下来的是哪一种全看当时是谁给的，下次启动再拿去比对就成了碰运气。
+ *
+ * 解析不了的（文件已经不在了）原样保留 —— 恢复那一侧本来就要处理「不在了」。
+ */
+async function canonical(target: string): Promise<string> {
+  try {
+    return await realpath(target)
+  } catch {
+    return target
+  }
+}
+
 /** 渲染进程上报当前形态。 */
-export function reportSession(window: BrowserWindow, session: WindowSession): void {
-  live.set(window.id, session)
+export async function reportSession(
+  window: BrowserWindow,
+  session: WindowSession,
+): Promise<void> {
+  const folder = session.folder === null ? null : await canonical(session.folder)
+  const tabs = await Promise.all(session.tabs.map(canonical))
+  if (window.isDestroyed()) return
+  live.set(window.id, { ...session, folder, tabs })
   schedulePersist()
 }
 

@@ -321,7 +321,7 @@ function registerIpc(): void {
   }))
 
   handle(CHANNELS.sessionReport, async (sender, session: WindowSession) => {
-    if (sender) reportSession(sender, session)
+    if (sender) await reportSession(sender, session)
   })
 
   handle(CHANNELS.sessionClaim, async (sender) => (sender ? claimSession(sender) : null))
@@ -408,11 +408,22 @@ if (!app.requestSingleInstanceLock()) {
 
   pendingOpenPath = fileFromArgv(process.argv)
 
-  // ⌘Q / 退出菜单：任一窗口的渲染进程说「取消」就会中止整个退出流程
-  app.on('before-quit', () => {
+  /**
+   * ⌘Q / 退出菜单：任一窗口的渲染进程说「取消」就会中止整个退出流程。
+   *
+   * 会话要**等它真的落盘**再退。`before-quit` 不能 await，所以先拦下这一次退出，
+   * 写完再重新 quit 一遍 —— 光 `void flushSession()` 的话，进程完全可能在写完
+   * 之前就没了（写入本身是原子的，但没写成就是没写成，恢复不了）。
+   */
+  let sessionFlushed = false
+  app.on('before-quit', (event) => {
     beginQuit()
-    // 不等防抖：退出时窗口会一个接一个关掉，慢一步就什么都不剩了
-    void flushSession()
+    if (sessionFlushed) return
+    event.preventDefault()
+    void flushSession().finally(() => {
+      sessionFlushed = true
+      app.quit()
+    })
   })
 
   void app.whenReady().then(async () => {

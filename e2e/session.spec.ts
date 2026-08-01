@@ -14,6 +14,10 @@ import type { ElectronApplication } from '@playwright/test'
 
 const appRoot = fileURLToPath(new URL('../apps/desktop', import.meta.url))
 
+// 每条用例要完整启动两次 Electron（外加一次干净退出），Windows 的 CI 机器上
+// 这一套走下来就逼近默认的 60 秒了 —— 放宽的是耐心，不是断言
+test.setTimeout(150_000)
+
 let userDataDir: string
 let workDir: string
 
@@ -90,10 +94,10 @@ test('重启之后恢复上次的工作区与标签', async () => {
   await page2.waitForSelector('.cm-content', { state: 'visible' })
 
   // 工作区回来了
-  await expect(page2.locator('.typo-files')).toBeVisible()
+  await expect(page2.locator('.typo-files')).toBeVisible({ timeout: 20_000 })
   await expect(page2.locator('.typo-files__title')).toHaveText(path.basename(workDir))
   // 两个标签也回来了
-  await expect(page2.locator('.tab-bar .tab')).toHaveCount(2)
+  await expect(page2.locator('.tab-bar .tab')).toHaveCount(2, { timeout: 20_000 })
 
   await quit(app2)
 })
@@ -133,7 +137,7 @@ test('上次的文件被删掉时，静默跳过它，其余照常恢复', async
   await page2.waitForSelector('.cm-content', { state: 'visible' })
 
   // 上次会话里的某个文件不在了是很正常的事，不该为它弹错误框挡住启动
-  await expect(page2.locator('.tab-bar')).toBeHidden()
+  await expect(page2.locator('.tab-bar')).toBeHidden({ timeout: 20_000 })
   await expect
     .poll(() =>
       page2.evaluate(
