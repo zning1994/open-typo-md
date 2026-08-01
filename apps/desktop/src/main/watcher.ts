@@ -44,7 +44,17 @@ export interface FileChangeNotice {
 }
 
 interface Entry {
-  path: string
+  /**
+   * 渲染进程**请求**时用的那个路径。
+   *
+   * 跟 `real` 分开是被 macOS 逼出来的：那里 `/var/folders/…` 的真实路径是
+   * `/private/var/folders/…`。通知里回传真实路径的话，渲染进程按路径找不到
+   * 对应的标签 —— 于是「外部改了文件」这件事在 macOS 上悄无声息地丢掉了。
+   * 谁问的就回谁那个写法。
+   */
+  requested: string
+  /** 解析符号链接之后的真实路径，用来挂 watch 与去重。 */
+  real: string
   watcher: FSWatcher | null
   timer: NodeJS.Timeout | null
 }
@@ -100,7 +110,7 @@ function disposeWatcher(entry: Entry): void {
 function attach(window: BrowserWindow, entry: Entry): void {
   disposeWatcher(entry)
   try {
-    entry.watcher = watch(entry.path, () => schedule(window, entry))
+    entry.watcher = watch(entry.real, () => schedule(window, entry))
     // 文件被删除、磁盘拔出之类的错误不该让 main 崩掉
     entry.watcher.on('error', () => disposeWatcher(entry))
   } catch {
@@ -121,7 +131,7 @@ async function settle(window: BrowserWindow, entry: Entry): Promise<void> {
   // 原子替换换掉了 inode，旧 watch 已经聋了 —— 重新挂
   attach(window, entry)
 
-  const { hash, deleted } = await currentState(entry.path)
+  const { hash, deleted } = await currentState(entry.real)
 
   // 自己写出去的，不惊动自己
   const now = Date.now()
@@ -129,7 +139,7 @@ async function settle(window: BrowserWindow, entry: Entry): Promise<void> {
   if (!deleted && hash !== null && selfWritten.has(hash)) return
 
   if (window.isDestroyed()) return
-  const notice: FileChangeNotice = { path: entry.path, hash, deleted }
+  const notice: FileChangeNotice = { path: entry.requested, hash, deleted }
   window.webContents.send(EVENTS.fileChanged, notice)
 }
 
@@ -151,11 +161,13 @@ export async function watchFor(
 ): Promise<void> {
   // 监听同样过白名单：renderer 不能靠它去探测任意路径是否存在。
   // 先全部解析完再动手，免得中途抛错留下一个改了一半的集合
-  const wanted = new Set<string>()
+  // 真实路径 → 请求时的写法
+  const wanted = new Map<string, string>()
   const rejected: unknown[] = []
   for (const target of targets) {
     try {
-      wanted.add(await assertAllowed(target))
+      const real = await assertAllowed(target)
+      if (!wanted.has(real)) wanted.set(real, target)
     } catch (error) {
       rejected.push(error)
     }
@@ -163,13 +175,18 @@ export async function watchFor(
 
   const existing = entries.get(window.id) ?? new Map<string, Entry>()
   for (const [real, entry] of existing) {
-    if (wanted.has(real)) continue
-    release(entry)
-    existing.delete(real)
+    const requested = wanted.get(real)
+    if (requested === undefined) {
+      release(entry)
+      existing.delete(real)
+      continue
+    }
+    // 同一个文件换了个写法来请求：通知要跟着改用新写法
+    entry.requested = requested
   }
-  for (const real of wanted) {
+  for (const [real, requested] of wanted) {
     if (existing.has(real)) continue
-    const entry: Entry = { path: real, watcher: null, timer: null }
+    const entry: Entry = { requested, real, watcher: null, timer: null }
     existing.set(real, entry)
     attach(window, entry)
   }

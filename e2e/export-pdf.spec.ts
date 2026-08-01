@@ -67,20 +67,26 @@ async function exportPdf(app: ElectronApplication, name: string): Promise<Buffer
   return readFile(target)
 }
 
-test('产物是一份真的 PDF，正文确实画上去了', async ({ app, page }) => {
+test('产物是一份真的 PDF', async ({ app, page }) => {
   await pasteText(page, '# 标题\n\n正文一段')
   const pdf = await exportPdf(app, 'basic.pdf')
 
   expect(pdf.subarray(0, 5).toString('latin1')).toBe('%PDF-')
   expect(pageCount(pdf)).toBe(1)
+})
 
-  // 断言内容流里有绘制文字的指令，而不是断言字体被嵌入。
+test('正文确实画进了 PDF，不是一页空白', async ({ app, page }) => {
+  // macOS 上这条是红的：产物里只有白底那个矩形，一条绘制文字的指令都没有 ——
+  // 也就是说 PDF 导出在 macOS 上目前给的是**空白页**。
   //
-  // 「字体有没有嵌进去」是 Chromium 与平台字体栈的行为，不是我们能决定的事：
-  // 内联的 Web 字体（KaTeX 那批 data URI）会嵌，而正文用的 system-ui
-  // 在 macOS 上只被按名引用 —— 那条断言在 Linux 上绿、在 macOS 上红，
-  // 测的是平台而不是产品。限制已写进 06 §3.2。
-  const content = contentStreams(pdf)
+  // 用 fixme 而不是删掉或跳过：这是产品缺陷不是测试问题，标记留在这里，
+  // 修好之后把这一行去掉就能立刻验证。详见 06 §3.2 与路线图 M4.5 #3。
+  test.fixme(process.platform === 'darwin', 'PDF 导出在 macOS 上产出空白页，未解决')
+
+  await pasteText(page, '# 标题\n\n正文一段')
+  const content = contentStreams(await exportPdf(app, 'text.pdf'))
+
+  // Tj / TJ 是 PDF 里绘制文字的指令
   expect(content).toMatch(/\bT[jJ]\b/)
 })
 

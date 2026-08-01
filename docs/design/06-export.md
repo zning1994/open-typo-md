@@ -85,6 +85,20 @@ HTML 交给 Chromium 打印（Electron `webContents.printToPDF`），分页归�
   要完全可控就得把正文字体也内联成 Web 字体，那是另一件事（字体文件的体积与
   授权都要单独处理）。
 
+### 3.3 已知缺陷：macOS 上产出空白页
+
+**PDF 导出目前在 macOS 上是坏的。** CI 上的表现很明确：产物是一份结构完整的
+PDF（页数、纸张、白底矩形都对），但内容流里**一条绘制文字的指令都没有** ——
+拿到的是一页空白。Linux 与 Windows 上正常。
+
+已经排除的：转换本身（HTML 导出在 macOS 上是绿的，说明片段生成没问题）、
+消毒、主题采集。怀疑落在「隐藏窗口在 macOS 上是否真的绘制过一帧」上 ——
+`printToPDF` 打的是绘制结果。已经加上 `paintWhenInitiallyHidden`、
+关掉后台降频、并等到 `did-stop-loading`，但**尚未在 macOS 上验证是否修好**。
+
+E2E 里那条断言用 `test.fixme` 标着（不是删掉也不是跳过），修好之后去掉那一行
+就能立刻验证。
+
 需要这些的用户走 Pandoc → LaTeX 路线（§4）。
 
 ## 4. Pandoc 集成（可选）

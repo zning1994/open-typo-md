@@ -50,6 +50,9 @@ export async function renderPdf(html: string, options: PdfOptions = {}): Promise
 
   const win = new BrowserWindow({
     show: false,
+    // 隐藏的窗口默认可能根本不绘制，而 printToPDF 打的是绘制结果 ——
+    // 不绘制就得到一份只有白底的空白 PDF
+    paintWhenInitiallyHidden: true,
     webPreferences: {
       javascript: false,
       sandbox: true,
@@ -57,11 +60,19 @@ export async function renderPdf(html: string, options: PdfOptions = {}): Promise
       nodeIntegration: false,
       webSecurity: true,
       allowRunningInsecureContent: false,
+      // 后台窗口会被降频甚至暂停，而这个窗口从生到死都在后台
+      backgroundThrottling: false,
     },
   })
 
   try {
     await win.loadFile(file)
+    // loadFile 在 did-finish-load 就 resolve 了，那时首帧未必画完
+    if (win.webContents.isLoading()) {
+      await new Promise<void>((resolve) =>
+        win.webContents.once('did-stop-loading', () => resolve()),
+      )
+    }
     return await win.webContents.printToPDF({
       pageSize: options.pageSize ?? 'A4',
       landscape: options.landscape ?? false,
