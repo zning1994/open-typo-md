@@ -68,6 +68,31 @@ Linux 上跑端到端测试需要一个显示环境：`xvfb-run -a pnpm test:e2e
 - 主题引擎、HTML / PDF 导出（M4）
 - 插件系统（M5）
 
+## 试用 CI 构建的安装包
+
+每次推到 `main`，[Actions](https://github.com/zning1994/open-typo-md/actions) 里会产出三个平台的安装包。
+注意页面上显示的 `typo-macos-arm64-dmg` 这类名字是**产物包**的名称，不是文件名 ——
+GitHub 一律把产物打成 zip，解开之后才是 `Typo-0.1.0-arm64.dmg`。
+
+**这些包都没有签名**，因为签名证书还没配（M6 的发布工程内容，见 docs/design/07 §7）。
+所以首次打开会被系统拦下来：
+
+**macOS** —— 提示「"Typo" 已损坏，无法打开。你应该将它移到废纸篓」。
+应用没有损坏，这是 Gatekeeper 对未签名应用的（相当误导人的）说法。
+把应用拖进 `/Applications` 之后执行：
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Typo.app
+```
+
+**Windows** —— SmartScreen 提示「Windows 已保护你的电脑」，点「更多信息」→「仍要运行」。
+
+**Linux** —— AppImage 需要先加执行权限：
+
+```bash
+chmod +x Typo-*.AppImage && ./Typo-*.AppImage
+```
+
 ## 仓库结构
 
 ```

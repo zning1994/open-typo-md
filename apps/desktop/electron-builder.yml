@@ -31,6 +31,10 @@ fileAssociations:
     name: Markdown Document
     role: Editor
 
+# 未配置证书时给 macOS 包打临时签名，否则 Apple Silicon 上根本起不来
+# （表现为「已损坏，无法打开」）。详见脚本内的说明。
+afterPack: scripts/after-pack.mjs
+
 mac:
   category: public.app-category.productivity
   target:
