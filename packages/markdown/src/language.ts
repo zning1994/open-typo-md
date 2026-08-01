@@ -11,6 +11,7 @@ import { languages } from '@codemirror/language-data'
 import { GFM, type MarkdownConfig } from '@lezer/markdown'
 import { footnoteExtension } from './footnote.js'
 import { frontmatterExtension } from './frontmatter.js'
+import { mathExtension } from './math.js'
 
 /**
  * 方言。
@@ -46,6 +47,14 @@ export interface MarkdownLanguageOptions {
    * 传 `[]` 可以完全关掉（大文档降级、或体积敏感的宿主）。
    */
   codeLanguages?: readonly LanguageDescription[]
+  /**
+   * 数学公式：行内 `$…$`、块级 `$$…$$`（KaTeX 渲染）。
+   *
+   * 默认**开启**。关掉之后 `$` 一律按普通字符处理 —— 写财务文档、
+   * shell 变量多的技术文档时可能需要（虽然解析规则已经挡掉了绝大多数误伤，
+   * 见 math.ts）。
+   */
+  math?: boolean
   /**
    * YAML front matter（文档开头 `---` 包起来的元数据块）。
    *
@@ -91,6 +100,7 @@ export function markdownLanguageSupport(
     extensions = [],
     codeLanguages = languages,
     frontmatter = true,
+    math = true,
   } = options
 
   return markdown({
@@ -98,6 +108,7 @@ export function markdownLanguageSupport(
     extensions: [
       ...(dialect === 'gfm' ? GFM_EXTENSIONS : []),
       ...(frontmatter ? [frontmatterExtension] : []),
+      ...(math ? [mathExtension] : []),
       ...extensions,
     ],
     // Lezer 的混合语言解析：``` 后面写的语言名会被交给对应的解析器，

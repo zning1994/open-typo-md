@@ -18,10 +18,12 @@ import { StateField, type EditorState, type Extension, type Range } from '@codem
 import { Decoration, EditorView, type DecorationSet } from '@codemirror/view'
 import {
   BLOCK_NODES,
+  MATH_NODES,
   TABLE_NODES,
   codeLanguageNames,
   resolveCodeLanguage,
 } from '@typo/markdown'
+import { MathWidget } from '../math.js'
 import { CodeLanguageWidget } from './widgets.js'
 import { delimiterRowOf, tableIsActive } from './tables.js'
 
@@ -99,6 +101,48 @@ function hideDelimiterRow(
   ranges.push(HIDE_LINE.range(line.from - 1, line.to))
 }
 
+/**
+ * 块级公式：整块换成渲染结果。
+ *
+ * 跟藏围栏不同，这里是**整块替换**（`[block.from, block.to)` 正好覆盖若干整行），
+ * 不需要往前吃换行那套技巧 —— 那个技巧是为「藏掉一行、把剩下的行接起来」
+ * 准备的，而这里没有剩下的行。
+ *
+ * 光标进块即还原成源码：公式写错了总得能改，而且 `$$` 是删掉整块的唯一抓手。
+ */
+function renderBlockMath(
+  state: EditorState,
+  node: SyntaxNode,
+  ranges: Range<Decoration>[],
+): void {
+  for (const range of state.selection.ranges) {
+    for (const pos of range.empty ? [range.head] : [range.from, range.to]) {
+      if (pos >= node.from && pos <= node.to) return // 闭区间，跟行内元素一致
+    }
+  }
+
+  const first = state.doc.lineAt(node.from)
+  const last = state.doc.lineAt(node.to)
+  // 只有开围栏、没有内容：渲染出来是个空盒子，不如留着源码
+  if (last.number - first.number < 1) return
+
+  const tex = state.doc.sliceString(first.to + 1, closingFrom(state, node, last)).trim()
+  if (!tex) return
+
+  ranges.push(
+    Decoration.replace({ block: true, widget: new MathWidget(tex, true) }).range(
+      node.from,
+      node.to,
+    ),
+  )
+}
+
+/** 内容的结束位置：有收尾 `$$` 就到它前面，没有就到块尾。 */
+function closingFrom(state: EditorState, node: SyntaxNode, last: { from: number }): number {
+  const closes = /^\s*\$\$\s*$/.test(state.doc.lineAt(last.from).text)
+  return closes ? Math.max(node.from, last.from - 1) : node.to
+}
+
 function computeBlockDecorations(state: EditorState): DecorationSet {
   const ranges: Range<Decoration>[] = []
   const doc = state.doc
@@ -112,6 +156,10 @@ function computeBlockDecorations(state: EditorState): DecorationSet {
       if (node.name === TABLE_NODES.table) {
         hideDelimiterRow(state, node.node, ranges)
         return
+      }
+      if (node.name === MATH_NODES.block) {
+        renderBlockMath(state, node.node, ranges)
+        return false // 块内不再下钻：里面的 `$$` 标记由整块替换一起接管
       }
       if (node.name !== BLOCK_NODES.fencedCode) return
 

@@ -22,6 +22,9 @@ import type { BlockContext, InlineContext, Line, MarkdownConfig } from '@lezer/m
 
 export const MATH_NODES = {
   inline: 'InlineMath',
+  /** 写在一行里的 `$$…$$`。语义上是行间公式，但它在**行内**位置出现。 */
+  display: 'DisplayMath',
+  /** 独占若干行的 `$$` … `$$`。 */
   block: 'BlockMath',
   mark: 'MathMark',
   content: 'MathContent',
@@ -38,9 +41,37 @@ function isDigit(code: number): boolean {
   return code >= 48 && code <= 57
 }
 
+/**
+ * 一行之内的 `$$…$$`。
+ *
+ * 定界符规则比行内 `$…$` 宽松：`$$ x $$` 是常见写法，而 `$$` 本身已经足够
+ * 不像货币符号了，不需要那套防误伤的约束。
+ */
+function parseDisplay(cx: InlineContext, pos: number): number {
+  for (let at = pos + 2; at < cx.end - 1; at++) {
+    const ch = cx.char(at)
+    if (ch === 10) return -1 // 不跨行，跨行的交给块级规则
+    if (ch === 92) {
+      at++
+      continue
+    }
+    if (ch !== DOLLAR || cx.char(at + 1) !== DOLLAR) continue
+    if (at === pos + 2) return -1 // `$$$$` 空公式
+    return cx.addElement(
+      cx.elt(MATH_NODES.display, pos, at + 2, [
+        cx.elt(MATH_NODES.mark, pos, pos + 2),
+        cx.elt(MATH_NODES.content, pos + 2, at),
+        cx.elt(MATH_NODES.mark, at, at + 2),
+      ]),
+    )
+  }
+  return -1
+}
+
 export const mathExtension: MarkdownConfig = {
   defineNodes: [
     { name: MATH_NODES.inline, style: tags.special(tags.content) },
+    { name: MATH_NODES.display, style: tags.special(tags.content) },
     { name: MATH_NODES.block, block: true },
     { name: MATH_NODES.mark, style: tags.processingInstruction },
     { name: MATH_NODES.content },
@@ -51,8 +82,11 @@ export const mathExtension: MarkdownConfig = {
       name: MATH_NODES.inline,
       parse(cx: InlineContext, next: number, pos: number): number {
         if (next !== DOLLAR) return -1
-        // `$$` 开头交给块级规则，行内不碰
-        if (cx.char(pos + 1) === DOLLAR) return -1
+
+        // 写在一行里的 `$$…$$`：语义上是行间公式，但它出现在行内位置，
+        // 块级规则（要求 `$$` 独占一行）够不着它。不处理的话，
+        // 行内规则会从第二个 `$` 起手，把它啃成 `$ 公式 $` 外加两个孤零零的 `$`
+        if (cx.char(pos + 1) === DOLLAR) return parseDisplay(cx, pos)
         // 开定界符右边不能是空白，否则 `成本 $ 100` 会被当成公式起点
         if (isSpace(cx.char(pos + 1))) return -1
 
@@ -98,7 +132,10 @@ export const mathExtension: MarkdownConfig = {
         const openTo = cx.lineStart + line.text.length
         const contentFrom = openTo + 1
 
-        let contentTo = contentFrom
+        // 初值是**开围栏的结尾**而不是内容起点：文档就此结束（`$$` 是最后一行）
+        // 时，内容起点已经越过了文档末尾，拿它当块的终点会造出一个
+        // 超出文档长度的节点，下游 `doc.lineAt()` 直接抛错
+        let contentTo = openTo
         let closeFrom = -1
         let closeTo = -1
 

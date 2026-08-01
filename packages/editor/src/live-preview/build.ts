@@ -16,6 +16,7 @@ import {
   BLOCK_NODES,
   FOOTNOTE_NODES,
   FRONTMATTER_NODES,
+  MATH_NODES,
   INLINE_NODES,
   MARK_NODES,
   TABLE_NODES,
@@ -26,6 +27,7 @@ import {
 import { livePreviewConfig } from '../config.js'
 import { activeState, revealsLine, revealsRange, type ActiveState } from './active.js'
 import { alignmentsOf, delimiterRowLayout, rowLayout, tableIsActive } from './tables.js'
+import { MathWidget } from '../math.js'
 import {
   BulletWidget,
   EntityWidget,
@@ -201,6 +203,13 @@ function handleNode(b: Builder, node: SyntaxNodeRef, clip: { from: number; to: n
 
     case BLOCK_NODES.horizontalRule:
       handleRule(b, node)
+      return
+
+    case MATH_NODES.inline:
+      handleInlineMath(b, node, 1)
+      return
+    case MATH_NODES.display:
+      handleInlineMath(b, node, 2)
       return
 
     case FRONTMATTER_NODES.block:
@@ -416,6 +425,24 @@ const URL_CONTAINERS = new Set<string>([
   INLINE_NODES.autolink,
   BLOCK_NODES.linkReference,
 ])
+
+/**
+ * 行内公式 `$…$`：整段换成渲染结果；光标进去就还原成源码。
+ *
+ * 显形用闭区间（跟其他行内元素一致）—— 光标贴在公式右侧时也要能接着改，
+ * 否则用户没法在公式后面继续输入。
+ */
+function handleInlineMath(b: Builder, node: SyntaxNodeRef, markLength: number): void {
+  if (revealsRange(b.active, node.from, node.to)) {
+    b.mark(node.from, node.to, 'cm-typo-math-source')
+    return
+  }
+  const tex = b.slice(node.from + markLength, node.to - markLength)
+  if (!tex.trim()) return // 空公式不渲染，原样留着让用户改
+  // `$$…$$` 即便写在一行里也是**行间公式**，按 display 模式渲染
+  const display = markLength === 2
+  b.hide(node.from, node.to, Decoration.replace({ widget: new MathWidget(tex, display) }))
+}
 
 /** 脚注引用 `[^1]`：藏掉 `[^` 和 `]`，标签留着做上标。 */
 function handleFootnoteRef(b: Builder, node: SyntaxNodeRef): void {

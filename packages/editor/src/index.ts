@@ -49,5 +49,6 @@ export {
 } from './commands.js'
 export { CODE_LINE_CLASS, codeBlockScrollSync } from './code-block.js'
 export { inputBehavior } from './input.js'
+export { MathWidget, mathTheme } from './math.js'
 export { linkInteraction, linkTargetAt } from './links.js'
 export { baseTheme, markdownHighlight, typoTheme } from './theme.js'

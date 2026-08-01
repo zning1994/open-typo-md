@@ -15,6 +15,7 @@
 import spec from 'commonmark-spec'
 import { describe, expect, it } from 'vitest'
 import { decodeText, encodeText } from '@typo/markdown'
+import { computeBlockDecorations } from '@typo/editor'
 import { hiddenRanges, mkState } from './helpers.js'
 
 interface SpecExample {
@@ -59,6 +60,29 @@ describe.each(['commonmark', 'gfm'] as const)('结构不变量 · %s 方言', (d
     for (const example of examples) {
       try {
         hiddenRanges(state(example.markdown))
+      } catch (error) {
+        failures.push({ number: example.number, error: String(error) })
+      }
+    }
+    expect(failures).toEqual([])
+  })
+
+  it('全部用例：块级装饰不抛异常、不越界', () => {
+    // 块级装饰走的是另一条路（StateField），语料库原先完全没覆盖到它。
+    // 补这条的直接原因是踩过一次：块级公式在「`$$` 正好是文档最后一行」时
+    // 造出了一个超出文档长度的节点，下游 doc.lineAt() 当场抛错
+    const failures: Array<{ number: number; error: string }> = []
+    for (const example of examples) {
+      const s = state(example.markdown)
+      try {
+        const set = computeBlockDecorations(s)
+        const iter = set.iter()
+        while (iter.value) {
+          if (iter.from < 0 || iter.to > s.doc.length) {
+            throw new RangeError(`装饰范围 [${iter.from}, ${iter.to}) 越界`)
+          }
+          iter.next()
+        }
       } catch (error) {
         failures.push({ number: example.number, error: String(error) })
       }

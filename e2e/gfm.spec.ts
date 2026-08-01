@@ -116,3 +116,51 @@ test('源码保真：GFM 的新语法一次过，字节不变', async ({ page })
 
   expect(await docText(page)).toBe(doc)
 })
+
+test.describe('数学公式', () => {
+  test('行内公式渲染成 KaTeX', async ({ page }) => {
+    await resetDoc(page, '质能方程 $E = mc^2$ 很有名\n\n第二段')
+
+    // KaTeX 是懒加载的，第一次要等 chunk 下来
+    await expect(page.locator('.cm-typo-math .katex')).toHaveCount(1, { timeout: 15_000 })
+    await expect(page.locator('.cm-typo-math')).not.toHaveClass(/--pending/)
+  })
+
+  test('块级公式整块渲染，居中', async ({ page }) => {
+    await resetDoc(page, '前文\n\n$$\n\\int_0^1 x\\,dx\n$$\n\n后文')
+
+    const block = page.locator('.cm-typo-math--block')
+    await expect(block).toHaveCount(1, { timeout: 15_000 })
+    expect(await block.evaluate((el) => getComputedStyle(el).textAlign)).toBe('center')
+  })
+
+  test('光标进入公式时还原成源码', async ({ page }) => {
+    await resetDoc(page, '公式 $a + b$ 结束\n\n第二段')
+    await expect(page.locator('.cm-typo-math .katex')).toHaveCount(1, { timeout: 15_000 })
+
+    await page.locator('.cm-typo-math').click()
+    await expect(page.locator('.cm-typo-math')).toHaveCount(0)
+    expect(await docText(page)).toContain('$a + b$')
+  })
+
+  test('写错的公式标红显示原文，不留白也不崩', async ({ page }) => {
+    // throwOnError: false —— 用户看到的是自己写的东西加一个错误提示
+    await resetDoc(page, '错误公式 $\\frac{1}$ 在这\n\n第二段')
+
+    await expect(page.locator('.cm-typo-math')).toHaveCount(1, { timeout: 15_000 })
+    await expect(page.locator('.cm-typo-math')).not.toBeEmpty()
+  })
+
+  test('源码保真：公式一个字节都没变', async ({ page }) => {
+    const doc = '行内 $E = mc^2$ 与\n\n$$\n\\sum_{i=1}^n i\n$$\n\n结束'
+    await resetDoc(page)
+    await page.keyboard.type(doc)
+
+    expect(await docText(page)).toBe(doc)
+  })
+
+  test('货币金额不会被渲染成公式', async ({ page }) => {
+    await resetDoc(page, '我花了 $5 买了 $10 的东西\n\n第二段')
+    await expect(page.locator('.cm-typo-math')).toHaveCount(0)
+  })
+})

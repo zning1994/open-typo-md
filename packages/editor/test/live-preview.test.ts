@@ -208,7 +208,6 @@ describe('结构不变量', () => {
 describe('未知语法原样保留', () => {
   it.each([
     ':::note\n提示\n:::', // 通用指令语法，排在 M5
-    '$$x^2$$', // 数学公式，排在 M3
     '<div class="x">原始 HTML</div>', // 原始 HTML 渲染已移入 M4.5，明确搁置
     '[[Wiki 链接]]', // 由插件提供，不内置
     '~x~', // 下标：上游的 markdownLanguage 会开，我们刻意没开（见 language.ts）

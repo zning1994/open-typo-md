@@ -63,7 +63,8 @@ export const frontmatterExtension: MarkdownConfig = {
 
         let closeFrom = -1
         let closeTo = -1
-        let contentTo = contentFrom
+        // 同 math.ts：初值取开围栏的结尾，避免文档就此结束时造出越界的节点
+        let contentTo = openTo
 
         while (cx.nextLine()) {
           if (FENCE.test(line.text)) {

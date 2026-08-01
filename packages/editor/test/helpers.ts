@@ -13,6 +13,7 @@ import {
   BulletWidget,
   EntityWidget,
   ImageWidget,
+  MathWidget,
   RuleWidget,
   TaskCheckboxWidget,
 } from '@typo/editor'
@@ -21,6 +22,8 @@ export interface StateOptions {
   /** 光标位置；数组表示多光标；[from, to] 元组表示选区。 */
   selection?: number | Array<number | [number, number]>
   dialect?: MarkdownDialect
+  /** 关掉数学扩展（默认开）。 */
+  math?: boolean
   assetResolver?: (src: string) => string
   extensions?: Extension[]
 }
@@ -42,7 +45,10 @@ export function mkState(doc: string, options: StateOptions = {}): EditorState {
     extensions: [
       // 默认跟产品一致（GFM）。CommonMark 严格模式要在用例里显式指定，
       // 免得测试悄悄跑在一个用户永远碰不到的方言上。
-      markdownLanguageSupport({ dialect: options.dialect ?? 'gfm' }),
+      markdownLanguageSupport({
+        dialect: options.dialect ?? 'gfm',
+        ...(options.math === undefined ? {} : { math: options.math }),
+      }),
       EditorState.allowMultipleSelections.of(true),
       livePreviewConfig.of({
         assetResolver: options.assetResolver ?? ((src) => src),
@@ -69,6 +75,7 @@ export function decorationsOf(state: EditorState) {
  *   ─            分隔线
  *   ☐ / ☑        任务列表复选框
  *   ⟦img:src|alt⟧  图片
+ *   ⟦math:tex⟧   数学公式
  *   实体直接显示解码后的字符
  */
 export function preview(doc: string, options: StateOptions = {}): string {
@@ -101,6 +108,7 @@ function renderPreview(doc: string, options: StateOptions): string {
     else if (widget instanceof RuleWidget) out += '─'
     else if (widget instanceof TaskCheckboxWidget) out += widget.checked ? '☑' : '☐'
     else if (widget instanceof EntityWidget) out += widget.text
+    else if (widget instanceof MathWidget) out += `⟦math:${widget.tex}⟧`
     else if (widget instanceof ImageWidget) out += `⟦img:${widget.src}|${widget.alt}⟧`
     pos = to
   }

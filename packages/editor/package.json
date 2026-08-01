@@ -21,6 +21,10 @@
     "@lezer/common": "^1.5.2",
     "@lezer/highlight": "^1.2.1",
     "@typo/markdown": "workspace:*",
-    "@typo/plugin-api": "workspace:*"
+    "@typo/plugin-api": "workspace:*",
+    "katex": "^0.18.1"
+  },
+  "devDependencies": {
+    "@types/katex": "^0.16.8"
   }
 }

@@ -235,3 +235,41 @@ describe('YAML front matter', () => {
     expect(preview('段落\n\n---\n\n后面')).toBe('段落\n\n─\n\n后面')
   })
 })
+
+describe('数学公式', () => {
+  it('行内公式换成渲染结果', () => {
+    expect(preview('质能方程 $E = mc^2$ 很有名')).toBe('质能方程 ⟦math:E = mc^2⟧ 很有名')
+  })
+
+  it('光标进入行内公式时还原成源码', () => {
+    const doc = '质能方程 $E = mc^2$ 很有名'
+    expect(preview(doc, { selection: 8 })).toBe(doc)
+  })
+
+  it('货币金额不会被当成公式', () => {
+    expect(preview('我花了 $5 买了 $10 的东西')).toBe('我花了 $5 买了 $10 的东西')
+  })
+
+  it('块级公式整块换掉', () => {
+    const doc = '前文\n\n$$\n\\int_0^1 x\\,dx\n$$\n\n后文'
+    expect(preview(doc)).toBe('前文\n\n⟦math:\\int_0^1 x\\,dx⟧\n\n后文')
+  })
+
+  it('光标进入块级公式时整块还原', () => {
+    const doc = '前文\n\n$$\nx = 1\n$$\n\n后文'
+    expect(preview(doc, { selection: doc.indexOf('x = 1') })).toBe(doc)
+  })
+
+  it('只有开围栏、没有内容时不渲染，留着源码让用户改', () => {
+    const doc = '前文\n\n$$'
+    expect(preview(doc)).toBe(doc)
+  })
+
+  it('一行里的 $$…$$ 按行间公式渲染', () => {
+    expect(preview('公式 $$E = mc^2$$ 在这里')).toBe('公式 ⟦math:E = mc^2⟧ 在这里')
+  })
+
+  it('关掉数学扩展后一律按普通字符处理', () => {
+    expect(preview('$E = mc^2$', { math: false })).toBe('$E = mc^2$')
+  })
+})

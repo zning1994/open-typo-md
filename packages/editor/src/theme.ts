@@ -9,6 +9,7 @@ import { EditorView } from '@codemirror/view'
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
 import { tags } from '@lezer/highlight'
 import type { Extension } from '@codemirror/state'
+import { mathTheme } from './math.js'
 
 const v = (name: string, fallback: string) => `var(--typo-${name}, ${fallback})`
 
@@ -197,6 +198,13 @@ export const baseTheme = EditorView.theme({
     verticalAlign: 'middle',
   },
 
+  // 显形中的公式源码：等宽，跟正文区分开
+  '.cm-typo-math-source': {
+    fontFamily: v('font-mono', 'ui-monospace, Menlo, Consolas, monospace'),
+    fontSize: '0.92em',
+    color: v('fg-muted', '#6e7781'),
+  },
+
   // —— 图片 ——
   '.cm-typo-image img': { maxWidth: '100%', borderRadius: '4px', verticalAlign: 'bottom' },
   '.cm-typo-image--broken': {
@@ -232,5 +240,5 @@ export const markdownHighlight = HighlightStyle.define([
 ])
 
 export function typoTheme(): Extension {
-  return [baseTheme, syntaxHighlighting(markdownHighlight)]
+  return [baseTheme, mathTheme, syntaxHighlighting(markdownHighlight)]
 }
