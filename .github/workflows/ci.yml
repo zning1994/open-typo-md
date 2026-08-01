@@ -122,6 +122,13 @@ jobs:
           if-no-files-found: ignore
 
   # ── 构建产物：每次 push 到 main / 手动触发时产出可直接下载试用的包 ────
+  #
+  # 这里刻意**只打「宿主架构 + 一种格式」**，而不是 electron-builder.yml 里
+  # 配置的全量目标。全量意味着每个平台 3–4 个安装包各约 100MB，
+  # 一次 push 就产出 1.2GB 产物、还多花几分钟 —— 而这些包的用途只是
+  # 「下载下来试一下这个 commit」，一种格式足够。
+  #
+  # 正式发布（release.yml）不受影响，那里跑的是 electron-builder.yml 的全量矩阵。
   artifacts:
     name: 安装包（${{ matrix.os }}）
     needs: check
@@ -130,7 +137,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            targets: --linux AppImage --x64
+            label: linux-x64-AppImage
+          - os: windows-latest
+            targets: --win nsis --x64
+            label: windows-x64-setup-exe
+          # GitHub 的 macos-latest runner 现在是 Apple Silicon
+          - os: macos-latest
+            targets: --mac dmg --arm64
+            label: macos-arm64-dmg
     steps:
       - uses: actions/checkout@v5
 
@@ -144,17 +161,24 @@ jobs:
       - name: 安装依赖（含 Electron 二进制）
         run: pnpm install --frozen-lockfile
 
+      - name: 构建
+        run: pnpm build
+
       - name: 打包
         # 未配置签名证书，产出的是未签名包，仅供内部试用
-        run: pnpm --filter @typo/desktop package
+        run: >-
+          pnpm --filter @typo/desktop exec electron-builder
+          --config electron-builder.yml --publish never ${{ matrix.targets }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
+      # 名字里写清平台/架构/格式：Actions 页面上显示的是「产物包」的名称，
+      # 不是文件名（GitHub 一律把产物打成 zip），叫得含糊会让人以为安装包没后缀
       - name: 上传安装包
         uses: actions/upload-artifact@v4
         with:
-          name: typo-${{ matrix.os }}
+          name: typo-${{ matrix.label }}
           path: |
             apps/desktop/release/*.AppImage
             apps/desktop/release/*.deb

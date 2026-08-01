@@ -23,7 +23,14 @@ export const test = base.extend<TypoFixtures>({
   userDataDir: async ({}, use) => {
     const dir = await mkdtemp(path.join(tmpdir(), 'typo-e2e-'))
     await use(dir)
-    await rm(dir, { recursive: true, force: true })
+
+    // Electron 退出时还在往 userData 目录里写东西，紧接着删就会撞上
+    // ENOTEMPTY（macOS 上尤其容易）。maxRetries 正是为这类错误准备的。
+    //
+    // 而且临时目录清理失败**不该让用例挂掉** —— 它不是任何一条产品断言。
+    await rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }).catch(
+      () => undefined,
+    )
   },
 
   app: async ({ userDataDir }, use) => {
@@ -41,11 +48,21 @@ export const test = base.extend<TypoFixtures>({
     })
     await use(app)
 
-    // 优雅关闭走的是应用真实的关闭流程（含未保存确认），万一卡住就直接杀掉，
-    // 免得一个用例的问题拖垮整个 worker
+    // 显式退出整个应用进程，而不是只关窗口。
+    //
+    // 为什么必须这样：macOS 上关掉最后一个窗口后应用**故意**继续存活
+    // （`window-all-closed` 里 darwin 不 quit，这是 macOS 的标准约定，
+    // 产品行为是对的）。而 Playwright 的 close() 等的是进程退出 ——
+    // 于是每个用例都要卡满 10 秒兜底再被 SIGKILL，
+    // 23 个用例就是 4.5 分钟，还顺带引发临时目录的 ENOTEMPTY 竞态。
+    //
+    // app.exit() 跳过 before-quit / close 那一套直接结束进程，三个平台行为一致。
+    await app.evaluate(({ app }) => app.exit(0)).catch(() => undefined)
+
+    // 兜底：万一 exit 没生效也不能让一个用例拖垮整个 worker
     await Promise.race([
-      app.close(),
-      new Promise((resolve) => setTimeout(resolve, 10_000)).then(() => {
+      app.close().catch(() => undefined),
+      new Promise((resolve) => setTimeout(resolve, 5_000)).then(() => {
         app.process().kill('SIGKILL')
       }),
     ])
