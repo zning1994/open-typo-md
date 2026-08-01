@@ -5,10 +5,12 @@
  * 文档里的恶意 HTML 打穿，第一件事就是读 `~/.ssh/id_rsa`。挡住它的不是
  * contextIsolation（那只挡 API），而是这一层。
  *
- * M0 的授权模型很简单：
+ * 授权模型：
  * - 用户通过对话框显式打开/保存的文件 → 授权
  * - 该文件所在目录 → 授权（图片等相对路径资源需要）
- * 工作区概念在 M3 引入，届时整个工作区目录一次性授权。
+ * - 用户显式打开的**工作区目录** → 连同整棵子树授权
+ *
+ * **读文件**和**列目录**是两条不同的许可**（见 `assertAllowedDirectory`）。
  */
 import { realpath } from 'node:fs/promises'
 import path from 'node:path'
@@ -17,6 +19,14 @@ import path from 'node:path'
 const allowedDirs = new Set<string>()
 /** 已授权的单个文件。 */
 const allowedFiles = new Set<string>()
+/**
+ * 用户显式打开的工作区根目录。
+ *
+ * 跟 `allowedDirs` 分开：后者还装着「某个被打开文件的所在目录」，
+ * 那种授权的本意只是「让这篇文档的相对路径图片能加载」，
+ * 不该顺带把那个目录的**文件清单**也交出去。
+ */
+const workspaceRoots = new Set<string>()
 
 function normalize(target: string): string {
   return path.resolve(target)
@@ -39,8 +49,25 @@ export async function grantFile(target: string): Promise<void> {
   }
 }
 
-export function grantDirectory(target: string): void {
-  allowedDirs.add(normalize(target))
+/**
+ * 授权一个工作区目录（连同子树）。用户在「打开文件夹」对话框里选中时调用。
+ *
+ * 真实路径也要一起授权：macOS 上 `/tmp` 是指向 `/private/tmp` 的符号链接，
+ * 只授权用户看到的那个路径的话，后续校验（走 realpath）会拒绝自己刚打开的目录。
+ */
+export async function grantDirectory(target: string): Promise<void> {
+  const abs = normalize(target)
+  allowedDirs.add(abs)
+  workspaceRoots.add(abs)
+  try {
+    const real = await realpath(abs)
+    if (real !== abs) {
+      allowedDirs.add(real)
+      workspaceRoots.add(real)
+    }
+  } catch {
+    // 目录不存在就什么都不授权 —— 校验那一侧自然会拒绝
+  }
 }
 
 function isInside(parent: string, child: string): boolean {
@@ -76,10 +103,40 @@ export async function assertAllowed(target: string): Promise<string> {
   throw new Error(`路径未获授权：${target}`)
 }
 
+/**
+ * 校验「能不能列出这个目录」。
+ *
+ * 跟 `assertAllowed` 是两条不同的许可，故意分开：
+ *
+ * - `assertAllowed` 回答「能不能读这个**文件**」，它接受任何落在已授权目录
+ *   **里面**的路径，但不接受目录自身 —— 目录自身不是一份可读的内容。
+ * - 这一条回答「能不能看这个目录的**清单**」，它接受工作区根自身及其子目录。
+ *
+ * 合并成一条会顺带放开一件不该放开的事：用户只打开过某个文件时，
+ * `grantFile` 会授权该文件所在目录（为了相对路径图片），
+ * 而那不该等于「可以枚举那个目录里还有什么别的文件」。
+ */
+export async function assertAllowedDirectory(target: string): Promise<string> {
+  const abs = normalize(target)
+  let real: string
+  try {
+    real = await realpath(abs)
+  } catch {
+    throw new Error(`路径不可访问：${target}`)
+  }
+
+  if (workspaceRoots.has(real) || workspaceRoots.has(abs)) return real
+  for (const root of workspaceRoots) {
+    if (isInside(root, real)) return real
+  }
+  throw new Error(`目录未获授权：${target}`)
+}
+
 /** 仅供测试：清空白名单。 */
 export function resetGrantsForTest(): void {
   allowedDirs.clear()
   allowedFiles.clear()
+  workspaceRoots.clear()
 }
 
 /** 仅供测试：查看当前授权状态。 */

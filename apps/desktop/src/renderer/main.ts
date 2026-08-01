@@ -1,9 +1,9 @@
 /**
- * 渲染进程入口：把编辑器、文档控制器、外壳 UI 接起来。
+ * 渲染进程入口：把标签页、编辑器、文档控制器、外壳 UI 接起来。
  *
- * M0/M1 的界面刻意做得很薄 —— 只有编辑区 + 状态栏，没有侧边栏、没有标签页
- * （那些是 M3 的内容，届时随 @typo/ui 一起做成 React 组件）。
- * 现在多写的 UI 到 M3 都要推翻重来，不如先把内核做扎实。
+ * 形态见 docs/adr/0005：窗口装载，标签持有状态。这个文件本身**不持有任何
+ * 文档状态** —— 它只负责把「当前活动标签」的状态投影到状态栏、标题、菜单上。
+ * 早先这里存着 `currentPath`，多标签下那必然会跟某个标签的真实路径不同步。
  */
 import { openSearchPanel } from '@codemirror/search'
 import type { StateCommand } from '@codemirror/state'
@@ -23,13 +23,14 @@ import {
   toggleBold,
   toggleInlineCode,
   toggleItalic,
-  type ImageSink,
 } from '@typo/editor'
 import type { MenuCommand } from '../shared/channels.js'
 import { MENU_COMMAND_INFO, type Command } from './commands.js'
-import { DocumentController, type DocumentState } from './document.js'
+import { DocumentController } from './document.js'
+import { FileTreePanel } from './filetree.js'
 import { OutlinePanel } from './outline.js'
 import { CommandPalette } from './palette.js'
+import { TabManager } from './tabs.js'
 import { ThemeManager, THEMES } from './theme.js'
 import {
   buildAssetUrl,
@@ -57,49 +58,14 @@ function require$<T extends Element>(selector: string): T {
 
 const workspace = require$<HTMLElement>('#workspace')
 const editorHost = require$<HTMLElement>('#editor')
+const tabStrip = require$<HTMLElement>('#tab-bar')
 const statusName = require$<HTMLElement>('#status-name')
 const statusMeta = require$<HTMLElement>('#status-meta')
 const statusStats = require$<HTMLElement>('#status-stats')
 const statusMode = require$<HTMLButtonElement>('#status-mode')
 
-let currentPath: string | null = null
-
 /**
- * 粘贴 / 拖入的图片存到当前文件旁边的 `assets/`。
- *
- * 未保存的新文档没有落脚点，这里**明确报错**而不是找个临时目录糊过去：
- * 图片进了临时目录、Markdown 里却写着相对路径，用户一保存就得到一个
- * 永远加载不出来的引用。宁可当场说清楚。
- */
-async function saveImage(image: Parameters<ImageSink>[0]): Promise<string> {
-  if (!currentPath) throw new Error('请先保存文档，图片才知道该放在哪个目录旁边')
-  return host.fs.saveAttachment(dirnameOf(currentPath), image)
-}
-
-const editor = new TypoEditor({
-  parent: editorHost,
-  assetResolver: createAssetResolver(() => (currentPath ? dirnameOf(currentPath) : null)),
-  // 架构 01 §6：渲染进程绝不自行导航，链接一律交给系统浏览器；
-  // 协议白名单在 main 侧再挡一次
-  onOpenLink: (url) => void host.shell.openExternal(url),
-  imageSink: saveImage,
-  onImageError: (error, name) => {
-    void host.dialog.message({
-      message: `图片「${name}」没能插入`,
-      detail: error.message,
-    })
-  },
-  onDocChange: () => controller.notifyEdited(),
-  onStatus: (status) => {
-    statusStats.textContent = `${status.stats.words} 字 · ${status.stats.line}:${status.stats.column}`
-    statusMode.textContent = status.sourceMode ? '源码模式' : '实时预览'
-    statusMode.setAttribute('aria-pressed', String(status.sourceMode))
-    outline.schedule()
-  },
-})
-
-/**
- * 本窗口的稳定标识，用作未命名文档的草稿 key。
+ * 本窗口的稳定标识，用作未命名文档的草稿 key 前缀。
  *
  * 不能用「窗口序号」之类会变的东西：崩溃重启后序号全变了，
  * 旧草稿就成了永远认不出来的孤儿。随机 id 存进 sessionStorage ——
@@ -113,20 +79,93 @@ function windowKey(): string {
   return created
 }
 
-const controller = new DocumentController(
-  host,
-  editor,
-  render,
-  {
-    watch: (path) => api.fs.watch(path),
-    writeDraft: (key, text, meta) => api.drafts.write(key, text, meta),
-    dropDraft: (key) => api.drafts.drop(key),
+// 显式标注类型：`create` 回调里引用了 `tabs.paths()`，也就是说 tabs 出现在自己的
+// 初始化表达式里。不标注的话 TypeScript 只能推成 any，整条链的类型全塌掉
+const tabs: TabManager = new TabManager({
+  container: editorHost,
+  strip: tabStrip,
+  windowKey: windowKey(),
+  confirm: (options) => host.dialog.confirm(options),
+  exists: (path) => host.fs.exists(path),
+  onChange: () => {
+    render()
+    scheduleSessionReport()
   },
-  windowKey(),
-)
+  onStatus: (status) => {
+    statusStats.textContent = `${status.stats.words} 字 · ${status.stats.line}:${status.stats.column}`
+    statusMode.textContent = status.sourceMode ? '源码模式' : '实时预览'
+    statusMode.setAttribute('aria-pressed', String(status.sourceMode))
+    outline.schedule()
+  },
+  onDocChange: () => outline.schedule(),
+  create: (parent, context) => {
+    // 编辑器要按「自己这个标签的当前路径」解析资源，而路径是控制器持有的，
+    // 控制器又要先有编辑器 —— 用一个可变的取值函数把这个环打开
+    let pathOf: () => string | null = () => null
 
-function render(state: DocumentState): void {
-  currentPath = state.path
+    const editor = new TypoEditor({
+      parent,
+      assetResolver: createAssetResolver(() => {
+        const path = pathOf()
+        return path ? dirnameOf(path) : null
+      }),
+      // 架构 01 §6：渲染进程绝不自行导航，链接一律交给系统浏览器；
+      // 协议白名单在 main 侧再挡一次
+      onOpenLink: (url) => void host.shell.openExternal(url),
+      imageSink: async (image) => {
+        const path = pathOf()
+        // 未保存的新文档没有落脚点，这里**明确报错**而不是找个临时目录糊过去：
+        // 图片进了临时目录、Markdown 里却写着相对路径，用户一保存就得到一个
+        // 永远加载不出来的引用
+        if (!path) throw new Error('请先保存文档，图片才知道该放在哪个目录旁边')
+        return host.fs.saveAttachment(dirnameOf(path), image)
+      },
+      onImageError: (error, name) => {
+        void host.dialog.message({
+          message: `图片「${name}」没能插入`,
+          detail: error.message,
+        })
+      },
+      onDocChange: () => {
+        controller.notifyEdited()
+        context.edited()
+      },
+      onStatus: (status) => context.status(status),
+    })
+
+    const controller = new DocumentController(
+      host,
+      editor,
+      () => context.changed(),
+      {
+        // 监听的是**全窗口所有标签**的文件集合：单个控制器只知道自己那一份，
+        // 而 watcher 那一侧要的是全集（幂等，算错了下次上报自动纠正）
+        watch: () => api.fs.watch(tabs.paths()),
+        writeDraft: (key, text, meta) => api.drafts.write(key, text, meta),
+        dropDraft: (key) => api.drafts.drop(key),
+      },
+      context.draftKey,
+    )
+    pathOf = () => controller.state().path
+
+    return { editor, controller }
+  },
+})
+
+function activeEditor(): TypoEditor {
+  return tabs.active().editor
+}
+
+function activeController(): DocumentController {
+  return tabs.active().controller
+}
+
+function currentPath(): string | null {
+  return activeController().state().path
+}
+
+function render(): void {
+  const state = activeController().state()
   statusName.textContent = `${state.dirty ? '● ' : ''}${state.name}`
   statusName.title = state.path ?? '尚未保存'
 
@@ -137,10 +176,29 @@ function render(state: DocumentState): void {
   statusMeta.textContent = bits.join(' · ')
 
   document.title = `${state.dirty ? '● ' : ''}${state.name} — Brainforge Typo`
+  files.setActive(state.path)
+}
+
+/**
+ * 会话上报做了防抖。
+ *
+ * 切标签、改内容、开关文件树都会触发它，而它每次都要走一趟 IPC。
+ * main 那一侧还有一层落盘防抖 —— 两层加起来，连续操作只会写一次盘。
+ */
+let sessionTimer: ReturnType<typeof setTimeout> | null = null
+function scheduleSessionReport(): void {
+  if (sessionTimer) clearTimeout(sessionTimer)
+  sessionTimer = setTimeout(() => {
+    sessionTimer = null
+    const snapshot = tabs.snapshot()
+    void api.session.report({ folder: files.folder(), ...snapshot })
+    void api.fs.watch(tabs.paths())
+  }, 300)
 }
 
 /** 跑一条编辑命令并把焦点还给编辑器。 */
 function runCommand(command: StateCommand): void {
+  const editor = activeEditor()
   command({ state: editor.view.state, dispatch: (tr) => editor.view.dispatch(tr) })
   editor.focus()
 }
@@ -152,7 +210,8 @@ function runCommand(command: StateCommand): void {
  * state 与 dispatch，`Command` 要整个 view。表格命令要读选区并滚动到目标格，
  * 属于后者。
  */
-function runViewCommand(command: (view: typeof editor.view) => boolean): void {
+function runViewCommand(command: (view: TypoEditor['view']) => boolean): void {
+  const editor = activeEditor()
   command(editor.view)
   editor.focus()
 }
@@ -160,42 +219,48 @@ function runViewCommand(command: (view: typeof editor.view) => boolean): void {
 /**
  * 「打开」的落点规则（docs/adr/0005 §关键推论 3）。
  *
- * 当前窗口还是一份空白未命名文档时就地复用 —— 为了一个空窗口再开一个新窗口，
- * 然后让原来那个空着，很蠢。其余情况一律开新窗口，绝不顶掉用户正在写的东西。
+ * 有了标签页之后这条规则终于是它本来的样子：**在当前窗口新开一个标签**，
+ * 除非当前标签正好是一份空白未命名文档（那就地复用）。
+ * 「在新窗口打开」是一条独立命令，不抢默认行为。
  */
 async function openFileFlow(forceNewWindow: boolean): Promise<void> {
   const picked = await host.dialog.openFile()
   const target = picked?.[0]
   if (!target) return
 
-  if (!forceNewWindow && controller.isEmptyUntitled()) {
-    await controller.openPath(target, { alreadyConfirmed: true })
-  } else {
-    await api.window.create(target)
-  }
+  if (forceNewWindow) await api.window.create(target)
+  else await tabs.openPath(target)
+}
+
+async function openFolderFlow(): Promise<void> {
+  const picked = await host.dialog.openFile({ title: '打开文件夹', directories: true })
+  const dir = picked?.[0]
+  if (!dir) return
+  await files.openFolder(dir)
 }
 
 const themes = new ThemeManager(host.settings)
 
-const outline = new OutlinePanel(workspace, {
-  items: () => editor.outline(),
-  cursor: () => editor.cursor(),
-  jumpTo: (pos) => editor.jumpTo(pos),
+const files = new FileTreePanel(workspace, {
+  list: (dir) => host.fs.list(dir),
+  open: (path) => void tabs.openPath(path),
+  onFolderChange: () => scheduleSessionReport(),
 })
 
-const palette = new CommandPalette({
-  commands: () => COMMANDS,
-  restoreFocus: () => editor.focus(),
-  mac: api.platform.os === 'mac',
+const outline = new OutlinePanel(workspace, {
+  items: () => activeEditor().outline(),
+  cursor: () => activeEditor().cursor(),
+  jumpTo: (pos) => activeEditor().jumpTo(pos),
 })
 
 /** 导出与复制共用的上下文。 */
 function exportContext(): ExportContext {
-  const state = controller.state()
+  const state = activeController().state()
+  const path = state.path
   return {
-    markdown: editor.getDoc(),
+    markdown: activeEditor().getDoc(),
     title: state.name.replace(/\.md$/i, ''),
-    baseDir: currentPath ? dirnameOf(currentPath) : null,
+    baseDir: path ? dirnameOf(path) : null,
     resolveAsset: (src, baseDir) => buildAssetUrl(baseDir, src),
     // 复用编辑器那份 mermaid 实例：配置是全局的，两份实例会让导出的图
     // 跟屏幕上看到的长得不一样
@@ -203,18 +268,17 @@ function exportContext(): ExportContext {
   }
 }
 
-/**
- * 导出为 HTML。
- *
- * 默认文件名跟着文档走 —— 让用户在保存框里自己敲一遍是多余的。
- */
+/** 导出目标的默认文件名 —— 让用户在保存框里自己敲一遍是多余的。 */
+function defaultExportPath(extension: string): string {
+  const path = currentPath()
+  if (path) return path.replace(/\.md$/i, extension)
+  return `${activeController().state().name.replace(/\.md$/i, '')}${extension}`
+}
+
 async function exportHtmlFlow(): Promise<void> {
-  const state = controller.state()
   const target = await host.dialog.saveFile({
     title: '导出为 HTML',
-    defaultPath: currentPath
-      ? currentPath.replace(/\.md$/i, '.html')
-      : `${state.name.replace(/\.md$/i, '')}.html`,
+    defaultPath: defaultExportPath('.html'),
     filters: [{ name: 'HTML', extensions: ['html', 'htm'] }],
   })
   if (!target) return
@@ -236,12 +300,9 @@ async function exportHtmlFlow(): Promise<void> {
  * 只是把「写文件」换成「交给 Chromium 打印」—— 分页归浏览器管（06 §3）。
  */
 async function exportPdfFlow(): Promise<void> {
-  const state = controller.state()
   const target = await host.dialog.saveFile({
     title: '导出为 PDF',
-    defaultPath: currentPath
-      ? currentPath.replace(/\.md$/i, '.pdf')
-      : `${state.name.replace(/\.md$/i, '')}.pdf`,
+    defaultPath: defaultExportPath('.pdf'),
     filters: [{ name: 'PDF', extensions: ['pdf'] }],
   })
   if (!target) return
@@ -260,7 +321,7 @@ async function exportPdfFlow(): Promise<void> {
 async function copyRichTextFlow(): Promise<void> {
   try {
     const html = await exportHtmlFragment(exportContext())
-    await api.clipboard.writeHtml(html, editor.getDoc())
+    await api.clipboard.writeHtml(html, activeEditor().getDoc())
   } catch (error) {
     await host.dialog.message({
       message: '复制失败',
@@ -272,25 +333,37 @@ async function copyRichTextFlow(): Promise<void> {
 const MENU_ACTIONS: Record<MenuCommand, () => void> = {
   'file.open': () => void openFileFlow(false),
   'file.openInNewWindow': () => void openFileFlow(true),
-  'file.save': () => void controller.save(),
-  'file.saveAs': () => void controller.saveAs(),
+  'file.newTab': () => {
+    tabs.open()
+  },
+  'file.closeTab': () => void tabs.close(tabs.active().id),
+  'file.openFolder': () => void openFolderFlow(),
+  'file.closeFolder': () => files.closeFolder(),
+  'file.save': () => void activeController().save(),
+  'file.saveAs': () => void activeController().saveAs(),
   'file.exportHtml': () => void exportHtmlFlow(),
   'file.exportPdf': () => void exportPdfFlow(),
   'edit.copyRichText': () => void copyRichTextFlow(),
   'view.toggleSource': () => {
-    editor.toggleSourceMode()
-    editor.focus()
+    activeEditor().toggleSourceMode()
+    activeEditor().focus()
   },
   'view.toggleOutline': () => {
     outline.toggle()
-    editor.focus()
+    activeEditor().focus()
   },
+  'view.toggleFiles': () => {
+    files.toggle()
+    activeEditor().focus()
+  },
+  'view.nextTab': () => tabs.cycle(1),
+  'view.prevTab': () => tabs.cycle(-1),
   'view.commandPalette': () => palette.toggle(),
   ...(Object.fromEntries(
     THEMES.map((t) => [`view.theme.${t.id}`, () => void themes.select(t.id)]),
   ) as Record<`view.theme.${(typeof THEMES)[number]['id']}`, () => void>),
   'edit.find': () => {
-    openSearchPanel(editor.view)
+    openSearchPanel(activeEditor().view)
   },
   'format.bold': () => runCommand(toggleBold),
   'format.italic': () => runCommand(toggleItalic),
@@ -332,35 +405,33 @@ const COMMANDS: Command[] = (Object.keys(MENU_ACTIONS) as MenuCommand[]).map((id
   run: () => MENU_ACTIONS[id](),
 }))
 
+const palette = new CommandPalette({
+  commands: () => COMMANDS,
+  restoreFocus: () => activeEditor().focus(),
+  mac: api.platform.os === 'mac',
+})
+
 api.on.menuCommand((command) => MENU_ACTIONS[command]?.())
 
 /**
  * 外部要求打开文件（Finder 双击 / 右键「打开方式」/ 命令行参数 / 第二次启动）。
  *
- * 这里必须走**和 ⌘O 完全相同的落点规则** —— main 侧不知道当前窗口脏没脏，
- * 只能把文件送过来由渲染进程决定。早先直接 openPath 会顶掉用户正在写的东西，
- * 这正是「在 Finder 里右键打开会覆盖当前窗口」的原因。
+ * 走**和 ⌘O 完全相同的落点规则** —— main 侧不知道当前窗口的标签状况，
+ * 只能把文件送过来由渲染进程决定。
  */
-api.on.openFile((path) => {
-  void (async () => {
-    if (controller.isEmptyUntitled()) {
-      await controller.openPath(path, { alreadyConfirmed: true })
-    } else {
-      await api.window.create(path)
-    }
-  })()
-})
+api.on.openFile((path) => void tabs.openPath(path))
+
 api.on.fileChanged((notice) => {
-  void controller.handleExternalChange(notice.hash, notice.deleted)
+  void tabs.notifyExternalChange(notice.path, notice.hash, notice.deleted)
 })
 
 api.on.requestClose(() => {
-  void controller.canClose().then((canClose) => api.respondClose(canClose))
+  void tabs.canCloseWindow().then((canClose) => api.respondClose(canClose))
 })
 
 statusMode.addEventListener('click', () => {
-  editor.toggleSourceMode()
-  editor.focus()
+  activeEditor().toggleSourceMode()
+  activeEditor().focus()
 })
 
 /**
@@ -368,6 +439,9 @@ statusMode.addEventListener('click', () => {
  *
  * `claim` 在整个应用生命周期里只有第一次调用会返回内容，所以多窗口下
  * 这段代码可以无脑跑，不会弹好几次。
+ *
+ * 有了标签页之后，多份草稿终于可以在**同一个窗口**里各占一个标签 ——
+ * 之前只能一份一个窗口，恢复三份就是三个窗口糊在屏幕上。
  */
 async function offerDraftRecovery(): Promise<void> {
   const drafts = await api.drafts.claim()
@@ -389,15 +463,26 @@ async function offerDraftRecovery(): Promise<void> {
   // 「暂不处理」：草稿留在原地，下次启动还会问。这比默默丢掉安全
   if (choice !== 0) return
 
-  const [first, ...rest] = drafts
-  if (first) await controller.restoreDraft(first.text, first.path)
-  // 一窗一文档，剩下的各开一个窗口 —— 标签页在 M4.5，搁置
-  for (const draft of rest) {
-    if (draft.path) await api.window.create(draft.path)
+  for (const draft of drafts) {
+    const tab = tabs.active().controller.isEmptyUntitled() ? tabs.active() : tabs.open()
+    await tab.controller.restoreDraft(draft.text, draft.path)
   }
 }
 
-render(controller.state())
-editor.focus()
+/** 恢复上次退出时的形态（docs/adr/0005 §关键推论 5）。 */
+async function restoreSession(): Promise<void> {
+  const session = await api.session.claim()
+  if (!session) return
+  if (session.folder && (await host.fs.exists(session.folder))) {
+    await files.openFolder(session.folder)
+  }
+  await tabs.restore(session.tabs, session.active)
+}
+
+tabs.open()
+render()
 void themes.init()
-void offerDraftRecovery()
+void (async () => {
+  await restoreSession()
+  await offerDraftRecovery()
+})()

@@ -8,7 +8,11 @@
   </head>
   <body>
     <div id="workspace" class="workspace">
-      <main id="editor" class="editor-host"></main>
+      <div class="editor-column">
+        <!-- 只有一个标签时整条隐藏：单文档场景不该为标签页付出一行高度 -->
+        <div id="tab-bar" class="tab-bar" role="tablist" hidden></div>
+        <main id="editor" class="editor-host"></main>
+      </div>
     </div>
     <footer class="status-bar">
       <span id="status-name" class="status-name">未命名.md</span>

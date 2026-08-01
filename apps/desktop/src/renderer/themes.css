@@ -177,9 +177,11 @@
     --typo-status-bg: transparent;
   }
 
-  /* 界面元素不上纸：状态栏、大纲、浮层都是屏幕上的东西 */
+  /* 界面元素不上纸：状态栏、侧边面板、标签条、浮层都是屏幕上的东西 */
   .status-bar,
   .typo-outline,
+  .typo-files,
+  .tab-bar,
   .typo-palette,
   .cm-typo-code-lang {
     display: none !important;

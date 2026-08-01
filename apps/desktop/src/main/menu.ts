@@ -47,7 +47,15 @@ export function buildMenu(actions: MenuActions): void {
         // 还没有标签页，所以 ⌘N 直接给新窗口 —— 在当前窗口「新建」会把
         // 用户正在写的东西顶掉。M3 加了标签之后 ⌘N 变成新标签、⌘⇧N 变成新窗口
         { label: '新建窗口', accelerator: 'CmdOrCtrl+N', click: () => actions.newWindow() },
+        { label: '新建标签页', accelerator: 'CmdOrCtrl+T', click: send('file.newTab') },
         { label: '打开…', accelerator: 'CmdOrCtrl+O', click: send('file.open') },
+        {
+          label: '打开文件夹…',
+          accelerator: 'CmdOrCtrl+Shift+K',
+          click: send('file.openFolder'),
+        },
+        { label: '关闭文件夹', click: send('file.closeFolder') },
+        { label: '关闭标签页', accelerator: 'CmdOrCtrl+W', click: send('file.closeTab') },
         {
           label: '在新窗口打开…',
           accelerator: 'CmdOrCtrl+Shift+O',
@@ -124,6 +132,21 @@ export function buildMenu(actions: MenuActions): void {
           label: '源码模式',
           accelerator: 'CmdOrCtrl+/',
           click: send('view.toggleSource'),
+        },
+        {
+          label: '文件树',
+          accelerator: 'CmdOrCtrl+Shift+B',
+          click: send('view.toggleFiles'),
+        },
+        {
+          label: '下一个标签页',
+          accelerator: 'Control+Tab',
+          click: send('view.nextTab'),
+        },
+        {
+          label: '上一个标签页',
+          accelerator: 'Control+Shift+Tab',
+          click: send('view.prevTab'),
         },
         {
           label: '大纲',

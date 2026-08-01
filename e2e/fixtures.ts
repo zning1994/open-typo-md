@@ -85,7 +85,7 @@ export const test = base.extend<TypoFixtures>({
     await page.keyboard.press('Escape').catch(() => undefined)
 
     await page
-      .locator('.cm-content')
+      .locator(ACTIVE_CONTENT)
       .click({ timeout: 5_000 })
       .catch(() => undefined)
     await page.keyboard.press('ControlOrMeta+a').catch(() => undefined)
@@ -95,9 +95,19 @@ export const test = base.extend<TypoFixtures>({
 
 export { expect } from '@playwright/test'
 
+/**
+ * 活动标签里的编辑区。
+ *
+ * 多标签下 `.cm-content` 会匹配到好几个（非活动标签只是 `hidden`，DOM 还在），
+ * 而 Playwright 的严格模式对「匹配到多个」一律报错 —— 哪怕其中只有一个可见。
+ * 所以所有辅助函数一律走这个作用域。
+ */
+export const ACTIVE_PAGE = '.tab-page:not([hidden])'
+export const ACTIVE_CONTENT = `${ACTIVE_PAGE} .cm-content`
+
 /** 把光标放到文档最前面并清空内容，让每个用例从干净状态开始。 */
 export async function resetDoc(page: Page, text = ''): Promise<void> {
-  await page.locator('.cm-content').click()
+  await page.locator(ACTIVE_CONTENT).click()
   await page.keyboard.press('ControlOrMeta+a')
   await page.keyboard.press('Backspace')
   if (text) await page.keyboard.type(text)
@@ -113,13 +123,13 @@ export async function resetDoc(page: Page, text = ''): Promise<void> {
  * 只放 `text/plain`，走的是产品自己的纯文本粘贴通路。
  */
 export async function pasteText(page: Page, text: string): Promise<void> {
-  await page.locator('.cm-content').click()
+  await page.locator(ACTIVE_CONTENT).click()
   await page.keyboard.press('ControlOrMeta+a')
   await page.keyboard.press('Backspace')
   await page.evaluate((payload) => {
     const transfer = new DataTransfer()
     transfer.setData('text/plain', payload)
-    document.querySelector('.cm-content')!.dispatchEvent(
+    document.querySelector('.tab-page:not([hidden]) .cm-content')!.dispatchEvent(
       new ClipboardEvent('paste', {
         clipboardData: transfer,
         bubbles: true,
@@ -127,6 +137,13 @@ export async function pasteText(page: Page, text: string): Promise<void> {
       }),
     )
   }, text)
+}
+
+/** 让原生「打开」对话框直接返回指定路径。 */
+export async function stubOpenDialog(app: ElectronApplication, paths: string[]): Promise<void> {
+  await app.evaluate(({ dialog }, filePaths) => {
+    dialog.showOpenDialog = async () => ({ canceled: false, filePaths })
+  }, paths)
 }
 
 /** 点一个真实的原生菜单项，`labels` 是从顶层菜单往下的路径。 */
@@ -151,7 +168,7 @@ export async function clickMenu(app: ElectronApplication, labels: string[]): Pro
  */
 export async function visibleText(page: Page): Promise<string> {
   return page.evaluate(() =>
-    Array.from(document.querySelectorAll('.cm-line'))
+    Array.from(document.querySelectorAll('.tab-page:not([hidden]) .cm-line'))
       .map((line) => line.textContent ?? '')
       .join('\n'),
   )

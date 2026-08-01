@@ -5,6 +5,7 @@
  * 双端共用类型。散落的字符串通道名是这类应用最容易腐烂的地方。
  */
 import type { Draft, DraftMeta } from '../main/drafts.js'
+import type { WindowSession } from '../main/session.js'
 import type { FileChangeNotice } from '../main/watcher.js'
 import type {
   ConfirmOptions,
@@ -39,6 +40,8 @@ export const CHANNELS = {
   settingsSet: 'settings:set',
   platformInfo: 'platform:info',
   windowCreate: 'window:create',
+  sessionReport: 'session:report',
+  sessionClaim: 'session:claim',
 } as const
 
 /** main → renderer 的推送。 */
@@ -53,7 +56,7 @@ export const EVENTS = {
   fileChanged: 'event:file-changed',
 } as const
 
-export type { Draft, DraftMeta, FileChangeNotice }
+export type { Draft, DraftMeta, FileChangeNotice, WindowSession }
 
 export type MenuCommand =
   | 'file.open'
@@ -62,6 +65,13 @@ export type MenuCommand =
   | 'file.saveAs'
   | 'file.exportHtml'
   | 'file.exportPdf'
+  | 'file.newTab'
+  | 'file.closeTab'
+  | 'file.openFolder'
+  | 'file.closeFolder'
+  | 'view.toggleFiles'
+  | 'view.nextTab'
+  | 'view.prevTab'
   | 'view.toggleSource'
   | 'view.toggleOutline'
   | 'view.commandPalette'
@@ -96,8 +106,13 @@ export interface TypoBridgeApi {
     exists(path: string): Promise<boolean>
     /** 存图片，返回相对 baseDir 的 POSIX 路径。 */
     saveAttachment(baseDir: string, mime: string, bytes: Uint8Array): Promise<string>
-    /** 监听当前窗口打开的文件；传 null 表示停止监听。 */
-    watch(path: string | null): Promise<void>
+    /**
+     * 把本窗口监听的文件集合整体换成 `paths`。
+     *
+     * 传全集而不是增量：标签开开关关时维护增量指令必然会漏，
+     * 而全集是幂等的（见 main/watcher.ts）。
+     */
+    watch(paths: readonly string[]): Promise<void>
     /**
      * 写一份**派生产物**（导出的 HTML）。
      *
@@ -117,6 +132,12 @@ export interface TypoBridgeApi {
   clipboard: {
     /** 同时写 HTML 与纯文本兜底 —— 目标应用不支持富文本时才有东西可粘。 */
     writeHtml(html: string, text: string): Promise<void>
+  }
+  session: {
+    /** 上报本窗口当前的形态（工作区 + 标签列表），供下次启动恢复。 */
+    report(session: WindowSession): Promise<void>
+    /** 认领本窗口待恢复的会话。只给一次 —— 重新加载页面不该再恢复一遍。 */
+    claim(): Promise<WindowSession | null>
   }
   drafts: {
     write(key: string, text: string, meta: DraftMeta): Promise<void>

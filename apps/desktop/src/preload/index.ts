@@ -42,12 +42,16 @@ const api: TypoBridgeApi = {
     exists: (path) => invoke(CHANNELS.fsExists, path),
     saveAttachment: (baseDir, mime, bytes) =>
       invoke(CHANNELS.fsSaveAttachment, baseDir, mime, bytes),
-    watch: (path) => invoke(CHANNELS.fsWatch, path),
+    watch: (paths) => invoke(CHANNELS.fsWatch, paths),
     writeText: (path, text) => invoke(CHANNELS.fsWriteText, path, text),
     writePdf: (path, html) => invoke(CHANNELS.fsWritePdf, path, html),
   },
   clipboard: {
     writeHtml: (html, text) => invoke(CHANNELS.clipboardWriteHtml, html, text),
+  },
+  session: {
+    report: (session) => invoke(CHANNELS.sessionReport, session),
+    claim: () => invoke(CHANNELS.sessionClaim),
   },
   drafts: {
     write: (key, text, meta) => invoke(CHANNELS.draftWrite, key, text, meta),

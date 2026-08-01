@@ -5,7 +5,7 @@
  * **不做任何 Markdown 解析** —— 那是渲染进程的事。
  */
 import path from 'node:path'
-import { writeFile } from 'node:fs/promises'
+import { readdir, stat, writeFile } from 'node:fs/promises'
 import {
   BrowserWindow,
   app,
@@ -25,7 +25,14 @@ import { readTextFile, saveAttachment, writeTextFile } from './fs-service.js'
 import { watchFor } from './watcher.js'
 import { buildMenu } from './menu.js'
 import { renderPdf } from './pdf.js'
-import { assertAllowed, grantDirectory, grantFile } from './path-guard.js'
+import { claimSession, flushSession, reportSession, savedSessions } from './session.js'
+import type { WindowSession } from './session.js'
+import {
+  assertAllowed,
+  assertAllowedDirectory,
+  grantDirectory,
+  grantFile,
+} from './path-guard.js'
 import { getSetting, setSetting } from './settings.js'
 import {
   allWindows,
@@ -127,9 +134,17 @@ function registerIpc(): void {
     // （写完之后）会输给文件系统事件的去抖窗口，见 watcher.ts 文件头第 2 条
     writeTextFile(target, text, options as Parameters<typeof writeTextFile>[2]),
   )
+  /**
+   * 这个路径存在吗。
+   *
+   * 两件事都要查：**有没有授权**，以及**是不是真的存在**。早先只查了前者 ——
+   * 于是「已授权但已被删除的文件」会被报成存在，而工作区目录自身因为不满足
+   * 「落在某个已授权目录**里面**」反被报成不存在。会话恢复正好同时踩中这两条。
+   */
   handle(CHANNELS.fsExists, async (_sender, target: string) => {
     try {
-      await assertAllowed(target)
+      const real = await assertAllowed(target).catch(() => assertAllowedDirectory(target))
+      await stat(real)
       return true
     } catch {
       return false
@@ -162,8 +177,8 @@ function registerIpc(): void {
     clipboard.write({ html, text })
   })
 
-  handle(CHANNELS.fsWatch, async (sender, target: string | null) => {
-    if (sender) await watchFor(sender, target)
+  handle(CHANNELS.fsWatch, async (sender, targets: readonly string[]) => {
+    if (sender) await watchFor(sender, targets)
   })
 
   handle(CHANNELS.draftWrite, async (_sender, key: string, text: string, meta) =>
@@ -173,26 +188,57 @@ function registerIpc(): void {
   handle(CHANNELS.draftClaim, async () => claimDrafts())
   handle(CHANNELS.draftDiscard, async (_sender, id: string) => dropDraftById(id))
 
-  handle(CHANNELS.fsList, async () => {
-    // 文件树是 M3 的内容，先明确报错而不是返回一个骗人的空数组
-    throw new Error('目录浏览尚未实现（M3）')
+  /**
+   * 列目录 —— 文件树用。
+   *
+   * 路径照常过白名单：不过的话渲染进程可以拿它当一个「任意目录是否存在」的
+   * 探针，把整个磁盘摸一遍。用户选过的工作区目录会连同子树一起授权。
+   *
+   * 不跟随符号链接（`withFileTypes` 给的是链接本身的类型）：跟随的话
+   * 一个指回上级的链接就能让文件树无限递归下去。
+   */
+  handle(CHANNELS.fsList, async (_sender, dir: string) => {
+    const real = await assertAllowedDirectory(dir)
+    const entries = await readdir(real, { withFileTypes: true })
+    return entries
+      .filter((entry) => entry.isFile() || entry.isDirectory())
+      .map((entry) => ({
+        name: entry.name,
+        path: path.join(real, entry.name),
+        kind: entry.isDirectory() ? ('directory' as const) : ('file' as const),
+      }))
   })
 
   handle(
     CHANNELS.dialogOpen,
-    async (sender, options: { title?: string; multiple?: boolean } = {}) => {
+    async (
+      sender,
+      options: { title?: string; multiple?: boolean; directories?: boolean } = {},
+    ) => {
       if (!sender) return null
+      const pickDirectory = options.directories === true
       const result = await dialog.showOpenDialog(sender, {
-        title: options.title ?? '打开 Markdown 文件',
-        properties: options.multiple ? ['openFile', 'multiSelections'] : ['openFile'],
-        filters: [
-          { name: 'Markdown', extensions: ['md', 'markdown', 'mdown', 'mkd', 'txt'] },
-          { name: '全部文件', extensions: ['*'] },
-        ],
+        title: options.title ?? (pickDirectory ? '打开文件夹' : '打开 Markdown 文件'),
+        properties: pickDirectory
+          ? ['openDirectory']
+          : options.multiple
+            ? ['openFile', 'multiSelections']
+            : ['openFile'],
+        ...(pickDirectory
+          ? {}
+          : {
+              filters: [
+                { name: 'Markdown', extensions: ['md', 'markdown', 'mdown', 'mkd', 'txt'] },
+                { name: '全部文件', extensions: ['*'] },
+              ],
+            }),
       })
       if (result.canceled || result.filePaths.length === 0) return null
-      // 用户显式选择 = 授权。这是白名单唯一的入口
-      await Promise.all(result.filePaths.map(grantFile))
+      // 用户显式选择 = 授权。这是白名单唯一的入口。
+      // 选目录时授权整棵子树 —— 文件树要能列出并打开里面的任何一个文件
+      await Promise.all(
+        result.filePaths.map((p) => (pickDirectory ? grantDirectory(p) : grantFile(p))),
+      )
       return result.filePaths
     },
   )
@@ -215,7 +261,7 @@ function registerIpc(): void {
       })
       if (result.canceled || !result.filePath) return null
       await grantFile(result.filePath)
-      grantDirectory(path.dirname(result.filePath))
+      await grantDirectory(path.dirname(result.filePath))
       return result.filePath
     },
   )
@@ -274,6 +320,12 @@ function registerIpc(): void {
     locale: app.getLocale(),
   }))
 
+  handle(CHANNELS.sessionReport, async (sender, session: WindowSession) => {
+    if (sender) reportSession(sender, session)
+  })
+
+  handle(CHANNELS.sessionClaim, async (sender) => (sender ? claimSession(sender) : null))
+
   handle(CHANNELS.windowCreate, async (_sender, target?: string) => {
     if (target) await grantFile(target)
     await createWindow(target ? { openPath: target } : {})
@@ -284,6 +336,37 @@ function registerIpc(): void {
     const window = BrowserWindow.fromWebContents(event.sender)
     if (window) resolveClose(window, canClose)
   })
+}
+
+/**
+ * 启动时开哪些窗口。
+ *
+ * 带着文件启动（双击 / 命令行）时**不恢复会话** —— 用户此刻的意图明确就是
+ * 「打开这个文件」，先弹出上次那七八个标签只会挡路。会话没有丢，
+ * 下次空手启动时还在。
+ *
+ * 恢复失败（目录被删了、文件被移走了）不该拦住启动：渲染进程那边逐个打开，
+ * 打不开的标签自己消失，剩下的照常恢复。
+ */
+async function openStartupWindows(startupPath: string | null): Promise<void> {
+  if (startupPath) {
+    await createWindow({ openPath: startupPath })
+    return
+  }
+
+  const sessions = await savedSessions()
+  if (sessions.length === 0) {
+    await createWindow()
+    return
+  }
+  for (const session of sessions) {
+    // 白名单是**每个进程**的，新进程一片空白。会话里的路径当初都是用户在系统
+    // 对话框里亲手选过的，恢复时必须把那份授权一并带回来 —— 不然文件树列不出、
+    // 标签一个也打不开，而且失败得悄无声息（`exists` 直接说「不在」）
+    if (session.folder) await grantDirectory(session.folder)
+    await Promise.all(session.tabs.map(grantFile))
+    await createWindow({ session })
+  }
 }
 
 /** 把文件送到当前窗口；没有窗口就新开一个。 */
@@ -326,7 +409,11 @@ if (!app.requestSingleInstanceLock()) {
   pendingOpenPath = fileFromArgv(process.argv)
 
   // ⌘Q / 退出菜单：任一窗口的渲染进程说「取消」就会中止整个退出流程
-  app.on('before-quit', () => beginQuit())
+  app.on('before-quit', () => {
+    beginQuit()
+    // 不等防抖：退出时窗口会一个接一个关掉，慢一步就什么都不剩了
+    void flushSession()
+  })
 
   void app.whenReady().then(async () => {
     // CSP 注册一次即可：它挂在 defaultSession 上，不是每个窗口一份
@@ -337,7 +424,7 @@ if (!app.requestSingleInstanceLock()) {
 
     const startupPath = pendingOpenPath
     pendingOpenPath = null
-    await createWindow(startupPath ? { openPath: startupPath } : {})
+    await openStartupWindows(startupPath)
 
     buildMenu({
       newWindow: () => void createWindow(),

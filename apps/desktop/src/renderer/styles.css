@@ -88,12 +88,196 @@ body {
   outline: none;
 }
 
-/* 编辑区与侧边面板并排。大纲不在时这一层是透明的，不影响原有布局 */
+/* 文件树 | 编辑区 | 大纲。用 order 排而不是靠 DOM 顺序 ——
+   面板是运行时按需创建的，DOM 顺序取决于谁先被 new 出来，不该决定它出现在哪一侧 */
 .workspace {
   flex: 1;
   min-height: 0;
   display: flex;
-  flex-direction: row-reverse; /* 面板 DOM 在后，视觉上放左边 */
+  flex-direction: row;
+}
+
+.typo-files {
+  order: 0;
+}
+.editor-column {
+  order: 1;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.typo-outline {
+  order: 2;
+}
+
+/* —— 标签条 —— */
+
+.tab-bar {
+  display: flex;
+  align-items: stretch;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid var(--typo-border);
+  background: var(--typo-status-bg);
+}
+.tab-bar::-webkit-scrollbar {
+  display: none;
+}
+.tab-bar[hidden] {
+  display: none;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 220px;
+  padding: 6px 8px 6px 12px;
+  border: 0;
+  border-right: 1px solid var(--typo-border);
+  background: transparent;
+  color: var(--typo-fg-muted);
+  font: inherit;
+  font-size: 13px;
+  cursor: default;
+  white-space: nowrap;
+}
+.tab:hover {
+  color: var(--typo-fg);
+}
+.tab.is-active {
+  background: var(--typo-bg);
+  color: var(--typo-fg);
+  /* 活动标签靠一条顶边强调，而不是靠背景色 ——
+     背景色在浅色主题下跟编辑区几乎一样，看不出选中的是哪个 */
+  box-shadow: inset 0 2px 0 var(--typo-accent);
+}
+
+.tab__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tab__close {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  line-height: 15px;
+  text-align: center;
+  border-radius: 3px;
+  color: var(--typo-fg-muted);
+}
+.tab__close:hover {
+  background: var(--typo-border);
+  color: var(--typo-fg);
+}
+
+/* 非活动标签平时不显示关闭按钮，鼠标过去才出现 —— 满屏的 × 很吵 */
+.tab:not(.is-active):not(:hover) .tab__close {
+  visibility: hidden;
+}
+
+/* 每个标签一个编辑器容器，切换只改 hidden（见 tabs.ts） */
+.tab-page {
+  height: 100%;
+}
+.tab-page[hidden] {
+  display: none;
+}
+
+/* —— 文件树 —— */
+
+.typo-files {
+  flex: none;
+  width: 240px;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--typo-border);
+  background: var(--typo-status-bg);
+  font-size: 13px;
+  overflow: hidden;
+}
+.typo-files[hidden] {
+  display: none;
+}
+
+.typo-files__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--typo-border);
+}
+
+.typo-files__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--typo-fg-muted);
+}
+
+.typo-files__refresh {
+  flex: none;
+  border: 0;
+  background: transparent;
+  color: var(--typo-fg-muted);
+  font: inherit;
+  cursor: default;
+  padding: 0 4px;
+}
+.typo-files__refresh:hover {
+  color: var(--typo-fg);
+}
+
+.typo-files__list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-bottom: 8px;
+}
+
+.typo-files__item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-top: 3px;
+  padding-bottom: 3px;
+  padding-right: 8px;
+  color: var(--typo-fg);
+  white-space: nowrap;
+  cursor: default;
+}
+.typo-files__item:hover {
+  background: var(--typo-selection);
+}
+.typo-files__item.is-active {
+  background: var(--typo-selection);
+  font-weight: 600;
+}
+
+.typo-files__arrow {
+  flex: none;
+  width: 12px;
+  color: var(--typo-fg-muted);
+}
+
+.typo-files__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.typo-files__item--directory .typo-files__name {
+  color: var(--typo-fg-muted);
+}
+
+.typo-files__empty {
+  padding: 3px 8px;
+  color: var(--typo-fg-muted);
 }
 
 /* —— 大纲面板 —— */
@@ -101,7 +285,8 @@ body {
   width: 240px;
   flex: none;
   overflow-y: auto;
-  border-right: 1px solid var(--typo-border);
+  /* 大纲现在在右边（见上面的 order），分隔线跟着换边 */
+  border-left: 1px solid var(--typo-border);
   background: var(--typo-status-bg);
   padding: 12px 0 24px;
   user-select: none;

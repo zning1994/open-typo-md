@@ -1,9 +1,12 @@
 /**
  * 文件监听（docs/design/04 §3）。
  *
- * 用 `fs.watch` 而不是 chokidar：我们只盯**单个文件**，不需要递归遍历目录树，
- * 而 chokidar 的价值几乎全在后者。少一个依赖，安装包也少一块。
- * 等 M4.5 的文件树恢复排期、真要监听整个工作区时再换。
+ * 用 `fs.watch` 而不是 chokidar：我们只盯**已经打开的那几个文件**，不递归遍历
+ * 目录树，而 chokidar 的价值几乎全在后者。少一个依赖，安装包也少一块。
+ *
+ * 文件树只在展开时读一次目录，**不监听目录** —— 监听整个工作区意味着递归
+ * inotify（大仓库上直接爆句柄上限），而它换来的只是「别人在别处新建了文件、
+ * 树里自动多一行」。代价和收益完全不成比例，所以树上给了刷新，没给监听。
  *
  * ## 三个必须处理的现实问题
  *
@@ -64,8 +67,14 @@ function prune(now: number): void {
   }
 }
 
-/** 每个窗口盯一个文件 —— 一窗一文档（标签页在 M4.5，搁置）。 */
-const entries = new Map<number, Entry>()
+/**
+ * 窗口 → 它正盯着的文件。
+ *
+ * 一个窗口可以开好几个标签，每个标签一份自己的文件，所以是一层嵌套的表。
+ * 按**真实路径**（`assertAllowed` 解析过的）做键：两个标签通过不同的符号链接
+ * 打开同一个文件时，只应该有一个 watcher。
+ */
+const entries = new Map<number, Map<string, Entry>>()
 
 function hashOf(bytes: Uint8Array): string {
   return createHash('sha256').update(bytes).digest('hex')
@@ -124,22 +133,52 @@ async function settle(window: BrowserWindow, entry: Entry): Promise<void> {
   window.webContents.send(EVENTS.fileChanged, notice)
 }
 
-/** 开始监听某个窗口打开的文件。传 null 表示不再监听任何文件。 */
-export async function watchFor(window: BrowserWindow, target: string | null): Promise<void> {
-  const existing = entries.get(window.id)
-  if (existing) {
-    if (existing.timer) clearTimeout(existing.timer)
-    disposeWatcher(existing)
-    entries.delete(window.id)
+function release(entry: Entry): void {
+  if (entry.timer) clearTimeout(entry.timer)
+  disposeWatcher(entry)
+}
+
+/**
+ * 把某个窗口监听的文件集合**整体换成** `targets`。
+ *
+ * 传全集而不是增量：渲染进程那边标签开开关关，让它维护一份增量指令必然会漏 ——
+ * 漏掉的表现是「关掉的标签还在收文件变更通知」或者「新标签的文件根本没人盯」。
+ * 全集是幂等的，算错了下一次上报就自动纠正。
+ */
+export async function watchFor(
+  window: BrowserWindow,
+  targets: readonly string[],
+): Promise<void> {
+  // 监听同样过白名单：renderer 不能靠它去探测任意路径是否存在。
+  // 先全部解析完再动手，免得中途抛错留下一个改了一半的集合
+  const wanted = new Set<string>()
+  const rejected: unknown[] = []
+  for (const target of targets) {
+    try {
+      wanted.add(await assertAllowed(target))
+    } catch (error) {
+      rejected.push(error)
+    }
   }
-  if (!target) return
 
-  // 监听同样过白名单：renderer 不能靠它去探测任意路径是否存在
-  const real = await assertAllowed(target)
+  const existing = entries.get(window.id) ?? new Map<string, Entry>()
+  for (const [real, entry] of existing) {
+    if (wanted.has(real)) continue
+    release(entry)
+    existing.delete(real)
+  }
+  for (const real of wanted) {
+    if (existing.has(real)) continue
+    const entry: Entry = { path: real, watcher: null, timer: null }
+    existing.set(real, entry)
+    attach(window, entry)
+  }
 
-  const entry: Entry = { path: real, watcher: null, timer: null }
-  entries.set(window.id, entry)
-  attach(window, entry)
+  if (existing.size === 0) entries.delete(window.id)
+  else entries.set(window.id, existing)
+
+  // 有效的那些已经生效了，无效的仍然要说出来 —— 静默忽略等于「监听莫名其妙没了」
+  if (rejected[0]) throw rejected[0]
 }
 
 /**
@@ -154,9 +193,8 @@ export function noteSelfWrite(hash: string): void {
 }
 
 export function stopWatching(window: BrowserWindow): void {
-  const entry = entries.get(window.id)
-  if (!entry) return
-  if (entry.timer) clearTimeout(entry.timer)
-  disposeWatcher(entry)
+  const existing = entries.get(window.id)
+  if (!existing) return
+  for (const entry of existing.values()) release(entry)
   entries.delete(window.id)
 }

@@ -69,6 +69,13 @@ export interface OpenDialogOptions {
   title?: string
   defaultPath?: string
   multiple?: boolean
+  /**
+   * 选目录而不是选文件。
+   *
+   * 文件树要用它。选中即授权 —— 之后这个目录连同子树都进白名单，
+   * 所以这条路径必须**只能由用户在系统对话框里选**，不能由渲染进程给出。
+   */
+  directories?: boolean
 }
 
 export interface SaveDialogOptions {

@@ -12,6 +12,7 @@ import { EVENTS } from '../shared/channels.js'
 import { APP_ORIGIN } from './app-protocol.js'
 import { getSetting, setSetting } from './settings.js'
 import { grantFile } from './path-guard.js'
+import { forgetSession, stageSession, type WindowSession } from './session.js'
 import { stopWatching } from './watcher.js'
 
 const DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
@@ -91,6 +92,8 @@ function rememberBounds(window: BrowserWindow): void {
 export interface CreateWindowOptions {
   /** 窗口就绪后要打开的文件。 */
   openPath?: string
+  /** 待恢复的会话（工作区 + 标签列表）。渲染进程就绪后自己来认领。 */
+  session?: WindowSession
 }
 
 export async function createWindow(options: CreateWindowOptions = {}): Promise<BrowserWindow> {
@@ -147,7 +150,13 @@ export async function createWindow(options: CreateWindowOptions = {}): Promise<B
   window.on('moved', () => rememberBounds(window))
 
   // 窗口没了就把它的文件监听一起撤掉，否则 watcher 会攥着一个已销毁的窗口
-  window.on('closed', () => stopWatching(window))
+  window.on('closed', () => {
+    stopWatching(window)
+    // 用户关掉的窗口不该出现在下次启动的恢复列表里 —— 但**退出时不算**。
+    // 退出会把所有窗口逐个关掉，照着清的话会话正好在要保存的那一刻被清空，
+    // 表现是「每次正常退出都恢复不了，反倒是崩溃之后能恢复」
+    if (!isQuitting()) forgetSession(window)
+  })
 
   if (DEV_SERVER_URL) {
     void window.loadURL(DEV_SERVER_URL)
@@ -155,6 +164,8 @@ export async function createWindow(options: CreateWindowOptions = {}): Promise<B
     // 走 typo-app:// 而不是 loadFile —— 见 app-protocol.ts 里的原因
     void window.loadURL(`${APP_ORIGIN}/index.html`)
   }
+
+  if (options.session) stageSession(window, options.session)
 
   if (options.openPath) {
     const target = options.openPath
