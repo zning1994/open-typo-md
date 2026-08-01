@@ -10,7 +10,13 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { ConflictError, UnsupportedEncodingError, type TextFileMeta } from '@typo/plugin-api'
-import { hashBytes, readTextFile, writeTextFile } from '../src/main/fs-service.js'
+import {
+  MAX_ATTACHMENT_BYTES,
+  hashBytes,
+  readTextFile,
+  saveAttachment,
+  writeTextFile,
+} from '../src/main/fs-service.js'
 import {
   assertAllowed,
   grantDirectory,
@@ -186,5 +192,86 @@ describe('路径白名单', () => {
     await expect(assertAllowed(path.join(dir, '..', '..', 'etc', 'passwd'))).rejects.toThrow(
       /未获授权/,
     )
+  })
+})
+
+describe('附件落盘', () => {
+  /** 一张最小的合法 PNG（1×1 透明像素）。内容本身无所谓，字节数不为零即可。 */
+  const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3])
+
+  it('存进 assets/ 并返回相对的 POSIX 路径', async () => {
+    const relative = await saveAttachment(dir, 'image/png', PNG)
+
+    expect(relative).toMatch(/^assets\/[0-9a-f]{16}\.png$/)
+    expect(await readFile(path.join(dir, relative))).toEqual(Buffer.from(PNG))
+  })
+
+  it('扩展名由 MIME 决定，不采信任何调用方给的文件名', async () => {
+    // 这条是安全约束，不是风格问题：字节和文件名都来自渲染进程，
+    // 采信文件名就等于给了它「往用户目录写 .sh / .desktop」的能力
+    expect(await saveAttachment(dir, 'image/jpeg', PNG)).toMatch(/\.jpg$/)
+    expect(await saveAttachment(dir, 'image/svg+xml', PNG)).toMatch(/\.svg$/)
+  })
+
+  it('非图片类型一律拒绝', async () => {
+    for (const mime of ['text/html', 'application/x-sh', 'application/octet-stream', '']) {
+      await expect(saveAttachment(dir, mime, PNG)).rejects.toThrow('不支持的图片类型')
+    }
+  })
+
+  it('同一张图重复保存会命中同一个文件，不堆重复', async () => {
+    const first = await saveAttachment(dir, 'image/png', PNG)
+    const second = await saveAttachment(dir, 'image/png', PNG)
+
+    expect(second).toBe(first)
+  })
+
+  it('内容不同就是不同的文件', async () => {
+    const other = new Uint8Array([...PNG, 9, 9, 9])
+    expect(await saveAttachment(dir, 'image/png', other)).not.toBe(
+      await saveAttachment(dir, 'image/png', PNG),
+    )
+  })
+
+  it('空内容拒绝', async () => {
+    await expect(saveAttachment(dir, 'image/png', new Uint8Array())).rejects.toThrow('为空')
+  })
+
+  it('超过体积上限拒绝', async () => {
+    const huge = new Uint8Array(MAX_ATTACHMENT_BYTES + 1)
+    await expect(saveAttachment(dir, 'image/png', huge)).rejects.toThrow('过大')
+  })
+
+  it('未授权目录一律拒绝 —— 白名单是 main 侧唯一可信的门', async () => {
+    const outside = await mkdtemp(path.join(tmpdir(), 'typo-outside-'))
+    try {
+      await expect(saveAttachment(outside, 'image/png', PNG)).rejects.toThrow('未获授权')
+    } finally {
+      await rm(outside, { recursive: true, force: true })
+    }
+  })
+
+  it('存好的图片随后能被资源协议加载（走同一套白名单校验）', async () => {
+    const relative = await saveAttachment(dir, 'image/png', PNG)
+    await expect(assertAllowed(path.join(dir, relative))).resolves.toContain('assets')
+  })
+
+  it('assets 是指向白名单外的符号链接时当场拒绝', async () => {
+    // 先建目录再发现越权就晚了 —— 那时文件已经写出去了
+    const outside = await mkdtemp(path.join(tmpdir(), 'typo-outside-'))
+    try {
+      await symlink(outside, path.join(dir, 'assets'), 'dir')
+      await expect(saveAttachment(dir, 'image/png', PNG)).rejects.toThrow('未获授权')
+    } finally {
+      await rm(outside, { recursive: true, force: true })
+    }
+  })
+
+  it('并发保存同一张图不会互相踩', async () => {
+    const results = await Promise.all(
+      Array.from({ length: 8 }, () => saveAttachment(dir, 'image/png', PNG)),
+    )
+    expect(new Set(results).size).toBe(1)
+    expect(await readFile(path.join(dir, results[0]!))).toEqual(Buffer.from(PNG))
   })
 })

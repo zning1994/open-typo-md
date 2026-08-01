@@ -152,8 +152,8 @@ test.describe('代码块', () => {
     await resetDoc(page, '前文\n\n```js\nconst a = 1\n```\n\n后文')
     await page.keyboard.press('ControlOrMeta+End')
     expect(await visibleText(page)).not.toContain('```')
-    // 语言名改由角标呈现
-    await expect(page.locator('.cm-typo-code-first')).toHaveAttribute('data-typo-lang', 'js')
+    // 语言名改由右上角的选择器呈现，显示的是规范名
+    await expect(page.locator('.cm-typo-code-lang')).toHaveValue('JavaScript')
 
     // 点进代码内容行，围栏应当就地显形，这样用户才删得掉这个块
     await page.locator('.cm-line').filter({ hasText: 'const a = 1' }).first().click()
@@ -165,7 +165,9 @@ test.describe('代码块', () => {
     await resetDoc(page, '前文\n\n```js\nconst a = 1\n```\n\n后文')
     await page.keyboard.press('ControlOrMeta+End')
     const first = page.locator('.cm-typo-code-first')
-    await expect(first).toHaveText('const a = 1')
+    // 用 toContainText 而不是 toHaveText：这一行里还挂着语言选择器，
+    // `<option>` 的文本也会算进 textContent 里
+    await expect(first).toContainText('const a = 1')
     await expect(first).toHaveClass(/cm-typo-code-block/)
   })
 
@@ -226,5 +228,96 @@ test.describe('代码块', () => {
         timeout: 15_000,
       })
       .toBeGreaterThan(0)
+  })
+})
+
+test.describe('代码块语言选择器', () => {
+  /** 敲一个代码块，并把光标挪到块外让围栏折叠。 */
+  async function writeBlock(
+    page: import('@playwright/test').Page,
+    info: string,
+  ): Promise<void> {
+    await resetDoc(page)
+    await page.keyboard.type('前文\n\n')
+    await page.keyboard.type(`\`\`\`${info}\nconst a = 1\n\`\`\``)
+    await page.keyboard.press('ControlOrMeta+End')
+    await page.keyboard.press('Enter')
+    await page.keyboard.type('后文')
+  }
+
+  test('围栏折叠后出现选择器，显示的是规范语言名', async ({ page }) => {
+    await writeBlock(page, 'js')
+    await expect(page.locator('.cm-typo-code-lang')).toHaveValue('JavaScript')
+  })
+
+  test('没标语言时显示纯文本', async ({ page }) => {
+    await writeBlock(page, '')
+    await expect(page.locator('.cm-typo-code-lang')).toHaveValue('')
+  })
+
+  test('选择器和高亮认的是同一套规则 —— py 两边都认', async ({ page }) => {
+    // 上游只认名字和别名，py 是扩展名。两套规则分家的表现就是
+    // 「下拉框显示纯文本、代码却是彩色的」
+    await writeBlock(page, 'py')
+    await expect(page.locator('.cm-typo-code-lang')).toHaveValue('Python')
+  })
+
+  test('改选语言会写回围栏，源码里是规范名', async ({ page }) => {
+    await writeBlock(page, 'js')
+    await page.locator('.cm-typo-code-lang').selectOption('Python')
+
+    expect(await docText(page)).toContain('```Python')
+    expect(await docText(page)).not.toContain('```js')
+  })
+
+  test('改选可以撤销 —— 走的是普通 transaction', async ({ page }) => {
+    await writeBlock(page, 'js')
+    await page.locator('.cm-typo-code-lang').selectOption('Python')
+    expect(await docText(page)).toContain('```Python')
+
+    await page.locator('.cm-content').click()
+    await page.keyboard.press('ControlOrMeta+z')
+    expect(await docText(page)).toContain('```js')
+  })
+
+  test('选成纯文本会清掉语言标注，而不是写个空字符串上去', async ({ page }) => {
+    await writeBlock(page, 'js')
+    await page.locator('.cm-typo-code-lang').selectOption('')
+
+    expect(await docText(page)).toContain('```\nconst a = 1')
+  })
+
+  test('真认不出来的语言原样保留在选项里，不会被悄悄改掉', async ({ page }) => {
+    await writeBlock(page, 'zzz-not-a-language')
+    await expect(page.locator('.cm-typo-code-lang')).toHaveValue('zzz-not-a-language')
+    expect(await docText(page)).toContain('```zzz-not-a-language')
+  })
+
+  test('模糊匹配跟高亮保持一致：brainfuck-x 归到 Brainfuck', async ({ page }) => {
+    // 上游的规则是「信息串里包含某个长度大于 2 的别名」。这条行为不是我们定的，
+    // 但**必须跟高亮一致** —— 所以在这里钉住，将来谁改了匹配规则都会被这条挡下
+    await writeBlock(page, 'brainfuck-x')
+    await expect(page.locator('.cm-typo-code-lang')).toHaveValue('Brainfuck')
+  })
+
+  test('选择器不占行内空间 —— 代码从行首开始', async ({ page }) => {
+    await writeBlock(page, 'js')
+    const offsets = await page.evaluate(() => {
+      const first = document.querySelector('.cm-typo-code-first') as HTMLElement
+      const lines = Array.from(document.querySelectorAll('.cm-typo-code-block'))
+      return lines
+        .map((l) => Math.round(l.getBoundingClientRect().left))
+        .concat(Math.round(first.getBoundingClientRect().left))
+    })
+    // 所有代码行左边界一致 —— 首行没有被选择器顶右
+    expect(new Set(offsets).size).toBe(1)
+  })
+
+  test('光标进入代码块时选择器消失（此时围栏本身可见）', async ({ page }) => {
+    await writeBlock(page, 'js')
+    await expect(page.locator('.cm-typo-code-lang')).toHaveCount(1)
+
+    await page.getByText('const a = 1').click()
+    await expect(page.locator('.cm-typo-code-lang')).toHaveCount(0)
   })
 })

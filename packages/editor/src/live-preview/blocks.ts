@@ -16,7 +16,13 @@ import { syntaxTree } from '@codemirror/language'
 import type { SyntaxNode } from '@lezer/common'
 import { StateField, type EditorState, type Extension, type Range } from '@codemirror/state'
 import { Decoration, EditorView, type DecorationSet } from '@codemirror/view'
-import { BLOCK_NODES, TABLE_NODES } from '@typo/markdown'
+import {
+  BLOCK_NODES,
+  TABLE_NODES,
+  codeLanguageNames,
+  resolveCodeLanguage,
+} from '@typo/markdown'
+import { CodeLanguageWidget } from './widgets.js'
 import { delimiterRowOf, tableIsActive } from './tables.js'
 
 /**
@@ -40,11 +46,28 @@ import { delimiterRowOf, tableIsActive } from './tables.js'
  */
 const HIDE_LINE = Decoration.replace({ block: true })
 
-/** 代码块首行加语言角标，靠 CSS 的 content: attr() 显示，不需要 widget。 */
-function langBadge(lang: string): Decoration {
-  return Decoration.line({
-    class: 'cm-typo-code-first',
-    attributes: { 'data-typo-lang': lang },
+/** 代码块首行的行装饰 —— 给语言选择器提供定位参照（position: relative）。 */
+const CODE_FIRST_LINE = Decoration.line({ class: 'cm-typo-code-first' })
+
+/**
+ * 语言清单只算一次。
+ *
+ * 它有一百多项，而块级装饰在**每次选区变化**时都会重算整棵树；
+ * 每次重建一遍数组既浪费，也会让 widget 的 `eq()` 永远为假、
+ * 导致下拉框在用户展开它的瞬间被重建。
+ */
+const LANGUAGE_CHOICES: readonly string[] = codeLanguageNames()
+
+/**
+ * 语言选择器。
+ *
+ * 挂在代码内容首行的**行首**（`side: -1`），但靠 CSS 绝对定位飘到右上角，
+ * 不占据任何行内空间 —— 否则代码会被它顶得往右缩一截。
+ */
+function langPicker(info: string): Decoration {
+  return Decoration.widget({
+    widget: new CodeLanguageWidget(resolveCodeLanguage(info) ?? info.trim(), LANGUAGE_CHOICES),
+    side: -1,
   })
 }
 
@@ -125,9 +148,10 @@ function computeBlockDecorations(state: EditorState): DecorationSet {
         ranges.push(HIDE_LINE.range(lastLine.from - 1, lastLine.to))
       }
 
-      // 内容首行挂语言角标
+      // 内容首行挂行装饰 + 语言选择器
       const contentFirst = doc.line(firstLine.number + 1)
-      ranges.push(langBadge(info).range(contentFirst.from))
+      ranges.push(CODE_FIRST_LINE.range(contentFirst.from))
+      ranges.push(langPicker(info).range(contentFirst.from))
     },
   })
 

@@ -30,6 +30,15 @@ export function weakHash(text: string): string {
   return hex(h1) + hex(h2) + hex(text.length)
 }
 
+/** 内存宿主认识的图片类型，跟 main 侧的白名单保持同一个语义。 */
+const MEMORY_EXTENSIONS: Record<string, string> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/gif': 'gif',
+  'image/webp': 'webp',
+  'image/svg+xml': 'svg',
+}
+
 interface MemFile {
   text: string
   meta: TextFileMeta
@@ -44,6 +53,8 @@ export interface MemoryHost extends HostBridge {
   externalEdit(path: string, text: string): void
   /** 读出当前「磁盘」内容，用于断言。 */
   peek(path: string): string | undefined
+  /** 读出已落盘的附件字节，用于断言。 */
+  peekAttachment(path: string): Uint8Array | undefined
   /** 记录已弹出的对话框，用于断言「该问的问了、不该问的没问」。 */
   readonly dialogLog: string[]
   /** 预置 confirm 的返回值队列。 */
@@ -52,6 +63,7 @@ export interface MemoryHost extends HostBridge {
 
 export function createMemoryHost(options: { os?: 'mac' | 'win' | 'linux' } = {}): MemoryHost {
   const files = new Map<string, MemFile>()
+  const attachments = new Map<string, Uint8Array>()
   const settings = new Map<string, unknown>()
   const dialogLog: string[] = []
   const confirmAnswers: number[] = []
@@ -109,6 +121,16 @@ export function createMemoryHost(options: { os?: 'mac' | 'win' | 'linux' } = {})
       async resolveAssetUrl(path: string) {
         return `memory-asset:${path}`
       },
+      async saveAttachment(baseDir: string, attachment) {
+        // 扩展名同样由 MIME 决定、而不是采信传进来的文件名 ——
+        // 跟真实宿主保持一致，否则测试验证的是一份产品里不存在的行为
+        const extension = MEMORY_EXTENSIONS[attachment.mime.toLowerCase()]
+        if (!extension) throw new Error(`不支持的图片类型：${attachment.mime}`)
+
+        const relative = `assets/${weakHash(String(attachment.bytes.byteLength))}.${extension}`
+        attachments.set(`${baseDir}/${relative}`, new Uint8Array(attachment.bytes))
+        return relative
+      },
     },
     dialog: {
       async openFile() {
@@ -161,6 +183,9 @@ export function createMemoryHost(options: { os?: 'mac' | 'win' | 'linux' } = {})
     },
     peek(path) {
       return files.get(path)?.text
+    },
+    peekAttachment(path) {
+      return attachments.get(path)
     },
     dialogLog,
     answerConfirmWith(...indices) {

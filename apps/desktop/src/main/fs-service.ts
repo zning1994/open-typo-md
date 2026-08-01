@@ -7,7 +7,16 @@
  */
 import { createHash } from 'node:crypto'
 import { constants } from 'node:fs'
-import { access, chmod, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises'
+import {
+  access,
+  chmod,
+  mkdir,
+  readFile,
+  rename,
+  stat,
+  unlink,
+  writeFile,
+} from 'node:fs/promises'
 import { open as openFile } from 'node:fs/promises'
 import path from 'node:path'
 import { randomBytes } from 'node:crypto'
@@ -133,4 +142,79 @@ export async function writeTextFileNonAtomic(
   await writeFile(real, bytes)
   const info = await stat(real)
   return { mtimeMs: info.mtimeMs, hash: hashBytes(bytes) }
+}
+
+/**
+ * 附件（图片）落盘（docs/design/04 §5）。
+ *
+ * 三条安全约束，每一条都是因为**字节和文件名都来自渲染进程**：
+ *
+ * 1. **扩展名由 MIME 决定，绝不采信调用方给的文件名。** 否则一个被 XSS 的
+ *    渲染进程就能往用户目录里写 `x.sh` / `x.desktop`。
+ * 2. **MIME 必须在图片白名单里。** 这个通道的用途只有「粘贴/拖入图片」，
+ *    不是通用的写文件能力。
+ * 3. **目标目录仍然过 assertAllowed。** 白名单是 main 侧唯一可信的那道门。
+ *
+ * 命名用内容哈希：同一张图重复粘贴会命中同一个文件，天然去重，
+ * 不会在 assets/ 里堆出十几份一模一样的截图。
+ */
+const IMAGE_EXTENSIONS: Record<string, string> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/gif': 'gif',
+  'image/webp': 'webp',
+  'image/bmp': 'bmp',
+  'image/svg+xml': 'svg',
+  'image/avif': 'avif',
+}
+
+/** 附件体积上限。超过它多半是误操作（拖了个视频进来）。 */
+export const MAX_ATTACHMENT_BYTES = 32 * 1024 * 1024
+
+/** 默认附件目录名，M3 引入工作区设置后可配置。 */
+const ATTACHMENT_DIR = 'assets'
+
+export async function saveAttachment(
+  baseDir: string,
+  mime: string,
+  bytes: Uint8Array,
+): Promise<string> {
+  const extension = IMAGE_EXTENSIONS[mime.toLowerCase()]
+  if (!extension) throw new Error(`不支持的图片类型：${mime}`)
+  if (bytes.byteLength === 0) throw new Error('图片内容为空')
+  if (bytes.byteLength > MAX_ATTACHMENT_BYTES) {
+    throw new Error(
+      `图片过大（${(bytes.byteLength / 1024 / 1024).toFixed(1)} MB），超过 ${MAX_ATTACHMENT_BYTES / 1024 / 1024} MB 上限`,
+    )
+  }
+
+  // 校验的是**附件目录本身**而不是 baseDir。两个好处：
+  //
+  // 1. assertAllowed 是按文件路径设计的 —— 一个已授权目录不算「在自己里面」，
+  //    直接拿 baseDir 去问会被自己的白名单拒掉；
+  // 2. 更重要的是，assets 若是一个指向白名单之外的符号链接，
+  //    这里就当场拒绝，而不是先建目录再发现。
+  //
+  // 校验通过之后不需要再 grantDirectory：真实路径已经落在某个已授权目录内，
+  // 后续资源协议加载走同一套校验自然放行。多授权一次只会白白扩大白名单。
+  const dir = await assertAllowed(path.join(baseDir, ATTACHMENT_DIR))
+  await mkdir(dir, { recursive: true })
+
+  const name = `${hashBytes(bytes).slice(0, 16)}.${extension}`
+  const target = path.join(dir, name)
+
+  // 内容哈希相同即同一张图，已经存在就直接复用
+  try {
+    await access(target, constants.F_OK)
+  } catch {
+    await writeFile(target, bytes, { flag: 'wx' }).catch(
+      async (error: NodeJS.ErrnoException) => {
+        // wx 在并发粘贴同一张图时会 EEXIST —— 那正是我们想要的结果，不算失败
+        if (error.code !== 'EEXIST') throw error
+      },
+    )
+  }
+
+  // Markdown 里的路径一律用正斜杠，Windows 上也是
+  return `${ATTACHMENT_DIR}/${name}`
 }

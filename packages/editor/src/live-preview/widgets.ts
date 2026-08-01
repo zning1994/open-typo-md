@@ -43,6 +43,104 @@ export class RuleWidget extends WidgetType {
 }
 
 /**
+ * 代码块右上角的语言选择器。
+ *
+ * 之前这里是纯 CSS 的 `::after { content: attr(data-typo-lang) }`，只能看不能点。
+ * 换成真元素是为了让它可交互，但有两条约束要一起满足：
+ *
+ * 1. **不能占据行内空间** —— 它挂在代码首行上，一旦参与布局就会把代码顶右边去。
+ *    所以用绝对定位脱离文档流（`.cm-typo-code-first` 已经是 `position: relative`）。
+ * 2. **不能持有状态** —— 选择的结果必须立刻写回围栏的语言标注，
+ *    走一次普通 transaction（docs/design/02 §6 的铁律）。
+ *    这里连 `<select>` 的当前值都不自己记：它每次都从文档重新渲染。
+ *
+ * 用原生 `<select>` 而不是自绘下拉：一百多种语言，原生控件自带键盘导航、
+ * 首字母跳转、以及各平台一致的滚动行为。自绘要把这些重做一遍才能追平。
+ */
+export class CodeLanguageWidget extends WidgetType {
+  constructor(
+    /** 当前语言的规范名；空串表示没标注语言。 */
+    readonly language: string,
+    /** 可选项，已排序。 */
+    readonly choices: readonly string[],
+  ) {
+    super()
+  }
+
+  override eq(other: CodeLanguageWidget): boolean {
+    // choices 是同一个常量数组，比引用就够；language 才是会变的那个
+    return other.language === this.language && other.choices === this.choices
+  }
+
+  toDOM(view: EditorView): HTMLElement {
+    const select = document.createElement('select')
+    select.className = 'cm-typo-code-lang'
+    select.title = '代码语言'
+    select.setAttribute('aria-label', '代码语言')
+    select.setAttribute('contenteditable', 'false')
+
+    const blank = document.createElement('option')
+    blank.value = ''
+    blank.textContent = '纯文本'
+    select.appendChild(blank)
+
+    // 文档里写的语言若不在清单里（拼错、或是我们不认识的语言），
+    // 也要作为一个选项存在，否则 select 会显示成别的值，等于悄悄改了用户的字
+    if (this.language && !this.choices.includes(this.language)) {
+      const custom = document.createElement('option')
+      custom.value = this.language
+      custom.textContent = this.language
+      select.appendChild(custom)
+    }
+
+    for (const name of this.choices) {
+      const option = document.createElement('option')
+      option.value = name
+      option.textContent = name
+      select.appendChild(option)
+    }
+
+    select.value = this.language
+    select.addEventListener('change', () => {
+      setFenceLanguage(view, view.posAtDOM(select), select.value)
+    })
+    // 下拉展开靠 mousedown，别让编辑器把它当成「把光标放这儿」
+    select.addEventListener('mousedown', (event) => event.stopPropagation())
+
+    return select
+  }
+
+  override ignoreEvent(): boolean {
+    return true
+  }
+}
+
+/** 围栏行：可选缩进 + 三个以上的 ` 或 ~ + 信息串。 */
+const FENCE_LINE = /^(\s*[`~]{3,})(.*)$/
+
+/**
+ * 改写 pos 所在代码块的围栏语言标注。
+ *
+ * 从内容行往上找围栏行，而不是信任 widget 构造时的位置 —— widget 会因
+ * `eq()` 相等而被复用，存下来的位置可能已经过期。
+ */
+function setFenceLanguage(view: EditorView, pos: number, language: string): void {
+  const { doc } = view.state
+  const line = doc.lineAt(pos)
+  if (line.number <= 1) return
+
+  const fence = doc.line(line.number - 1)
+  const match = FENCE_LINE.exec(fence.text)
+  if (!match) return
+
+  const from = fence.from + (match[1] as string).length
+  view.dispatch({
+    changes: { from, to: fence.to, insert: language },
+    userEvent: 'input.typo.code-language',
+  })
+}
+
+/**
  * 任务列表的复选框，替换掉 `[ ]` / `[x]`。
  *
  * 这是第一个**可交互**的 widget，因此也是第一次真刀真枪地兑现

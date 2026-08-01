@@ -86,6 +86,20 @@ export interface ConfirmOptions {
   cancelId?: number
 }
 
+/**
+ * 一份待落盘的附件。
+ *
+ * `mime` 是权威的类型来源 —— 宿主据它决定扩展名，**不采信 `name`**
+ * （见 docs/design/04 §5：字节和文件名都来自渲染进程，不可信）。
+ * `name` 只用来给插入的 Markdown 生成 alt 文本。
+ */
+export interface AttachmentInput {
+  mime: string
+  bytes: Uint8Array
+  /** 来源文件名，可能为空。 */
+  name?: string
+}
+
 export interface HostFs {
   read(path: string): Promise<ReadResult>
   write(path: string, text: string, options: WriteOptions): Promise<WriteResult>
@@ -98,6 +112,14 @@ export interface HostFs {
    * 绝不返回 `file://`。
    */
   resolveAssetUrl(path: string, baseDir: string): Promise<string>
+  /**
+   * 把附件存进 `baseDir` 下的附件目录，返回**相对 baseDir 的 POSIX 路径**
+   * （例如 `assets/ab12….png`），可以直接写进 Markdown。
+   *
+   * 不支持的类型、超限的体积一律抛错，绝不静默丢弃 —— 用户以为图片进去了
+   * 而实际没有，是最难排查的一类问题。
+   */
+  saveAttachment(baseDir: string, attachment: AttachmentInput): Promise<string>
 }
 
 export interface HostDialog {

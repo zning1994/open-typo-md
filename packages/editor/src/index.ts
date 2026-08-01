@@ -1,6 +1,13 @@
 export { TypoEditor } from './editor.js'
 export type { EditorStats, EditorStatus, TypoEditorOptions } from './editor.js'
-export { livePreviewConfig, type AssetResolver, type LivePreviewConfig } from './config.js'
+export {
+  livePreviewConfig,
+  type AssetResolver,
+  type ImageSink,
+  type LivePreviewConfig,
+  type PastedImage,
+} from './config.js'
+export { imageInsertion } from './images.js'
 export {
   livePreview,
   blockPreview,
@@ -22,6 +29,7 @@ export {
 } from './live-preview/index.js'
 export {
   BulletWidget,
+  CodeLanguageWidget,
   EntityWidget,
   ImageWidget,
   RuleWidget,
@@ -40,5 +48,6 @@ export {
   typoKeymap,
 } from './commands.js'
 export { CODE_LINE_CLASS, codeBlockScrollSync } from './code-block.js'
+export { inputBehavior } from './input.js'
 export { linkInteraction, linkTargetAt } from './links.js'
 export { baseTheme, markdownHighlight, typoTheme } from './theme.js'

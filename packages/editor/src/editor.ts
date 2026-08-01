@@ -23,7 +23,14 @@ import {
 } from '@typo/markdown'
 import { codeBlockScrollSync } from './code-block.js'
 import { currentHeadingLevel, typoCommands } from './commands.js'
-import { livePreviewConfig, type AssetResolver } from './config.js'
+import {
+  livePreviewConfig,
+  type AssetResolver,
+  type ImageSink,
+  type LivePreviewConfig,
+} from './config.js'
+import { imageInsertion } from './images.js'
+import { inputBehavior } from './input.js'
 import { linkInteraction } from './links.js'
 import { livePreview } from './live-preview/index.js'
 import { typoTheme } from './theme.js'
@@ -51,6 +58,10 @@ export interface TypoEditorOptions {
   assetResolver?: AssetResolver
   /** Ctrl/Cmd + 点击链接时调用，通常接到宿主的「用系统浏览器打开」。 */
   onOpenLink?: (url: string) => void
+  /** 粘贴 / 拖入图片时把它存到哪儿。不传则关闭该功能。 */
+  imageSink?: ImageSink
+  /** 存图失败时的提示途径。 */
+  onImageError?: (error: Error, name: string) => void
   sourceMode?: boolean
   readOnly?: boolean
   /** 文档内容变化时调用。频率等同于按键，实现方需自行控制开销。 */
@@ -88,18 +99,14 @@ export class TypoEditor {
       // 方言默认值交给 @typo/markdown 决定（现为 GFM），这里不再写死一份 ——
       // 写死过一次，结果是「解析器默认换了、编辑器还在跑旧方言」
       markdownLanguageSupport(options.dialect ? { dialect: options.dialect } : {}),
-      this.configCompartment.of(
-        livePreviewConfig.of({
-          assetResolver: options.assetResolver ?? ((src) => src),
-          renderImages: true,
-          onOpenLink: options.onOpenLink ?? null,
-        }),
-      ),
+      this.configCompartment.of(livePreviewConfig.of(this.previewConfig())),
       this.previewCompartment.of(this.sourceModeOn ? [] : livePreview()),
       linkInteraction(),
       this.readOnlyCompartment.of(EditorState.readOnly.of(options.readOnly ?? false)),
       typoTheme(),
       typoCommands(),
+      inputBehavior(),
+      imageInsertion(),
       codeBlockScrollSync(),
       search({ top: true }),
       // 正文必须自动折行 —— 这是散文编辑器，不是代码编辑器
@@ -117,6 +124,24 @@ export class TypoEditor {
       }),
       EditorView.contentAttributes.of({ spellcheck: 'true', 'aria-label': 'Markdown 编辑区' }),
     ]
+  }
+
+  /**
+   * 配置面的唯一来源。
+   *
+   * 抽出来是因为它有两个调用点（初始化与 setAssetResolver），
+   * 而这个对象是**全量替换**的 —— 之前两处各写一份，加一个配置项就得记得
+   * 改两处，漏掉一处的表现是「换了工作目录之后某个能力莫名失效」。
+   */
+  private previewConfig(resolver?: AssetResolver): Partial<LivePreviewConfig> {
+    const { options } = this
+    return {
+      assetResolver: resolver ?? options.assetResolver ?? ((src) => src),
+      renderImages: true,
+      onOpenLink: options.onOpenLink ?? null,
+      imageSink: options.imageSink ?? null,
+      onImageError: options.onImageError ?? null,
+    }
   }
 
   private scheduleStatus(): void {
@@ -179,11 +204,7 @@ export class TypoEditor {
   setAssetResolver(resolver: AssetResolver): void {
     this.view.dispatch({
       effects: this.configCompartment.reconfigure(
-        livePreviewConfig.of({
-          assetResolver: resolver,
-          renderImages: true,
-          onOpenLink: this.options.onOpenLink ?? null,
-        }),
+        livePreviewConfig.of(this.previewConfig(resolver)),
       ),
     })
   }

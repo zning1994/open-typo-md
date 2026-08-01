@@ -16,6 +16,22 @@ import { Facet, combineConfig } from '@codemirror/state'
  */
 export type AssetResolver = (src: string) => string
 
+/** 一张待落盘的图片，来自剪贴板或拖放。 */
+export interface PastedImage {
+  mime: string
+  /** 来源文件名，可能是宿主合成的（截图粘贴恒为 `image.png`）。 */
+  name: string
+  bytes: Uint8Array
+}
+
+/**
+ * 把图片存到宿主那边，返回**可以直接写进 Markdown 的路径**
+ * （通常是相对当前文件的 `assets/xxx.png`）。
+ *
+ * 失败必须抛错，不能返回空字符串糊过去 —— 调用方要把失败原因告诉用户。
+ */
+export type ImageSink = (image: PastedImage) => Promise<string>
+
 export interface LivePreviewConfig {
   assetResolver: AssetResolver
   /** 关掉图片渲染（大文档降级策略，见 docs/design/02 §9）。 */
@@ -27,6 +43,15 @@ export interface LivePreviewConfig {
    * （架构 01 §6 要求一律交给系统浏览器，绝不在应用内导航）。
    */
   onOpenLink: ((url: string) => void) | null
+  /**
+   * 粘贴 / 拖入图片时调用。为 null 时整个功能关闭，粘贴走默认行为。
+   *
+   * 未保存的新文档没有落脚目录，宿主应当在这里抛错并提示先保存 ——
+   * 内核不替宿主决定「存哪儿」。
+   */
+  imageSink: ImageSink | null
+  /** 存图失败时调用。宿主负责怎么告诉用户（对话框 / 状态栏）。 */
+  onImageError: ((error: Error, name: string) => void) | null
 }
 
 export const livePreviewConfig = Facet.define<Partial<LivePreviewConfig>, LivePreviewConfig>({
@@ -35,6 +60,8 @@ export const livePreviewConfig = Facet.define<Partial<LivePreviewConfig>, LivePr
       assetResolver: (src: string) => src,
       renderImages: true,
       onOpenLink: null,
+      imageSink: null,
+      onImageError: null,
     })
   },
 })

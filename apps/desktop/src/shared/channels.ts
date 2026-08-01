@@ -19,6 +19,7 @@ export const CHANNELS = {
   fsWrite: 'fs:write',
   fsList: 'fs:list',
   fsExists: 'fs:exists',
+  fsSaveAttachment: 'fs:save-attachment',
   dialogOpen: 'dialog:open',
   dialogSave: 'dialog:save',
   dialogConfirm: 'dialog:confirm',
@@ -64,6 +65,8 @@ export interface TypoBridgeApi {
     write(path: string, text: string, options: WriteOptions): Promise<WriteResult>
     list(dir: string): Promise<DirEntry[]>
     exists(path: string): Promise<boolean>
+    /** 存图片，返回相对 baseDir 的 POSIX 路径。 */
+    saveAttachment(baseDir: string, mime: string, bytes: Uint8Array): Promise<string>
   }
   dialog: {
     open(options?: OpenDialogOptions): Promise<string[] | null>

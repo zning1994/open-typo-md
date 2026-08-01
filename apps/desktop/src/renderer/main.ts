@@ -13,6 +13,7 @@ import {
   toggleBold,
   toggleInlineCode,
   toggleItalic,
+  type ImageSink,
 } from '@typo/editor'
 import type { MenuCommand } from '../shared/channels.js'
 import { DocumentController, type DocumentState } from './document.js'
@@ -36,12 +37,31 @@ const statusMode = require$<HTMLButtonElement>('#status-mode')
 
 let currentPath: string | null = null
 
+/**
+ * 粘贴 / 拖入的图片存到当前文件旁边的 `assets/`。
+ *
+ * 未保存的新文档没有落脚点，这里**明确报错**而不是找个临时目录糊过去：
+ * 图片进了临时目录、Markdown 里却写着相对路径，用户一保存就得到一个
+ * 永远加载不出来的引用。宁可当场说清楚。
+ */
+async function saveImage(image: Parameters<ImageSink>[0]): Promise<string> {
+  if (!currentPath) throw new Error('请先保存文档，图片才知道该放在哪个目录旁边')
+  return host.fs.saveAttachment(dirnameOf(currentPath), image)
+}
+
 const editor = new TypoEditor({
   parent: editorHost,
   assetResolver: createAssetResolver(() => (currentPath ? dirnameOf(currentPath) : null)),
   // 架构 01 §6：渲染进程绝不自行导航，链接一律交给系统浏览器；
   // 协议白名单在 main 侧再挡一次
   onOpenLink: (url) => void host.shell.openExternal(url),
+  imageSink: saveImage,
+  onImageError: (error, name) => {
+    void host.dialog.message({
+      message: `图片「${name}」没能插入`,
+      detail: error.message,
+    })
+  },
   onDocChange: () => controller.notifyEdited(),
   onStatus: (status) => {
     statusStats.textContent = `${status.stats.words} 字 · ${status.stats.line}:${status.stats.column}`

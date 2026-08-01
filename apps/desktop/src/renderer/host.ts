@@ -29,6 +29,8 @@ export function createHostBridge(): HostBridge {
       list: (dir) => api.fs.list(dir),
       exists: (path) => api.fs.exists(path),
       resolveAssetUrl: async (path, baseDir) => buildAssetUrl(baseDir, path),
+      saveAttachment: (baseDir, attachment) =>
+        api.fs.saveAttachment(baseDir, attachment.mime, attachment.bytes),
     },
     dialog: {
       openFile: (options) => api.dialog.open(options),

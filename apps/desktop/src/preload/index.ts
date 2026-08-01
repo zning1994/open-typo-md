@@ -40,6 +40,8 @@ const api: TypoBridgeApi = {
     write: (path, text, options) => invoke(CHANNELS.fsWrite, path, text, options),
     list: (dir) => invoke(CHANNELS.fsList, dir),
     exists: (path) => invoke(CHANNELS.fsExists, path),
+    saveAttachment: (baseDir, mime, bytes) =>
+      invoke(CHANNELS.fsSaveAttachment, baseDir, mime, bytes),
   },
   dialog: {
     open: (options) => invoke(CHANNELS.dialogOpen, options),

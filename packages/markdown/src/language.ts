@@ -6,7 +6,7 @@
  * 这个文件只负责前者。
  */
 import { commonmarkLanguage, markdown } from '@codemirror/lang-markdown'
-import type { LanguageDescription, LanguageSupport } from '@codemirror/language'
+import { LanguageDescription, type LanguageSupport } from '@codemirror/language'
 import { languages } from '@codemirror/language-data'
 import { GFM, type MarkdownConfig } from '@lezer/markdown'
 import { footnoteExtension } from './footnote.js'
@@ -47,6 +47,30 @@ export interface MarkdownLanguageOptions {
   codeLanguages?: readonly LanguageDescription[]
 }
 
+/**
+ * 围栏语言名 → 语言描述。**高亮和语言选择器共用这一个函数。**
+ *
+ * 在上游的 `matchLanguageName` 之上补了一条**扩展名兜底**：
+ * `py`、`rb`、`kt` 这些是扩展名而不是别名，上游（即便开了 fuzzy）匹配不到，
+ * 于是 ```` ```py ```` 一直是不高亮的 —— 而这恰恰是最常见的写法之一。
+ *
+ * 匹配不上返回 null，围栏内容按纯文本呈现，不报错、不吞内容（原则 P2）。
+ */
+function matchCodeLanguage(
+  info: string,
+  list: readonly LanguageDescription[],
+): LanguageDescription | null {
+  // 围栏信息串里空格之后的部分是附加属性（`js {highlight=1-3}`），不参与匹配
+  const name = /\S*/.exec(info.trim())?.[0] ?? ''
+  if (!name) return null
+
+  const byName = LanguageDescription.matchLanguageName([...list], name, true)
+  if (byName) return byName
+
+  const lower = name.toLowerCase()
+  return list.find((lang) => lang.extensions.some((ext) => ext.toLowerCase() === lower)) ?? null
+}
+
 export function markdownLanguageSupport(
   options: MarkdownLanguageOptions = {},
 ): LanguageSupport {
@@ -55,8 +79,42 @@ export function markdownLanguageSupport(
     base: commonmarkLanguage,
     extensions: dialect === 'gfm' ? [...GFM_EXTENSIONS, ...extensions] : extensions,
     // Lezer 的混合语言解析：``` 后面写的语言名会被交给对应的解析器，
-    // 产出的 token 直接落进现有的 HighlightStyle，不需要第二套渲染路径
-    codeLanguages: [...codeLanguages],
+    // 产出的 token 直接落进现有的 HighlightStyle，不需要第二套渲染路径。
+    //
+    // 传函数而不是数组，为的是让匹配规则只有一份 —— 传数组的话上游会用它自己的
+    // `matchLanguageName`，跟语言选择器那边分家（见 resolveCodeLanguage 的说明）。
+    // 返回 LanguageDescription 时上游照旧走懒加载，体积不受影响。
+    codeLanguages: (info) => matchCodeLanguage(info, codeLanguages),
     addKeymap: false, // 键位由 @typo/editor 统一管理，避免两处定义打架
   })
+}
+
+/**
+ * 可选的代码语言名清单（首选名，已排序）。
+ *
+ * 给编辑器的语言选择器用。放在这里而不是让 @typo/editor 自己去 import
+ * `@codemirror/language-data`：语言表是「解析器认识哪些语言」这件事的一部分，
+ * 两处各自维护一份迟早会对不上（选择器里有、解析器不认，或者反过来）。
+ */
+export function codeLanguageNames(options: MarkdownLanguageOptions = {}): string[] {
+  const { codeLanguages = languages } = options
+  return [...codeLanguages].map((lang) => lang.name).sort((a, b) => a.localeCompare(b))
+}
+
+/**
+ * 把用户写的语言名（`js`、`JS`、`node`、`py`）归一成 `codeLanguageNames()`
+ * 里的首选名。给代码块的语言选择器用。
+ *
+ * 走的是**和高亮完全同一个** `matchCodeLanguage`。这不是洁癖：两套规则一旦
+ * 分家，界面上就会出现「下拉框显示纯文本、代码却是彩色的」这种自相矛盾的状态，
+ * 而且用户一旦碰那个下拉框，就会把本来好好的语言标注改掉。
+ *
+ * 匹配不上返回 null —— 调用方据此按「未知语言」处理，不猜、不报错（原则 P2）。
+ */
+export function resolveCodeLanguage(
+  info: string,
+  options: MarkdownLanguageOptions = {},
+): string | null {
+  const { codeLanguages = languages } = options
+  return matchCodeLanguage(info, codeLanguages)?.name ?? null
 }

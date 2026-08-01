@@ -10,7 +10,7 @@ import { ConflictError, UnsupportedEncodingError } from '@typo/plugin-api'
 import { CHANNELS, EVENTS, type IpcFailure } from '../shared/channels.js'
 import { registerAppHandler, registerAppSchemePrivileges } from './app-protocol.js'
 import { registerAssetHandler, registerAssetScheme } from './asset-protocol.js'
-import { readTextFile, writeTextFile } from './fs-service.js'
+import { readTextFile, saveAttachment, writeTextFile } from './fs-service.js'
 import { buildMenu } from './menu.js'
 import { assertAllowed, grantDirectory, grantFile } from './path-guard.js'
 import { getSetting, setSetting } from './settings.js'
@@ -111,6 +111,11 @@ function registerIpc(): void {
       return false
     }
   })
+  handle(
+    CHANNELS.fsSaveAttachment,
+    async (_sender, baseDir: string, mime: string, bytes: Uint8Array) =>
+      saveAttachment(baseDir, mime, bytes),
+  )
   handle(CHANNELS.fsList, async () => {
     // 文件树是 M3 的内容，先明确报错而不是返回一个骗人的空数组
     throw new Error('目录浏览尚未实现（M3）')

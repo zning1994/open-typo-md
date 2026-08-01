@@ -99,16 +99,32 @@ export const baseTheme = EditorView.theme({
     marginBottom: '0.9em',
     paddingBottom: '0.4em',
   },
-  '.cm-typo-code-first[data-typo-lang]:not([data-typo-lang=""])::after': {
-    content: 'attr(data-typo-lang)',
+  // 语言选择器：绝对定位飘在右上角，**不占行内空间**，
+  // 否则代码首行会被它顶得往右缩一截
+  '.cm-typo-code-lang': {
     position: 'absolute',
-    top: '0',
+    top: '0.1em',
     right: '0.4em',
+    zIndex: '1',
+    appearance: 'none',
+    border: '1px solid transparent',
+    borderRadius: '4px',
+    background: 'transparent',
+    color: v('fg-muted', '#6e7781'),
+    font: 'inherit',
     fontSize: '0.75em',
     lineHeight: '1.6',
-    color: v('fg-muted', '#6e7781'),
-    pointerEvents: 'none',
+    padding: '0 0.3em',
+    cursor: 'pointer',
     userSelect: 'none',
+    // 平时几乎隐形，鼠标进入代码块才显出可点的样子 —— 它是辅助控件，
+    // 不该跟代码本身抢注意力
+    opacity: '0.55',
+    transition: 'opacity 120ms, border-color 120ms',
+  },
+  '.cm-typo-code-block:hover .cm-typo-code-lang, .cm-typo-code-lang:focus': {
+    opacity: '1',
+    borderColor: v('border', '#d0d7de'),
   },
   // —— 表格 ——
   //
