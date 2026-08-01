@@ -110,6 +110,57 @@ export const baseTheme = EditorView.theme({
     pointerEvents: 'none',
     userSelect: 'none',
   },
+  // —— 表格 ——
+  //
+  // 没有 widget、没有第二状态：表格仍然是文本，只是靠 CSS 摆成表格的样子。
+  // `.cm-content` 不是 display:table，但 CSS 2.1 规定非表格父元素下**连续的**
+  // table-row 会被自动包进一个匿名表格盒 —— 于是连续的表格行自成一张表，
+  // 中间夹一行普通段落就自然断开。详见 live-preview/tables.ts 的说明。
+  '.cm-typo-tr': {
+    display: 'table-row',
+    // 表格里的内容不跟着散文折行：一折，列宽就失去参考意义
+    whiteSpace: 'pre',
+  },
+  '.cm-typo-td': {
+    display: 'table-cell',
+    padding: '0.28em 0.7em',
+    borderBottom: `1px solid ${v('border', '#d0d7de')}`,
+    verticalAlign: 'top',
+  },
+  '.cm-typo-tr-head .cm-typo-td': {
+    fontWeight: '600',
+    borderBottom: `2px solid ${v('border-strong', '#afb8c1')}`,
+  },
+  // 分隔行平时是藏起来的（blocks.ts）；光标进表格时露出来，
+  // 此刻它也必须是表格行，否则匿名表格盒会被它截成两张，列宽当场分家
+  '.cm-typo-tr-delim .cm-typo-td': {
+    color: v('marker-fg', '#b0b6bd'),
+    padding: '0 0.7em',
+    borderBottom: 'none',
+  },
+  '.cm-typo-td-center': { textAlign: 'center' },
+  '.cm-typo-td-right': { textAlign: 'right' },
+  '.cm-typo-td-left': { textAlign: 'left' },
+
+  // —— 任务列表 ——
+  '.cm-typo-task': {
+    verticalAlign: 'middle',
+    margin: '0 0.35em 0.15em 0',
+    cursor: 'pointer',
+  },
+
+  // —— 脚注 ——
+  // 引用做成上标；标签本身保持可见 —— 它是内容（「第几条」），不是纯标记
+  '.cm-typo-footnote-ref': {
+    verticalAlign: 'super',
+    fontSize: '0.78em',
+    color: v('accent', '#0969da'),
+  },
+  '.cm-typo-footnote-def': {
+    fontSize: '0.92em',
+    color: v('fg-muted', '#6e7781'),
+  },
+
   '.cm-typo-hr-line': { display: 'flex', alignItems: 'center', minHeight: '1.7em' },
   '.cm-typo-hr': {
     display: 'inline-block',

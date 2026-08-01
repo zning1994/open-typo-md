@@ -8,8 +8,14 @@
 import { ensureSyntaxTree } from '@codemirror/language'
 import { EditorSelection, EditorState, type Extension } from '@codemirror/state'
 import { markdownLanguageSupport, type MarkdownDialect } from '@typo/markdown'
-import { computeDecorations, livePreviewConfig } from '@typo/editor'
-import { BulletWidget, ImageWidget, RuleWidget } from '@typo/editor'
+import { computeBlockDecorations, computeDecorations, livePreviewConfig } from '@typo/editor'
+import {
+  BulletWidget,
+  EntityWidget,
+  ImageWidget,
+  RuleWidget,
+  TaskCheckboxWidget,
+} from '@typo/editor'
 
 export interface StateOptions {
   /** 光标位置；数组表示多光标；[from, to] 元组表示选区。 */
@@ -34,7 +40,9 @@ export function mkState(doc: string, options: StateOptions = {}): EditorState {
     doc,
     selection: EditorSelection.create(ranges),
     extensions: [
-      markdownLanguageSupport({ dialect: options.dialect ?? 'commonmark' }),
+      // 默认跟产品一致（GFM）。CommonMark 严格模式要在用例里显式指定，
+      // 免得测试悄悄跑在一个用户永远碰不到的方言上。
+      markdownLanguageSupport({ dialect: options.dialect ?? 'gfm' }),
       EditorState.allowMultipleSelections.of(true),
       livePreviewConfig.of({
         assetResolver: options.assetResolver ?? ((src) => src),
@@ -59,7 +67,9 @@ export function decorationsOf(state: EditorState) {
  * 被隐藏的源码消失；widget 用可读的占位符表示：
  *   •            无序列表符号
  *   ─            分隔线
+ *   ☐ / ☑        任务列表复选框
  *   ⟦img:src|alt⟧  图片
+ *   实体直接显示解码后的字符
  */
 export function preview(doc: string, options: StateOptions = {}): string {
   // 没指定光标时，把光标停到一段无关的前导文字上。
@@ -78,22 +88,48 @@ const PARK = '光标停在这里\n\n'
 
 function renderPreview(doc: string, options: StateOptions): string {
   const state = mkState(doc, options)
-  const { atomic } = decorationsOf(state)
   const text = state.doc.toString()
 
   let out = ''
   let pos = 0
-  const iter = atomic.iter()
-  while (iter.value) {
-    out += text.slice(pos, iter.from)
-    const widget = (iter.value.spec as { widget?: unknown }).widget
+  for (const [from, to, widget] of replacedRanges(state)) {
+    // 块级隐藏往前吃掉一个换行符（见 blocks.ts），行内装饰不会。
+    // 两者互不重叠，但拼接时得从上一段的结尾接着切，不能倒退
+    if (from < pos) continue
+    out += text.slice(pos, from)
     if (widget instanceof BulletWidget) out += '•'
     else if (widget instanceof RuleWidget) out += '─'
+    else if (widget instanceof TaskCheckboxWidget) out += widget.checked ? '☑' : '☐'
+    else if (widget instanceof EntityWidget) out += widget.text
     else if (widget instanceof ImageWidget) out += `⟦img:${widget.src}|${widget.alt}⟧`
-    pos = iter.to
-    iter.next()
+    pos = to
   }
   return out + text.slice(pos)
+}
+
+/**
+ * 全部「被替换掉的源码区间」，行内（ViewPlugin）与块级（StateField）合在一起。
+ *
+ * 两条通路必须一起看，否则表格分隔行、代码围栏这些块级隐藏在 preview() 里
+ * 会凭空出现 —— 那正是最容易看走眼的地方。
+ */
+function replacedRanges(state: EditorState): Array<[number, number, unknown]> {
+  const found: Array<[number, number, unknown]> = []
+
+  const collect = (set: ReturnType<typeof computeBlockDecorations>): void => {
+    const iter = set.iter()
+    while (iter.value) {
+      // 行装饰（语言角标之类）不替换任何东西，跳过
+      if (iter.to > iter.from || (iter.value.spec as { widget?: unknown }).widget) {
+        found.push([iter.from, iter.to, (iter.value.spec as { widget?: unknown }).widget])
+      }
+      iter.next()
+    }
+  }
+
+  collect(decorationsOf(state).atomic)
+  collect(computeBlockDecorations(state))
+  return found.sort((a, b) => a[0] - b[0] || a[1] - b[1])
 }
 
 /** 某个位置上覆盖的所有 mark 装饰类名。 */

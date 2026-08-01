@@ -12,10 +12,26 @@ import { syntaxTree } from '@codemirror/language'
 import type { EditorState, Range } from '@codemirror/state'
 import { Decoration, type DecorationSet } from '@codemirror/view'
 import type { SyntaxNode, SyntaxNodeRef } from '@lezer/common'
-import { BLOCK_NODES, INLINE_NODES, MARK_NODES, headingLevel } from '@typo/markdown'
+import {
+  BLOCK_NODES,
+  FOOTNOTE_NODES,
+  INLINE_NODES,
+  MARK_NODES,
+  TABLE_NODES,
+  TASK_NODES,
+  decodeEntity,
+  headingLevel,
+} from '@typo/markdown'
 import { livePreviewConfig } from '../config.js'
 import { activeState, revealsLine, revealsRange, type ActiveState } from './active.js'
-import { BulletWidget, ImageWidget, RuleWidget } from './widgets.js'
+import { alignmentsOf, delimiterRowLayout, rowLayout, tableIsActive } from './tables.js'
+import {
+  BulletWidget,
+  EntityWidget,
+  ImageWidget,
+  RuleWidget,
+  TaskCheckboxWidget,
+} from './widgets.js'
 
 export interface BuildResult {
   /** 全部装饰。 */
@@ -74,25 +90,48 @@ class Builder {
     this.decorations.push(markDeco(cls).range(from, to))
   }
 
-  private lastHiddenTo = 0
+  private readonly hidden: { from: number; to: number; deco: Decoration }[] = []
 
   /**
    * 隐藏一段源码。同时登记到 atomic，让方向键一次跨过去。
    *
-   * 这里强制「隐藏区间互不重叠」这条不变量：重叠的 replace 装饰会让
-   * CodeMirror 在渲染时直接抛错，属于必炸型 bug，而触发它的往往是嵌套结构
-   * （列表项里的分隔线、图片 alt 里的强调、`### 标题 ###` 里两个标记抢同一个空格）。
+   * 区间**先攒着**，等全部规则跑完再统一消解重叠（见 `resolveHidden`）。
    *
-   * 与其在每条规则里各自小心，不如在唯一的出口上兜住 —— 后来的区间被裁到
-   * 前一个的结尾之后，裁没了就丢弃。CommonMark 全量语料的回归测试守着这条线。
+   * 早先是边收边裁的：拿一个 `lastHiddenTo` 游标，后来的区间裁到它之后。
+   * 那份实现悄悄依赖了「装饰按文档顺序发出」这个前提 —— 树遍历确实是文档序，
+   * 但**规则本身不一定**：表格行的处理是拿到行节点就把整行的竖线一次性发完，
+   * 直接跨到了行尾，于是行内那些还没轮到的强调标记全部 `to <= lastHiddenTo`，
+   * 被当成重叠**静默丢弃**，表现是「表格单元格里的加粗不生效」。
+   *
+   * 攒起来再排序消解，这个前提就不存在了，规则可以按自己最自然的方式发装饰。
    */
   hide(from: number, to: number, widget?: Decoration): void {
-    const start = Math.max(from, this.lastHiddenTo)
-    if (to <= start) return
-    const deco = widget ?? HIDDEN
-    this.decorations.push(deco.range(start, to))
-    this.atomic.push(deco.range(start, to))
-    this.lastHiddenTo = to
+    if (to <= from) return
+    this.hidden.push({ from, to, deco: widget ?? HIDDEN })
+  }
+
+  /**
+   * 消解重叠，把结果并进 decorations / atomic。
+   *
+   * 「隐藏区间互不重叠」是条硬性不变量：重叠的 replace 装饰会让 CodeMirror
+   * 在渲染时直接抛错，属于必炸型 bug，而触发它的往往是嵌套结构（列表项里的
+   * 分隔线、图片 alt 里的强调、`### 标题 ###` 里两个标记抢同一个空格）。
+   * 与其在每条规则里各自小心，不如在唯一的出口上兜住。
+   *
+   * 排序规则是「起点升序，起点相同则长的在前」—— 等价于外层节点优先，
+   * 跟树遍历的自然顺序一致，于是被裁掉的总是内层那个。
+   * CommonMark 全量语料的回归测试守着这条线。
+   */
+  resolveHidden(): void {
+    this.hidden.sort((a, b) => a.from - b.from || b.to - a.to)
+    let lastTo = 0
+    for (const { from, to, deco } of this.hidden) {
+      const start = Math.max(from, lastTo)
+      if (to <= start) continue
+      this.decorations.push(deco.range(start, to))
+      this.atomic.push(deco.range(start, to))
+      lastTo = to
+    }
   }
 
   line(pos: number, cls: string): void {
@@ -132,6 +171,8 @@ export function computeDecorations(
     })
   }
 
+  b.resolveHidden()
+
   return {
     decorations: Decoration.set(b.decorations, true),
     atomic: Decoration.set(b.atomic, true),
@@ -159,6 +200,43 @@ function handleNode(b: Builder, node: SyntaxNodeRef, clip: { from: number; to: n
 
     case BLOCK_NODES.horizontalRule:
       handleRule(b, node)
+      return
+
+    case TABLE_NODES.header:
+    case TABLE_NODES.row:
+      handleTableRow(b, node)
+      return
+
+    // `TableDelimiter` 一名两用：挂在 Table 上的是**整条分隔行**，
+    // 挂在行上的是单根竖线
+    case TABLE_NODES.delimiter: {
+      const parent = node.node.parent
+      if (!parent) return
+      if (parent.name === TABLE_NODES.table) handleDelimiterRow(b, node)
+      else handlePipe(b, node, parent)
+      return
+    }
+
+    case TASK_NODES.marker:
+      handleTaskMarker(b, node)
+      return
+
+    case INLINE_NODES.escape:
+      handleEscape(b, node)
+      return
+    case INLINE_NODES.entity:
+      handleEntity(b, node)
+      return
+
+    case INLINE_NODES.url:
+      handleBareUrl(b, node)
+      return
+
+    case FOOTNOTE_NODES.ref:
+      handleFootnoteRef(b, node)
+      return
+    case FOOTNOTE_NODES.definition:
+      b.lines(node.from, node.to, 'cm-typo-footnote-def', clip)
       return
 
     case INLINE_NODES.emphasis:
@@ -204,6 +282,138 @@ function handleNode(b: Builder, node: SyntaxNodeRef, clip: { from: number; to: n
       // 不认识的节点一律不动 —— 原则 P2：绝不吞内容
       return
   }
+}
+
+/**
+ * 表格行。
+ *
+ * 呈现方案见 ./tables.ts 开头：靠 CSS 匿名表格盒，没有 widget、没有第二状态。
+ * 这里只负责挂类名和处理竖线。
+ *
+ * 竖线的显形规则是**整张表一起**，不是按行 —— 局部显形会让那一行脱出匿名
+ * 表格盒，一张表当场劈成两张、列宽分家，比整体切换刺眼得多。
+ * 而因为每个单元格的范围**包含了它左边那根竖线**（见 tables.ts），
+ * 显形只是让竖线在格子内部露出来，列结构自始至终没动过。
+ */
+function handleTableRow(b: Builder, node: SyntaxNodeRef): void {
+  const table = node.node.parent
+  if (!table) return
+
+  const isHeader = node.name === TABLE_NODES.header
+  b.line(node.from, isHeader ? 'cm-typo-tr cm-typo-tr-head' : 'cm-typo-tr')
+
+  const { spans } = rowLayout(b.state, node.node)
+  const aligns = alignmentsOf(b.state, table)
+
+  for (const span of spans) {
+    const align = aligns[span.column] ?? 'none'
+    b.mark(
+      span.from,
+      span.to,
+      align === 'none' ? 'cm-typo-td' : `cm-typo-td cm-typo-td-${align}`,
+    )
+  }
+}
+
+/**
+ * 单根竖线。
+ *
+ * 刻意由竖线节点自己处理，而不是在 handleTableRow 里一次性发完 —— 后者会让
+ * 隐藏区间的发出顺序跳到行尾，历史上正是这样把单元格里的强调标记挤掉的
+ * （现在 Builder 已经不依赖发出顺序了，但「谁的节点谁处理」仍然更好读）。
+ */
+function handlePipe(b: Builder, node: SyntaxNodeRef, row: SyntaxNode): void {
+  const table = row.parent
+  if (table && tableIsActive(b.state, table)) {
+    b.mark(node.from, node.to, MARK_CLASS)
+    return
+  }
+  b.hide(node.from, node.to)
+}
+
+/**
+ * 分隔行（`| --- | :---: |`）在显形时也得摆成表格行。
+ *
+ * 不这么做的话，它会以一个普通块级行的身份卡在表头和数据行中间，
+ * 把匿名表格盒**截成两张表** —— 表头和正文的列宽当场分家。
+ * 隐藏它是块级装饰的事（见 blocks.ts），这里只管它露出来的时候。
+ */
+function handleDelimiterRow(b: Builder, node: SyntaxNodeRef): void {
+  b.line(node.from, 'cm-typo-tr cm-typo-tr-delim')
+  const { spans, pipes } = delimiterRowLayout(b.state, node.node)
+  for (const span of spans) b.mark(span.from, span.to, 'cm-typo-td')
+  for (const at of pipes) b.mark(at, at + 1, MARK_CLASS)
+}
+
+/** 任务列表的 `[ ]` / `[x]`：换成真的复选框；光标在本行时露出源码。 */
+function handleTaskMarker(b: Builder, node: SyntaxNodeRef): void {
+  const line = b.state.doc.lineAt(node.from)
+  if (revealsLine(b.active, line.number)) {
+    b.mark(node.from, node.to, MARK_CLASS)
+    return
+  }
+  const checked = b.slice(node.from, node.to).toLowerCase() === '[x]'
+  b.hide(node.from, node.to, Decoration.replace({ widget: new TaskCheckboxWidget(checked) }))
+}
+
+/**
+ * 转义字符：`\*` 藏掉反斜杠，只留 `*`。
+ *
+ * 显形规则用**闭区间**而不是整行 —— 转义是行内元素，按行显形会让整段文字
+ * 在光标进出时左右横跳。
+ */
+function handleEscape(b: Builder, node: SyntaxNodeRef): void {
+  if (revealsRange(b.active, node.from, node.to)) {
+    b.mark(node.from, node.from + 1, MARK_CLASS)
+    return
+  }
+  b.hide(node.from, node.from + 1)
+}
+
+/** HTML 实体：`&amp;` 显示成 `&`。认不出来的实体原样保留（原则 P2）。 */
+function handleEntity(b: Builder, node: SyntaxNodeRef): void {
+  const source = b.slice(node.from, node.to)
+  const decoded = decodeEntity(source)
+  if (decoded === null) return
+
+  if (revealsRange(b.active, node.from, node.to)) {
+    b.mark(node.from, node.to, MARK_CLASS)
+    return
+  }
+  b.hide(node.from, node.to, Decoration.replace({ widget: new EntityWidget(decoded, source) }))
+}
+
+/**
+ * GFM 自动链接：`www.example.com`、`https://x.io`、`a@b.com`。
+ *
+ * 解析器给的是一个**光秃秃的 `URL` 节点**，不像 CommonMark 的 `<...>`
+ * 那样包在 `Autolink` 里。所以这里要先确认它不是行内链接 / 图片的目标部分，
+ * 否则会把 `[文字](url)` 里已经被折叠的 URL 又画一遍。
+ */
+function handleBareUrl(b: Builder, node: SyntaxNodeRef): void {
+  // 用「排除法」而不是「白名单法」：自动链接可以出现在标题、强调、
+  // 表格单元格、列表项…… 任何行内上下文里，一条条列会漏。
+  // 真正需要跳过的只有「URL 是别人的目标部分」这几种。
+  const parent = node.node.parent
+  if (parent && URL_CONTAINERS.has(parent.name)) return
+  b.mark(node.from, node.to, 'cm-typo-link cm-typo-autolink')
+}
+
+/** 这些节点里的 `URL` 是链接目标，已由各自的 handler 折叠，不该再画一遍。 */
+const URL_CONTAINERS = new Set<string>([
+  INLINE_NODES.link,
+  INLINE_NODES.image,
+  INLINE_NODES.autolink,
+  BLOCK_NODES.linkReference,
+])
+
+/** 脚注引用 `[^1]`：藏掉 `[^` 和 `]`，标签留着做上标。 */
+function handleFootnoteRef(b: Builder, node: SyntaxNodeRef): void {
+  b.mark(node.from, node.to, 'cm-typo-footnote-ref')
+  if (revealsRange(b.active, node.from, node.to)) return
+  // `[^` 两个字符 + 收尾的 `]`
+  b.hide(node.from, node.from + 2)
+  b.hide(node.to - 1, node.to)
 }
 
 function handleRule(b: Builder, node: SyntaxNodeRef): void {

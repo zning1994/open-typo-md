@@ -20,6 +20,16 @@ import { computeDecorations } from './build.js'
 export { computeDecorations, type BuildResult } from './build.js'
 export { blockPreview, computeBlockDecorations } from './blocks.js'
 export { activeState, revealsLine, revealsRange, type ActiveState } from './active.js'
+export {
+  alignmentsOf,
+  delimiterRowLayout,
+  delimiterRowOf,
+  rowLayout,
+  tableIsActive,
+  type ColumnAlign,
+  type TableCellSpan,
+  type TableRowLayout,
+} from './tables.js'
 
 class LivePreviewPlugin {
   decorations: DecorationSet

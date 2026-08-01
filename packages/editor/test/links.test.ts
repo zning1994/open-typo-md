@@ -43,3 +43,39 @@ describe('linkTargetAt', () => {
     expect(targetAt('[文档](  https://example.com  )', '文档')).toBe('https://example.com')
   })
 })
+
+describe('GFM 自动链接', () => {
+  it('带协议的原样返回', () => {
+    expect(targetAt('访问 https://example.com/a 看看', 'example')).toBe('https://example.com/a')
+  })
+
+  it('省略协议的裸域名补上 https://', () => {
+    // GFM 允许 `www.x.com` 这种写法，但直接交给系统浏览器打不开
+    expect(targetAt('访问 www.example.com 看看', 'example')).toBe('https://www.example.com')
+  })
+
+  it('邮箱补上 mailto:', () => {
+    expect(targetAt('联系 someone@example.com 吧', 'example')).toBe(
+      'mailto:someone@example.com',
+    )
+  })
+
+  it('非 http 协议照传，挡不挡由 main 侧的白名单说了算', () => {
+    expect(targetAt('见 <ftp://example.com/x> 吧', 'example')).toBe('ftp://example.com/x')
+  })
+
+  it('行内链接的 URL 不会被自动链接规则抢走', () => {
+    expect(targetAt('[文档](./local.md)', '文档')).toBe('./local.md')
+  })
+
+  it('光标落在行内链接的 URL 上时，取的仍是那个 URL 本身', () => {
+    // 折叠状态下用户点不到这里，但显形时能点 —— 不能因此补出个 https:// 前缀
+    expect(targetAt('[文档](./local.md)', 'local')).toBe('./local.md')
+  })
+
+  it('严格 CommonMark 下没有自动链接，裸 URL 不可点', () => {
+    const doc = '访问 www.example.com 看看'
+    const state = mkState(doc, { dialect: 'commonmark' })
+    expect(linkTargetAt(state, doc.indexOf('example'))).toBe(null)
+  })
+})

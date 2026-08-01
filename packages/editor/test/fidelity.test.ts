@@ -41,12 +41,24 @@ describe('CommonMark 语料库', () => {
     }
     expect(broken).toEqual([])
   })
+})
+
+/**
+ * 结构不变量，**两个方言各跑一遍**。
+ *
+ * 语料是 CommonMark 的，但装饰规则是按 GFM 写的 —— 用户实际跑的就是 GFM。
+ * 只测 commonmark 等于让表格、任务列表、脚注这些新规则完全没有语料兜底，
+ * 而它们恰恰是最可能在嵌套结构里踩到重叠的（M2 就抓到过一次：
+ * 表格行把整行竖线一次性发出去，把单元格里的强调标记挤掉了）。
+ */
+describe.each(['commonmark', 'gfm'] as const)('结构不变量 · %s 方言', (dialect) => {
+  const state = (markdown: string) => mkState(markdown, { dialect })
 
   it('全部用例：装饰构建不抛异常', () => {
     const failures: Array<{ number: number; error: string }> = []
     for (const example of examples) {
       try {
-        hiddenRanges(mkState(example.markdown))
+        hiddenRanges(state(example.markdown))
       } catch (error) {
         failures.push({ number: example.number, error: String(error) })
       }
@@ -58,7 +70,7 @@ describe('CommonMark 语料库', () => {
     // 重叠的 replace 装饰会让 CodeMirror 在渲染时直接抛错 —— 必炸型 bug
     const failures: Array<{ number: number; ranges: Array<[number, number]> }> = []
     for (const example of examples) {
-      const ranges = hiddenRanges(mkState(example.markdown))
+      const ranges = hiddenRanges(state(example.markdown))
       for (let i = 1; i < ranges.length; i++) {
         if (ranges[i]![0] < ranges[i - 1]![1]) {
           failures.push({ number: example.number, ranges })
@@ -73,9 +85,9 @@ describe('CommonMark 语料库', () => {
     // 跨越换行的 replace 装饰不允许由 ViewPlugin 提供，CodeMirror 会报错
     const failures: number[] = []
     for (const example of examples) {
-      const state = mkState(example.markdown)
-      for (const [from, to] of hiddenRanges(state)) {
-        if (state.doc.sliceString(from, to).includes('\n')) {
+      const s = state(example.markdown)
+      for (const [from, to] of hiddenRanges(s)) {
+        if (s.doc.sliceString(from, to).includes('\n')) {
           failures.push(example.number)
           break
         }
@@ -90,9 +102,9 @@ describe('CommonMark 语料库', () => {
     const MARKER_ONLY = /^[#>*\-+`~[\]()<>!_=\s.:'"^\d\\|/a-zA-Z%&?#@+,;$-]*$/
     const failures: Array<{ number: number; hidden: string }> = []
     for (const example of examples) {
-      const state = mkState(example.markdown)
-      for (const [from, to] of hiddenRanges(state)) {
-        const hidden = state.doc.sliceString(from, to)
+      const s = state(example.markdown)
+      for (const [from, to] of hiddenRanges(s)) {
+        const hidden = s.doc.sliceString(from, to)
         // 链接的 URL 部分本来就该被折叠，长度可以很长；这里只挡「藏了自然语言」
         if (hidden.length > 0 && !MARKER_ONLY.test(hidden)) {
           failures.push({ number: example.number, hidden })

@@ -13,9 +13,11 @@
  * 需要改成按变更范围增量更新。
  */
 import { syntaxTree } from '@codemirror/language'
+import type { SyntaxNode } from '@lezer/common'
 import { StateField, type EditorState, type Extension, type Range } from '@codemirror/state'
 import { Decoration, EditorView, type DecorationSet } from '@codemirror/view'
-import { BLOCK_NODES } from '@typo/markdown'
+import { BLOCK_NODES, TABLE_NODES } from '@typo/markdown'
+import { delimiterRowOf, tableIsActive } from './tables.js'
 
 /**
  * 整行隐藏。
@@ -46,6 +48,34 @@ function langBadge(lang: string): Decoration {
   })
 }
 
+/**
+ * 藏掉表格的分隔行（`| --- | :---: |`）。
+ *
+ * 它是纯语法噪声：既不是内容，也不像围栏那样是「删掉块的唯一抓手」——
+ * 表格没了分隔行就不再是表格，用户想拆表直接删行即可。
+ *
+ * 光标进入表格时整条露出来（跟围栏代码块同一条规则）。露出来之后它由
+ * build.ts 摆成一个正常的表格行，否则它会以块级行的身份把匿名表格盒截成两张。
+ *
+ * 隐藏范围往前合并（吃掉上一行的换行符），理由见 HIDE_LINE 的说明。
+ * 分隔行必定跟在表头行后面，`from > 0` 恒成立，不存在文档开头那个退化情形。
+ */
+function hideDelimiterRow(
+  state: EditorState,
+  table: SyntaxNode,
+  ranges: Range<Decoration>[],
+): void {
+  if (tableIsActive(state, table)) return
+
+  const row = delimiterRowOf(table)
+  if (!row) return
+
+  const line = state.doc.lineAt(row.from)
+  // 表头行是必须的，分隔行不可能是文档第一行；真遇上了（解析器容错）就不藏
+  if (line.from === 0) return
+  ranges.push(HIDE_LINE.range(line.from - 1, line.to))
+}
+
 function computeBlockDecorations(state: EditorState): DecorationSet {
   const ranges: Range<Decoration>[] = []
   const doc = state.doc
@@ -56,6 +86,10 @@ function computeBlockDecorations(state: EditorState): DecorationSet {
 
   tree.iterate({
     enter(node) {
+      if (node.name === TABLE_NODES.table) {
+        hideDelimiterRow(state, node.node, ranges)
+        return
+      }
       if (node.name !== BLOCK_NODES.fencedCode) return
 
       const from = node.from

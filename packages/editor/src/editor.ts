@@ -85,7 +85,9 @@ export class TypoEditor {
   private buildExtensions(): Extension[] {
     const { options } = this
     return [
-      markdownLanguageSupport({ dialect: options.dialect ?? 'commonmark' }),
+      // 方言默认值交给 @typo/markdown 决定（现为 GFM），这里不再写死一份 ——
+      // 写死过一次，结果是「解析器默认换了、编辑器还在跑旧方言」
+      markdownLanguageSupport(options.dialect ? { dialect: options.dialect } : {}),
       this.configCompartment.of(
         livePreviewConfig.of({
           assetResolver: options.assetResolver ?? ((src) => src),

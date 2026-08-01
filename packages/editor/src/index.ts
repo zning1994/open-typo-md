@@ -9,10 +9,24 @@ export {
   activeState,
   revealsLine,
   revealsRange,
+  alignmentsOf,
+  delimiterRowLayout,
+  delimiterRowOf,
+  rowLayout,
+  tableIsActive,
   type BuildResult,
   type ActiveState,
+  type ColumnAlign,
+  type TableCellSpan,
+  type TableRowLayout,
 } from './live-preview/index.js'
-export { BulletWidget, ImageWidget, RuleWidget } from './live-preview/widgets.js'
+export {
+  BulletWidget,
+  EntityWidget,
+  ImageWidget,
+  RuleWidget,
+  TaskCheckboxWidget,
+} from './live-preview/widgets.js'
 export {
   continueMarkup,
   currentHeadingLevel,

@@ -74,3 +74,47 @@ describe('围栏代码块', () => {
     expect(hidden('前文\n\n    const a = 1\n', 0)).toEqual([])
   })
 })
+
+describe('表格分隔行', () => {
+  const TABLE = '前文\n\n| a | b |\n| --- | ---: |\n| 1 | 2 |\n\n后文'
+
+  it('光标在表外时整条盖住', () => {
+    const covered = hidden(TABLE, 0)
+    expect(covered.length).toBe(1)
+    expect(covered[0]![2]).toContain('| --- | ---: |')
+  })
+
+  it('同样往前吃换行，不往后', () => {
+    for (const [from, , text] of hidden(TABLE, 0)) {
+      expect(text.startsWith('\n')).toBe(true)
+      expect(from).toBeGreaterThan(0)
+    }
+  })
+
+  it('光标进入表格时露出来', () => {
+    expect(hidden(TABLE, TABLE.indexOf('| 1 | 2 |'))).toEqual([])
+  })
+
+  it('光标贴在表格边界上也算表内', () => {
+    expect(hidden(TABLE, TABLE.indexOf('| a | b |'))).toEqual([])
+  })
+
+  it('残缺的表格不会崩', () => {
+    expect(() => hidden('| a |\n| ---', 0)).not.toThrow()
+  })
+})
+
+describe('块级装饰的结构不变量', () => {
+  /**
+   * 块级替换之间**绝不能重叠** —— 跟行内那条是同一个道理，重叠的 replace
+   * 会让 CodeMirror 在渲染时直接抛错。代码围栏和表格分隔行现在是两条独立的
+   * 规则，各自往前吃一个换行，挨在一起时就有碰撞的可能。
+   */
+  it('代码块紧贴表格时两条规则不打架', () => {
+    const doc = '前文\n\n```js\nx\n```\n| a |\n| --- |\n| 1 |\n'
+    const ranges = hidden(doc, 0)
+    for (let i = 1; i < ranges.length; i++) {
+      expect(ranges[i]![0]).toBeGreaterThanOrEqual(ranges[i - 1]![1])
+    }
+  })
+})

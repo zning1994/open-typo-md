@@ -6,7 +6,7 @@
  *   （docs/design/02 §6 的铁律），否则撤销栈会和显示脱节。
  * - 渲染失败必须降级为「显示源码」，不能吞内容（原则 P2）。
  */
-import { WidgetType } from '@codemirror/view'
+import { EditorView, WidgetType } from '@codemirror/view'
 
 /** 无序列表的项目符号。把 `-` / `*` / `+` 统一显示成 `•`，源码里仍是原字符。 */
 export class BulletWidget extends WidgetType {
@@ -37,6 +37,106 @@ export class RuleWidget extends WidgetType {
     span.setAttribute('role', 'separator')
     return span
   }
+  override ignoreEvent(): boolean {
+    return false
+  }
+}
+
+/**
+ * 任务列表的复选框，替换掉 `[ ]` / `[x]`。
+ *
+ * 这是第一个**可交互**的 widget，因此也是第一次真刀真枪地兑现
+ * docs/design/02 §6 的铁律：widget 不持有任何状态，点击一律转成对主文档的
+ * transaction。勾选之后撤销栈里躺着的是一次普通的文本替换，
+ * ⌘Z 能撤回，脏标记会亮起，协同编辑将来也能原样走通。
+ *
+ * 位置从 `view.posAtDOM(dom)` 现取，而不是构造时存下来。存下来的话，
+ * 一旦 widget 因 `eq()` 相等而被复用（相邻两个未勾选的任务就是这种情况），
+ * 存的还是旧位置，点第二个会去改第一个。
+ */
+export class TaskCheckboxWidget extends WidgetType {
+  constructor(readonly checked: boolean) {
+    super()
+  }
+
+  override eq(other: TaskCheckboxWidget): boolean {
+    return other.checked === this.checked
+  }
+
+  toDOM(view: EditorView): HTMLElement {
+    const box = document.createElement('input')
+    box.type = 'checkbox'
+    box.className = 'cm-typo-task'
+    box.checked = this.checked
+    // contenteditable 里的表单控件必须显式声明不可编辑，否则光标能走进去
+    box.setAttribute('contenteditable', 'false')
+    box.setAttribute('aria-label', this.checked ? '已完成' : '未完成')
+
+    box.addEventListener('mousedown', (event) => {
+      // 阻止默认行为，免得点击顺带把光标挪进标记内部导致标记显形、
+      // 复选框当场消失 —— 那样第二次点击就落空了
+      event.preventDefault()
+      toggleTaskAt(view, view.posAtDOM(box))
+    })
+    return box
+  }
+
+  override ignoreEvent(event: Event): boolean {
+    // 只吞我们自己处理的那个事件，其余（选中、拖拽）照常交给编辑器
+    return event.type === 'mousedown'
+  }
+}
+
+/** 行首任务标记：`- [ ] 内容` 里的 `[ ]`。允许前面有列表标记与缩进。 */
+const TASK_MARKER = /\[([ xX])\]/
+
+/**
+ * 切换 pos 所在行的任务标记。
+ *
+ * 在**行文本**里找标记而不是查语法树：任务标记必定是列表项内容的第一个东西，
+ * 一行至多一个，正则足够可靠，而且不依赖 widget 拿到精确到字符的位置
+ * （`posAtDOM` 落在替换区间的边界上，差一个字符都可能查错节点）。
+ */
+function toggleTaskAt(view: EditorView, pos: number): void {
+  const line = view.state.doc.lineAt(pos)
+  const match = TASK_MARKER.exec(line.text)
+  if (!match) return
+
+  const from = line.from + (match.index ?? 0) + 1
+  const insert = match[1] === ' ' ? 'x' : ' '
+  view.dispatch({
+    changes: { from, to: from + 1, insert },
+    userEvent: 'input.typo.task',
+  })
+}
+
+/**
+ * HTML 实体，例如 `&amp;` 显示成 `&`。
+ *
+ * 解码不出来的实体压根不会走到这里（build.ts 那边直接放弃装饰，原样显示），
+ * 所以这个 widget 只负责画一个已经确定的字符。
+ */
+export class EntityWidget extends WidgetType {
+  constructor(
+    readonly text: string,
+    /** 原始写法，放进 title 里，方便用户确认自己写了什么。 */
+    readonly source: string,
+  ) {
+    super()
+  }
+
+  override eq(other: EntityWidget): boolean {
+    return other.text === this.text && other.source === this.source
+  }
+
+  toDOM(): HTMLElement {
+    const span = document.createElement('span')
+    span.className = 'cm-typo-entity'
+    span.textContent = this.text
+    span.title = this.source
+    return span
+  }
+
   override ignoreEvent(): boolean {
     return false
   }

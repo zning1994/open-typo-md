@@ -130,19 +130,22 @@ describe('链接与图片', () => {
 })
 
 describe('代码', () => {
-  it('行内装饰层不碰围栏 —— 藏 ``` 是块级装饰层的事', () => {
-    // preview() 只跑 computeDecorations（ViewPlugin 那条路）。围栏的隐藏靠
-    // blocks.ts 的 StateField，两条路在 CodeMirror 里是分开的：
-    // 会改变行结构的装饰不允许由 ViewPlugin 提供。
-    // 围栏实际隐藏与显形的行为由 e2e/live-preview.spec.ts 覆盖。
+  it('围栏被藏起来，只留代码本身', () => {
     const doc = '```js\nconst a = 1\n```'
-    expect(preview(doc)).toBe(doc)
+    expect(preview(doc)).toBe('const a = 1')
     expect(lineClasses(mkState(doc), 2)).toContain('cm-typo-code-block')
   })
 
+  it('藏围栏是块级装饰层的事，行内装饰层一根手指头都不碰', () => {
+    // 两条路在 CodeMirror 里是分开的：会改变行结构的装饰不允许由 ViewPlugin
+    // 提供。这里单独验行内那条路 —— 它对围栏应当毫无产出。
+    const doc = '```js\nconst a = 1\n```'
+    expect(hiddenRanges(mkState(doc))).toEqual([])
+  })
+
   it('代码块里的 ** 不会被当成加粗', () => {
-    const doc = '```\n**不是粗体**\n```'
-    expect(preview(doc)).toBe(doc)
+    // 藏掉的只有围栏，`**` 一个字符都没少
+    expect(preview('```\n**不是粗体**\n```')).toBe('**不是粗体**')
   })
 
   it('行内代码里的标记同样不解析', () => {
@@ -204,12 +207,12 @@ describe('结构不变量', () => {
 
 describe('未知语法原样保留', () => {
   it.each([
-    ':::note\n提示\n:::',
-    '$$x^2$$',
-    '| a | b |\n| - | - |',
-    '<div class="x">原始 HTML</div>',
-    '[[Wiki 链接]]',
-    '~~删除线~~', // CommonMark 方言下不是语法，M2 开 GFM 后才是
+    ':::note\n提示\n:::', // 通用指令语法，排在 M5
+    '$$x^2$$', // 数学公式，排在 M3
+    '<div class="x">原始 HTML</div>', // 原始 HTML 渲染已移入 M4.5，明确搁置
+    '[[Wiki 链接]]', // 由插件提供，不内置
+    '~x~', // 下标：上游的 markdownLanguage 会开，我们刻意没开（见 language.ts）
+    '^上标^',
   ])('%s', (doc) => {
     expect(preview(doc)).toBe(doc)
   })

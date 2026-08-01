@@ -16,6 +16,7 @@
     "@codemirror/language": "^6.12.4",
     "@codemirror/language-data": "^6.5.2",
     "@lezer/common": "^1.5.2",
+    "@lezer/highlight": "^1.2.3",
     "@lezer/markdown": "^1.7.2",
     "@typo/plugin-api": "workspace:*"
   }

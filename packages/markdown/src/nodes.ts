@@ -44,7 +44,40 @@ export const BLOCK_NODES = {
   codeBlock: 'CodeBlock',
   horizontalRule: 'HorizontalRule',
   htmlBlock: 'HTMLBlock',
+  linkReference: 'LinkReference',
+} as const
+
+/**
+ * GFM 表格。
+ *
+ * 结构（实测，不是照文档猜的）：
+ *
+ * ```
+ * Table
+ *   TableHeader            ← 表头行，整行
+ *     TableDelimiter `|`
+ *     TableCell            ← **不含**两侧填充空格
+ *     …
+ *   TableDelimiter         ← 分隔行整行 `| --- | :---: |`
+ *   TableRow               ← 数据行，整行
+ *     …
+ * ```
+ *
+ * 两个坑：`TableDelimiter` 一名两用（单个竖线 / 整条分隔行），得靠范围区分；
+ * 单元格数量**允许各行不一致**，解析器不会补齐。
+ */
+export const TABLE_NODES = {
   table: 'Table',
+  header: 'TableHeader',
+  row: 'TableRow',
+  cell: 'TableCell',
+  delimiter: 'TableDelimiter',
+} as const
+
+/** GFM 任务列表：`- [ ] 待办`。`Task` 是 ListItem 里包住整段内容的块节点。 */
+export const TASK_NODES = {
+  task: 'Task',
+  marker: 'TaskMarker',
 } as const
 
 export const ATX_HEADINGS = [
