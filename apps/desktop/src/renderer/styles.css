@@ -1,0 +1,119 @@
+/*
+ * 外壳样式。
+ *
+ * 编辑区自身的样式由 @typo/editor 的 baseTheme 提供；这里只管窗口布局与状态栏。
+ * 所有颜色都用 CSS 变量，M4 的主题引擎会接管它们（docs/design/05）。
+ */
+:root {
+  --typo-bg: #ffffff;
+  --typo-fg: #24292f;
+  --typo-fg-muted: #6e7781;
+  --typo-accent: #0969da;
+  --typo-border: #d0d7de;
+  --typo-code-bg: #f0f2f4;
+  --typo-selection: #b4d5fe;
+  --typo-marker-fg: #b0b6bd;
+  --typo-danger: #cf222e;
+  --typo-status-bg: #f6f8fa;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --typo-bg: #0d1117;
+    --typo-fg: #e6edf3;
+    --typo-fg-muted: #8b949e;
+    --typo-accent: #4493f8;
+    --typo-border: #30363d;
+    --typo-code-bg: #161b22;
+    --typo-selection: #1f4b7f;
+    --typo-marker-fg: #6e7681;
+    --typo-danger: #f85149;
+    --typo-status-bg: #161b22;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--typo-bg);
+  color: var(--typo-fg);
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    'PingFang SC',
+    'Microsoft YaHei',
+    sans-serif;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-host {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 12px;
+  border-top: 1px solid var(--typo-border);
+  background: var(--typo-status-bg);
+  color: var(--typo-fg-muted);
+  font-size: 12px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.status-spacer {
+  flex: 1;
+}
+
+.status-name {
+  color: var(--typo-fg);
+  font-weight: 500;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-mode {
+  border: 1px solid var(--typo-border);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 1px 8px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.status-mode:hover {
+  border-color: var(--typo-accent);
+  color: var(--typo-accent);
+}
+
+.status-mode[aria-pressed='true'] {
+  background: var(--typo-accent);
+  border-color: var(--typo-accent);
+  color: #fff;
+}
+
+/* CodeMirror 需要一个确定高度的容器才能正确计算视口 */
+.cm-editor {
+  height: 100%;
+}
+
+.cm-editor.cm-focused {
+  outline: none;
+}

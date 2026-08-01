@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Typo</title>
+  </head>
+  <body>
+    <main id="editor" class="editor-host"></main>
+    <footer class="status-bar">
+      <span id="status-name" class="status-name">未命名.md</span>
+      <span id="status-meta" class="status-meta"></span>
+      <span class="status-spacer"></span>
+      <span id="status-stats" class="status-stats">0 字</span>
+      <button id="status-mode" type="button" class="status-mode" aria-pressed="false">
+        实时预览
+      </button>
+    </footer>
+    <script type="module" src="/src/renderer/main.ts"></script>
+  </body>
+</html>

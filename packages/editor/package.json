@@ -1,0 +1,25 @@
+{
+  "name": "@typo/editor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --build"
+  },
+  "dependencies": {
+    "@codemirror/commands": "^6.10.4",
+    "@codemirror/lang-markdown": "^6.5.1",
+    "@codemirror/language": "^6.12.4",
+    "@codemirror/search": "^6.7.1",
+    "@codemirror/state": "^6.7.1",
+    "@codemirror/view": "^6.43.7",
+    "@lezer/common": "^1.5.2",
+    "@lezer/highlight": "^1.2.1",
+    "@typo/markdown": "workspace:*",
+    "@typo/plugin-api": "workspace:*"
+  }
+}

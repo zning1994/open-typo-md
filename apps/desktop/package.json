@@ -1,0 +1,29 @@
+{
+  "name": "@typo/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Typo 桌面版",
+  "license": "MIT",
+  "main": "dist/main/index.cjs",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "node scripts/build.mjs",
+    "package": "pnpm build && electron-builder --config electron-builder.yml --publish never",
+    "package:dir": "pnpm build && electron-builder --config electron-builder.yml --dir --publish never",
+    "typecheck": "tsc --build"
+  },
+  "dependencies": {
+    "@codemirror/search": "^6.7.1",
+    "@codemirror/state": "^6.7.1",
+    "@codemirror/view": "^6.43.7",
+    "@typo/editor": "workspace:*",
+    "@typo/markdown": "workspace:*",
+    "@typo/plugin-api": "workspace:*"
+  },
+  "devDependencies": {
+    "electron": "^38.8.6",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.1",
+    "vite": "^7.3.6"
+  }
+}

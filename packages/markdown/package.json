@@ -1,0 +1,21 @@
+{
+  "name": "@typo/markdown",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts",
+    "./text": "./src/text.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --build"
+  },
+  "dependencies": {
+    "@codemirror/lang-markdown": "^6.5.1",
+    "@codemirror/language": "^6.12.4",
+    "@lezer/common": "^1.5.2",
+    "@lezer/markdown": "^1.7.2",
+    "@typo/plugin-api": "workspace:*"
+  }
+}

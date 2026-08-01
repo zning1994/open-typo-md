@@ -1,0 +1,9 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/plugin-api" },
+    { "path": "./packages/markdown" },
+    { "path": "./packages/editor" },
+    { "path": "./apps/desktop" }
+  ]
+}

@@ -1,0 +1,9 @@
+pnpm-lock.yaml
+dist/
+release/
+coverage/
+playwright-report/
+test-results/
+
+# Markdown 文档手工排版（含中日韩表格对齐），交给 Prettier 会被重排
+**/*.md

@@ -1,0 +1,66 @@
+appId: io.typo.editor
+productName: Typo
+copyright: Copyright © 2026 Typo Contributors
+
+directories:
+  output: release
+  buildResources: build
+
+# main / preload / renderer 都已由 esbuild 和 vite 打成自包含产物，
+# 因此不需要把 node_modules 装进包里（也避开了 pnpm 软链接 + asar 的老坑）。
+files:
+  - dist/**
+  - package.json
+
+asar: true
+
+extraMetadata:
+  main: dist/main/index.cjs
+
+fileAssociations:
+  - ext: md
+    name: Markdown Document
+    role: Editor
+  - ext: markdown
+    name: Markdown Document
+    role: Editor
+
+mac:
+  category: public.app-category.productivity
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+    - target: zip
+      arch: [x64, arm64]
+  # 未配置签名证书时打出未签名包，便于 CI 与本地试用；
+  # 正式发布必须配置签名与公证（docs/design/07 §6）
+  identity: null
+
+win:
+  target:
+    - target: nsis
+      arch: [x64, arm64]
+    - target: portable
+      arch: [x64]
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  perMachine: false
+
+linux:
+  category: Office
+  target:
+    - target: AppImage
+      arch: [x64, arm64]
+    - target: deb
+      arch: [x64]
+    - target: tar.gz
+      arch: [x64]
+  desktop:
+    entry:
+      MimeType: text/markdown;text/x-markdown;
+
+publish:
+  provider: github
+  releaseType: draft

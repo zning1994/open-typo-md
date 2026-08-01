@@ -1,0 +1,148 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # 不让 electron / playwright 在装依赖时下载二进制，交由需要的 job 自己处理
+  ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+
+jobs:
+  # ── 静态检查 + 单元测试：最快的反馈，任何分支任何 PR 都跑 ──────────────
+  check:
+    name: 检查与单元测试
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+
+      - name: 分层依赖方向
+        run: pnpm layers
+
+      - name: 类型检查
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: 格式检查
+        run: pnpm format:check
+
+      - name: 单元测试（含 CommonMark 全量语料）
+        run: pnpm test -- --coverage
+
+      - name: 上传覆盖率
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # ── 端到端：真 Chromium + 真 Electron。IME 用例是发布门槛 ─────────────
+  e2e:
+    name: 端到端（${{ matrix.os }}）
+    needs: check
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # 三平台的 contenteditable / IME 行为差异正是要盯住的地方
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: 安装依赖（含 Electron 二进制）
+        run: pnpm install --frozen-lockfile
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '0'
+
+      - name: 构建
+        run: pnpm build
+
+      - name: 端到端测试
+        run: pnpm test:e2e
+        env:
+          CI: 'true'
+
+      - name: 上传失败报告
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ matrix.os }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # ── 构建产物：每次 push 到 main / 手动触发时产出可直接下载试用的包 ────
+  artifacts:
+    name: 安装包（${{ matrix.os }}）
+    needs: check
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: 安装依赖（含 Electron 二进制）
+        run: pnpm install --frozen-lockfile
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '0'
+
+      - name: 打包
+        # 未配置签名证书，产出的是未签名包，仅供内部试用
+        run: pnpm --filter @typo/desktop package
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: 上传安装包
+        uses: actions/upload-artifact@v4
+        with:
+          name: typo-${{ matrix.os }}
+          path: |
+            apps/desktop/release/*.AppImage
+            apps/desktop/release/*.deb
+            apps/desktop/release/*.tar.gz
+            apps/desktop/release/*.dmg
+            apps/desktop/release/*.zip
+            apps/desktop/release/*.exe
+          retention-days: 14
+          if-no-files-found: warn

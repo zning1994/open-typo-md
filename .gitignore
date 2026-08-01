@@ -1,0 +1,10 @@
+node_modules/
+dist/
+release/
+out/
+*.tsbuildinfo
+coverage/
+.DS_Store
+.vite/
+playwright-report/
+test-results/
