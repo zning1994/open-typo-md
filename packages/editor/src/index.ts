@@ -47,6 +47,29 @@ export {
   typoCommands,
   typoKeymap,
 } from './commands.js'
+export {
+  displayWidth,
+  locate,
+  parseTable,
+  serializeTable,
+  tableAlignColumn,
+  tableAt,
+  tableDeleteColumn,
+  tableDeleteRow,
+  tableFormat,
+  tableInsert,
+  tableInsertColumnAfter,
+  tableInsertColumnBefore,
+  tableInsertRowAbove,
+  tableInsertRowBelow,
+  tableNextCell,
+  tableNextRow,
+  tablePrevCell,
+  type CellLocation,
+  type SerializedTable,
+  type TableModel,
+} from './table-edit.js'
+export { richTextPaste } from './paste.js'
 export { CODE_LINE_CLASS, codeBlockScrollSync } from './code-block.js'
 export { inputBehavior } from './input.js'
 export { MathWidget, mathTheme } from './math.js'

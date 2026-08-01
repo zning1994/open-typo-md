@@ -22,6 +22,7 @@ import { searchKeymap } from '@codemirror/search'
 import { EditorSelection, type Extension, type StateCommand } from '@codemirror/state'
 import { keymap, type Command, type KeyBinding } from '@codemirror/view'
 import { BLOCK_NODES, headingLevel } from '@typo/markdown'
+import { tableNextCell, tableNextRow, tablePrevCell } from './table-edit.js'
 
 /**
  * 用成对标记包裹选区；已经被包裹则解包。
@@ -148,6 +149,16 @@ export function currentHeadingLevel(state: Parameters<StateCommand>[0]['state'])
  */
 export const continueMarkup = insertNewlineContinueMarkupCommand({ nonTightLists: false })
 
+/**
+ * 依次尝试，第一个返回 true 的胜出。
+ *
+ * 表格命令必须排在通用命令**前面**：表格里的 Tab 是「下一个单元格」，
+ * 而落到 `indentListOrTab` 会往表头行里插一个制表符，表格当场散架。
+ */
+function chain(...commands: Command[]): Command {
+  return (view) => commands.some((command) => command(view))
+}
+
 export const typoKeymap: KeyBinding[] = [
   { key: 'Mod-b', run: toggleBold, preventDefault: true },
   { key: 'Mod-i', run: toggleItalic, preventDefault: true },
@@ -159,8 +170,13 @@ export const typoKeymap: KeyBinding[] = [
     run: setHeading(level),
     preventDefault: true,
   })),
-  { key: 'Tab', run: indentListOrTab, shift: dedentList, preventDefault: true },
-  { key: 'Enter', run: continueMarkup },
+  {
+    key: 'Tab',
+    run: chain(tableNextCell, indentListOrTab),
+    shift: chain(tablePrevCell, dedentList),
+    preventDefault: true,
+  },
+  { key: 'Enter', run: chain(tableNextRow, continueMarkup) },
   { key: 'Backspace', run: deleteMarkupBackward },
 ]
 

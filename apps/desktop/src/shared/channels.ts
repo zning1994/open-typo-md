@@ -70,6 +70,15 @@ export type MenuCommand =
   | 'format.italic'
   | 'format.code'
   | `format.heading.${0 | 1 | 2 | 3 | 4 | 5 | 6}`
+  | 'table.insert'
+  | 'table.rowAbove'
+  | 'table.rowBelow'
+  | 'table.deleteRow'
+  | 'table.columnBefore'
+  | 'table.columnAfter'
+  | 'table.deleteColumn'
+  | `table.align.${'left' | 'center' | 'right' | 'none'}`
+  | 'table.format'
 
 /**
  * preload 通过 contextBridge 暴露给渲染进程的全部能力。

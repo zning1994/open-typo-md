@@ -11,6 +11,15 @@ import {
   TypoEditor,
   renderMermaid,
   setHeading,
+  tableAlignColumn,
+  tableDeleteColumn,
+  tableDeleteRow,
+  tableFormat,
+  tableInsert,
+  tableInsertColumnAfter,
+  tableInsertColumnBefore,
+  tableInsertRowAbove,
+  tableInsertRowBelow,
   toggleBold,
   toggleInlineCode,
   toggleItalic,
@@ -132,6 +141,18 @@ function runCommand(command: StateCommand): void {
 }
 
 /**
+ * 跑一条需要视图的命令（表格那一批）。
+ *
+ * 跟 `runCommand` 分开是因为 CodeMirror 有两种命令签名：`StateCommand` 只要
+ * state 与 dispatch，`Command` 要整个 view。表格命令要读选区并滚动到目标格，
+ * 属于后者。
+ */
+function runViewCommand(command: (view: typeof editor.view) => boolean): void {
+  command(editor.view)
+  editor.focus()
+}
+
+/**
  * 「打开」的落点规则（docs/adr/0005 §关键推论 3）。
  *
  * 当前窗口还是一份空白未命名文档时就地复用 —— 为了一个空窗口再开一个新窗口，
@@ -248,6 +269,20 @@ const MENU_ACTIONS: Record<MenuCommand, () => void> = {
   'format.heading.4': () => runCommand(setHeading(4)),
   'format.heading.5': () => runCommand(setHeading(5)),
   'format.heading.6': () => runCommand(setHeading(6)),
+  // 默认三行两列：两列是最常见的起手式，三行 = 表头 + 两条正文，
+  // 一插进去就能看出这是一张表，而不是一行孤零零的分隔线
+  'table.insert': () => runViewCommand(tableInsert(3, 2)),
+  'table.rowAbove': () => runViewCommand(tableInsertRowAbove),
+  'table.rowBelow': () => runViewCommand(tableInsertRowBelow),
+  'table.deleteRow': () => runViewCommand(tableDeleteRow),
+  'table.columnBefore': () => runViewCommand(tableInsertColumnBefore),
+  'table.columnAfter': () => runViewCommand(tableInsertColumnAfter),
+  'table.deleteColumn': () => runViewCommand(tableDeleteColumn),
+  'table.align.left': () => runViewCommand(tableAlignColumn('left')),
+  'table.align.center': () => runViewCommand(tableAlignColumn('center')),
+  'table.align.right': () => runViewCommand(tableAlignColumn('right')),
+  'table.align.none': () => runViewCommand(tableAlignColumn('none')),
+  'table.format': () => runViewCommand(tableFormat),
 }
 
 /**

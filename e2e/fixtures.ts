@@ -104,6 +104,46 @@ export async function resetDoc(page: Page, text = ''): Promise<void> {
 }
 
 /**
+ * 用粘贴把一段文本放进编辑器。
+ *
+ * 为什么不用 `resetDoc` 逐字敲：多行文本要按 Enter，而 Enter 在表格里、
+ * 在列表里都有各自的产品行为（续写标记、跳到下一行单元格）。
+ * 想把一段**字面文本**放进去时，逐字敲反而是在测别的东西。
+ *
+ * 只放 `text/plain`，走的是产品自己的纯文本粘贴通路。
+ */
+export async function pasteText(page: Page, text: string): Promise<void> {
+  await page.locator('.cm-content').click()
+  await page.keyboard.press('ControlOrMeta+a')
+  await page.keyboard.press('Backspace')
+  await page.evaluate((payload) => {
+    const transfer = new DataTransfer()
+    transfer.setData('text/plain', payload)
+    document.querySelector('.cm-content')!.dispatchEvent(
+      new ClipboardEvent('paste', {
+        clipboardData: transfer,
+        bubbles: true,
+        cancelable: true,
+      }),
+    )
+  }, text)
+}
+
+/** 点一个真实的原生菜单项，`labels` 是从顶层菜单往下的路径。 */
+export async function clickMenu(app: ElectronApplication, labels: string[]): Promise<void> {
+  await app.evaluate(({ Menu }, path) => {
+    let items = Menu.getApplicationMenu()?.items ?? []
+    let target: (typeof items)[number] | undefined
+    for (const label of path) {
+      target = items.find((item) => item.label === label)
+      if (!target) throw new Error(`菜单里找不到「${label}」`)
+      items = target.submenu?.items ?? []
+    }
+    target?.click()
+  }, labels)
+}
+
+/**
  * 用户实际看到的文本（装饰生效后的 DOM 文本）。
  *
  * 注意：CodeMirror 只渲染视口内的行，所以这个函数只适用于短文档。

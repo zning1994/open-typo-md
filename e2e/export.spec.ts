@@ -11,7 +11,7 @@
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { expect, resetDoc, test } from './fixtures.js'
+import { clickMenu, expect, resetDoc, test } from './fixtures.js'
 import type { ElectronApplication } from '@playwright/test'
 
 let dir: string
@@ -29,19 +29,6 @@ async function stubSaveDialog(app: ElectronApplication, target: string): Promise
   await app.evaluate(({ dialog }, filePath) => {
     dialog.showSaveDialog = async () => ({ canceled: false, filePath })
   }, target)
-}
-
-async function clickMenu(app: ElectronApplication, menuPath: string[]): Promise<void> {
-  await app.evaluate(({ Menu }, labels) => {
-    let items = Menu.getApplicationMenu()?.items ?? []
-    let target: (typeof items)[number] | undefined
-    for (const label of labels) {
-      target = items.find((item) => item.label === label)
-      if (!target) throw new Error(`菜单里找不到「${label}」`)
-      items = target.submenu?.items ?? []
-    }
-    target?.click()
-  }, menuPath)
 }
 
 /** 触发导出并读回产物。 */
