@@ -52,6 +52,11 @@ export async function renderPdf(html: string, options: PdfOptions = {}): Promise
 
   const win = new BrowserWindow({
     show: false,
+    // 给它一个确定的尺寸。隐藏窗口的「设备宽度」在各平台上并不一致，
+    // 而任何依赖视口宽度的样式（媒体查询、vw 单位）都会因此算错 ——
+    // 打印产物不该取决于这个窗口碰巧有多大
+    width: 1024,
+    height: 1440,
     // 隐藏的窗口默认可能根本不绘制，而 printToPDF 打的是绘制结果 ——
     // 不绘制就得到一份只有白底的空白 PDF
     paintWhenInitiallyHidden: true,

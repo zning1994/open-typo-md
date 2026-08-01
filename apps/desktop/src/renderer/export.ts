@@ -147,13 +147,12 @@ function hooksFor(context: ExportContext): ExportHooks {
  * 的 base64，几 MB 起步 —— 一篇没有任何公式的文档背着它，产物大小要翻几十倍，
  * 而多出来的字节一个都用不上。
  *
- * 这条不只是省体积：macOS 上 PDF 导出**曾经一律是空白页**，就是被这几 MB
- * 拖出来的（06 §3.3）。判据放在片段上而不是原文上 —— `rehypeKatex` 只有
- * 真渲染出公式时才会打上 `katex` 类，比在 Markdown 里数 `$` 靠谱得多。
+ * 判据放在片段上而不是原文上 —— `rehypeKatex` 只有真渲染出公式时才会打上
+ * `katex` 类，比在 Markdown 里数 `$` 靠谱得多。
  */
 export async function exportHtmlDocument(
   context: ExportContext,
-  options: { theme?: ThemeId } = {},
+  options: { theme?: ThemeId; viewport?: boolean } = {},
 ): Promise<string> {
   const fragment = await markdownToHtmlFragment(context.markdown, hooksFor(context))
   const katex = fragment.includes('katex') ? await katexCss() : null
@@ -162,19 +161,21 @@ export async function exportHtmlDocument(
   return buildDocument(fragment, {
     title: context.title,
     css: katex ? [theme, katex] : [theme],
+    ...(options.viewport === false ? { viewport: false } : {}),
   })
 }
 
 /**
- * 给 PDF 用的 HTML —— **一律浅色**。
+ * 给 PDF 用的 HTML。跟给人看的那一份有两处不同：
  *
- * 深色主题打出来是一整页黑：既费墨，也几乎读不了。应用自己的打印样式
- * （themes.css 的 `@media print`）已经这么做了，导出的 PDF 没有理由不一致。
- *
- * 这不是「建议」而是默认行为。真要一份深色的 PDF，可以先导出 HTML 再自己打印。
+ * - **一律浅色**。深色主题打出来是一整页黑，既费墨也几乎读不了。
+ *   应用自己的打印样式（themes.css 的 `@media print`）已经这么做了，
+ *   导出的 PDF 没有理由不一致。真要深色 PDF，可以先导出 HTML 再自己打印。
+ * - **不带 viewport meta**。PDF 没有「设备宽度」这回事，而带上它会在 macOS 上
+ *   把整份文档压成零宽（见 `buildDocument` 的说明与 06 §3.3）。
  */
 export async function exportPdfHtml(context: ExportContext): Promise<string> {
-  return exportHtmlDocument(context, { theme: 'light' })
+  return exportHtmlDocument(context, { theme: 'light', viewport: false })
 }
 
 /**

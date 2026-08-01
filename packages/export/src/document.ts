@@ -16,6 +16,17 @@ export interface DocumentOptions {
   css?: readonly string[]
   /** 正文宽度，跟编辑器里的 `--typo-content-width` 对应。 */
   contentWidth?: string
+  /**
+   * 是否带 `<meta name="viewport">`。默认带。
+   *
+   * **打印 / 转 PDF 时必须关掉。** `width=device-width` 会把布局视口绑到窗口的
+   * 实际宽度上，而负责打印的是一个从不显示的隐藏窗口 —— 在 macOS 上它的
+   * device-width 是 0，于是整份文档被压成零宽，**一个字都画不出来**，
+   * 产出一页纯白。这条排查了四轮 CI（见 06 §3.3）。
+   *
+   * 给人看的 HTML 则要保留它：那是一份真的网页，会在手机上被打开。
+   */
+  viewport?: boolean
 }
 
 /**
@@ -95,11 +106,15 @@ export function buildDocument(fragment: string, options: DocumentOptions): strin
     ? `\n<style>:root { --typo-content-width: ${escapeText(options.contentWidth)}; }</style>`
     : ''
 
+  const viewport =
+    options.viewport === false
+      ? ''
+      : '\n<meta name="viewport" content="width=device-width, initial-scale=1">'
+
   return `<!doctype html>
 <html lang="zh-CN">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8">${viewport}
 <meta name="generator" content="Brainforge Typo">
 <title>${escapeText(options.title)}</title>
 <style>
