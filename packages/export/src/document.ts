@@ -40,24 +40,48 @@ export interface DocumentOptions {
 /**
  * 打印专用的字体覆盖 —— **macOS 上 PDF 空白页的根因就在这里**。
  *
- * `system-ui` 与 `-apple-system` 在 macOS 上解析到 `.AppleSystemUIFont`。
- * 那是个系统字体，拿不到字形轮廓、也没法子集化，于是 Chromium 的 PDF 后端
- * **一条绘制文字的指令都不发** —— 版面照排（长文档确实分页了）、底色照画，
- * 就是没有字。Linux 与 Windows 上 `system-ui` 指向普通字体文件，所以只有
- * macOS 复现。排查过程见 06 §3.3。
+ * ## 根因：`PingFang SC` 画不进 PDF
  *
- * 所以打印路径上把正文字体换成**有真实字体文件的具名字体**。
+ * macOS 上默认的中文无衬线字体是 PingFang SC。Chromium 的 PDF 后端**画不出它的
+ * 任何字形** —— 连拉丁字母都画不出（实测把 `font-family` 直接写成
+ * `'PingFang SC'`，一篇纯英文文档同样是空白）。
  *
- * 刻意**不列任何中日韩字体**：`PingFang SC` 之流同样是 macOS 系统字体，
- * 写进去等于把同一个坑换个位置再踩一遍。中日韩字形交给 Chromium 的
- * 逐字回退 —— 实测它挑出来的那个字体是画得进 PDF 的。
+ * 而字体匹配是**逐字形**的：正文字体栈里那些拉丁字体（`system-ui`、`Helvetica`、
+ * `Arial`、以及泛型 `sans-serif`）都没有汉字，于是每一个汉字都回退到系统默认的
+ * 中文无衬线字体，也就是 PingFang SC。结果就是**一篇中文文档整页空白**：
+ * 版面照排（长文档确实分了页）、底色照画，就是一个 `Tj` 都没有。
  *
- * 只作用于 PDF。给人看的 HTML 仍然用 `system-ui`：那是一份真的网页，
- * 在收件人机器上长得像原生控件才是对的。
+ * 三平台 CI 上量出来的对照（拉丁 / 中文）：
+ *
+ * ```
+ * system-ui        true  / false      serif、Times      true / true
+ * Helvetica、Arial  true  / false      'Songti SC'       true / true
+ * sans-serif       true  / false      'Hiragino Sans GB' true / true
+ * 'PingFang SC'    false / false      Arial, 'Songti SC' true / true
+ * ```
+ *
+ * `serif` 系没事，是因为它的中文回退是 Songti SC 而不是 PingFang。
+ *
+ * ## 修法：把能画的中文字体显式插进栈里
+ *
+ * 相对主题里那份字体栈，**唯一的改动是把 `'PingFang SC'` 换成
+ * `'Hiragino Sans GB', 'Songti SC'`**。位置很要紧：它必须排在泛型
+ * （`sans-serif` / `monospace`）**前面** —— 泛型在 macOS 上给出的中文字体
+ * 正是 PingFang，排在它后面等于没写。
+ *
+ * 拉丁那一半原样保留（`system-ui` 本身是清白的，它的拉丁字形画得出来），
+ * 所以 PDF 与屏幕上的观感不会分家。
+ *
+ * 只作用于 PDF。给人看的 HTML 不动：那是一份真的网页，在收件人机器上用系统
+ * 字体渲染才是对的，而浏览器显示 PingFang 没有任何问题。
  */
 export const PRINT_FONT_CSS = `:root {
-  --typo-font-body: Helvetica, Arial, 'Liberation Sans', 'Nimbus Sans', sans-serif;
-  --typo-font-mono: Menlo, Consolas, 'DejaVu Sans Mono', 'Liberation Mono', monospace;
+  --typo-font-body:
+    system-ui, -apple-system, 'Segoe UI', 'Hiragino Sans GB', 'Songti SC',
+    'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif;
+  --typo-font-mono:
+    'JetBrains Mono', ui-monospace, Menlo, Consolas, 'Hiragino Sans GB', 'Songti SC',
+    'Microsoft YaHei', monospace;
 }`
 
 /**

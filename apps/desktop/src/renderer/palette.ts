@@ -19,7 +19,12 @@ export interface PaletteOptions {
   commands: () => readonly Command[]
   /** 关闭后把焦点还回去。 */
   restoreFocus: () => void
-  mac: boolean
+  /**
+   * 当前平台是不是 macOS。**必须是取值函数，不能是快照** ——
+   * `api.platform.os` 是 preload 异步填上的，模块初始化那一刻它还是默认值
+   * `'linux'`。写成快照的表现是：macOS 上快捷键提示全按 Windows 的样子显示。
+   */
+  mac: () => boolean
 }
 
 export class CommandPalette {
@@ -119,7 +124,7 @@ export class CommandPalette {
     if (command.binding) {
       const key = document.createElement('kbd')
       key.className = 'typo-palette__key'
-      key.textContent = formatBinding(command.binding, this.options.mac)
+      key.textContent = formatBinding(command.binding, this.options.mac())
       item.append(key)
     }
 

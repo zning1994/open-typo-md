@@ -26,8 +26,13 @@ export interface SettingsPanelOptions {
   keys: KeybindingStore
   /** 有快捷键可配的命令，按显示顺序。 */
   commands: readonly MenuCommand[]
-  /** 当前平台是不是 macOS —— 只影响快捷键怎么显示。 */
-  mac: boolean
+  /**
+   * 当前平台是不是 macOS。**必须是取值函数，不能是快照** ——
+   * `api.platform.os` 是 preload 异步填上的，模块初始化那一刻它还是默认值
+   * `'linux'`。写成快照的后果不止是显示错：录制时会去看 `ctrlKey` 而不是
+   * `metaKey`，于是 macOS 上按 ⌘⇧B 录出来的是 `Shift+B`。
+   */
+  mac: () => boolean
   /** 当前主题 / 切换主题。主题的归属仍在 ThemeManager，这里只是借个入口。 */
   theme: () => ThemeId
   selectTheme: (theme: ThemeId) => Promise<void>
@@ -302,14 +307,14 @@ export class SettingsPanel {
     button.type = 'button'
     button.className = 'typo-keys__binding'
     button.dataset['command'] = command
-    button.textContent = binding ? formatBinding(binding, this.options.mac) : '未设置'
+    button.textContent = binding ? formatBinding(binding, this.options.mac()) : '未设置'
     if (!binding) button.classList.add('typo-keys__binding--empty')
 
     let capturing = false
     const stop = (): void => {
       capturing = false
       button.classList.remove('typo-keys__binding--capturing')
-      button.textContent = binding ? formatBinding(binding, this.options.mac) : '未设置'
+      button.textContent = binding ? formatBinding(binding, this.options.mac()) : '未设置'
     }
 
     button.addEventListener('click', () => {
@@ -330,7 +335,7 @@ export class SettingsPanel {
         return
       }
 
-      const captured = comboFrom(event, this.options.mac)
+      const captured = comboFrom(event, this.options.mac())
       // 只按住修饰键还不算一个绑定，继续等
       if (!captured) return
 

@@ -432,14 +432,14 @@ function allCommands(): Command[] {
 const palette = new CommandPalette({
   commands: allCommands,
   restoreFocus: () => activeEditor().focus(),
-  mac: api.platform.os === 'mac',
+  mac: () => api.platform.os === 'mac',
 })
 
 const settings = new SettingsPanel({
   preferences,
   keys,
   commands: COMMAND_IDS,
-  mac: api.platform.os === 'mac',
+  mac: () => api.platform.os === 'mac',
   theme: () => themes.theme,
   selectTheme: (theme) => themes.select(theme),
   restoreFocus: () => activeEditor().focus(),
