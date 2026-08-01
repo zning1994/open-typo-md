@@ -5,6 +5,7 @@
  * 双端共用类型。散落的字符串通道名是这类应用最容易腐烂的地方。
  */
 import type { Draft, DraftMeta } from '../main/drafts.js'
+import type { PdfOptions } from '../main/pdf.js'
 import type { WindowSession } from '../main/session.js'
 import type { FileChangeNotice } from '../main/watcher.js'
 import type {
@@ -56,7 +57,7 @@ export const EVENTS = {
   fileChanged: 'event:file-changed',
 } as const
 
-export type { Draft, DraftMeta, FileChangeNotice, WindowSession }
+export type { Draft, DraftMeta, FileChangeNotice, PdfOptions, WindowSession }
 
 export type MenuCommand =
   | 'file.open'
@@ -75,6 +76,7 @@ export type MenuCommand =
   | 'view.toggleSource'
   | 'view.toggleOutline'
   | 'view.commandPalette'
+  | 'view.settings'
   | `view.theme.${'auto' | 'light' | 'dark' | 'sepia' | 'high-contrast' | 'github'}`
   | 'edit.find'
   | 'edit.copyRichText'
@@ -127,7 +129,7 @@ export interface TypoBridgeApi {
      * 渲染必须发生在 main 侧：`printToPDF` 是 `webContents` 的能力，
      * 而渲染进程碰不到别的 `webContents`（也不该碰得到）。
      */
-    writePdf(path: string, html: string): Promise<void>
+    writePdf(path: string, html: string, options?: PdfOptions): Promise<void>
   }
   clipboard: {
     /** 同时写 HTML 与纯文本兜底 —— 目标应用不支持富文本时才有东西可粘。 */

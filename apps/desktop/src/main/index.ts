@@ -24,7 +24,7 @@ import { claimDrafts, dropDraft, dropDraftById, writeDraft } from './drafts.js'
 import { readTextFile, saveAttachment, writeTextFile } from './fs-service.js'
 import { watchFor } from './watcher.js'
 import { buildMenu } from './menu.js'
-import { renderPdf } from './pdf.js'
+import { renderPdf, type PdfOptions } from './pdf.js'
 import { claimSession, flushSession, reportSession, savedSessions } from './session.js'
 import type { WindowSession } from './session.js'
 import {
@@ -167,10 +167,13 @@ function registerIpc(): void {
     await writeFile(real, text, 'utf8')
   })
 
-  handle(CHANNELS.fsWritePdf, async (_sender, target: string, html: string) => {
-    const real = await assertAllowed(target)
-    await writeFile(real, await renderPdf(html))
-  })
+  handle(
+    CHANNELS.fsWritePdf,
+    async (_sender, target: string, html: string, options?: PdfOptions) => {
+      const real = await assertAllowed(target)
+      await writeFile(real, await renderPdf(html, options))
+    },
+  )
 
   handle(CHANNELS.clipboardWriteHtml, async (_sender, html: string, text: string) => {
     // 同时写纯文本兜底：目标应用不支持富文本时才有东西可粘

@@ -31,9 +31,11 @@ export interface PdfOptions {
   /** 纸张。跟 Electron 的 `pageSize` 一致。 */
   pageSize?: 'A4' | 'A3' | 'Legal' | 'Letter' | 'Tabloid'
   landscape?: boolean
+  /** 页边距，英寸。 */
+  marginInch?: number
 }
 
-/** 页边距，英寸。跟 Word 的默认值接近，打出来不至于顶到纸边。 */
+/** 页边距默认值，英寸。跟 Word 的默认值接近，打出来不至于顶到纸边。 */
 const MARGIN_INCH = 0.6
 
 /**
@@ -79,12 +81,16 @@ export async function renderPdf(html: string, options: PdfOptions = {}): Promise
       // 背景必须打出来：代码块底色、引用块的左边线、表格边框都在背景里，
       // 关掉的话导出的 PDF 跟屏幕上完全不是一个东西
       printBackground: true,
-      margins: {
-        top: MARGIN_INCH,
-        bottom: MARGIN_INCH,
-        left: MARGIN_INCH,
-        right: MARGIN_INCH,
-      },
+      margins: (() => {
+        // 设置文件是用户可以直接改的，这里再兜一次底：非数字或超出范围一律
+        // 退回默认值。渲染进程那边已经校验过，但 main 不信任传进来的任何东西
+        const raw = options.marginInch
+        const margin =
+          typeof raw === 'number' && Number.isFinite(raw) && raw >= 0 && raw <= 3
+            ? raw
+            : MARGIN_INCH
+        return { top: margin, bottom: margin, left: margin, right: margin }
+      })(),
     })
   } finally {
     win.destroy()

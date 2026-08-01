@@ -154,6 +154,11 @@ export function buildMenu(actions: MenuActions): void {
           click: send('view.toggleOutline'),
         },
         {
+          label: '设置…',
+          accelerator: 'CmdOrCtrl+,',
+          click: send('view.settings'),
+        },
+        {
           label: '命令面板',
           accelerator: 'CmdOrCtrl+Shift+P',
           click: send('view.commandPalette'),

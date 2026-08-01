@@ -183,6 +183,7 @@
   .typo-files,
   .tab-bar,
   .typo-palette,
+  .typo-settings,
   .cm-typo-code-lang {
     display: none !important;
   }

@@ -109,6 +109,7 @@ export const MENU_COMMAND_INFO: Record<MenuCommand, { title: string; binding?: s
   'view.toggleSource': { title: '切换源码模式', binding: 'Mod+/' },
   'view.toggleOutline': { title: '显示 / 隐藏大纲', binding: 'Mod+Shift+E' },
   'view.commandPalette': { title: '命令面板', binding: 'Mod+Shift+P' },
+  'view.settings': { title: '设置…', binding: 'Mod+,' },
   'view.theme.auto': { title: '主题：跟随系统' },
   'view.theme.light': { title: '主题：浅色' },
   'view.theme.dark': { title: '主题：深色' },

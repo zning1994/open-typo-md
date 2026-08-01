@@ -30,6 +30,8 @@ import { DocumentController } from './document.js'
 import { FileTreePanel } from './filetree.js'
 import { OutlinePanel } from './outline.js'
 import { CommandPalette } from './palette.js'
+import { PreferenceStore } from './preferences.js'
+import { SettingsPanel } from './settings-panel.js'
 import { TabManager } from './tabs.js'
 import { ThemeManager, THEMES } from './theme.js'
 import {
@@ -105,6 +107,9 @@ const tabs: TabManager = new TabManager({
 
     const editor = new TypoEditor({
       parent,
+      // 只影响**新建的**标签：已经开着的那些按用户当时的选择留着，
+      // 改一个设置就把所有标签的视图切一遍，是很吓人的行为
+      sourceMode: preferences.get('sourceModeByDefault'),
       assetResolver: createAssetResolver(() => {
         const path = pathOf()
         return path ? dirnameOf(path) : null
@@ -240,6 +245,7 @@ async function openFolderFlow(): Promise<void> {
 }
 
 const themes = new ThemeManager(host.settings)
+const preferences = new PreferenceStore(host.settings)
 
 const files = new FileTreePanel(workspace, {
   list: (dir) => host.fs.list(dir),
@@ -308,7 +314,11 @@ async function exportPdfFlow(): Promise<void> {
   if (!target) return
 
   try {
-    await api.fs.writePdf(target, await exportPdfHtml(exportContext()))
+    await api.fs.writePdf(target, await exportPdfHtml(exportContext()), {
+      pageSize: preferences.get('pdfPageSize'),
+      landscape: preferences.get('pdfLandscape'),
+      marginInch: preferences.get('pdfMarginInch'),
+    })
   } catch (error) {
     await host.dialog.message({
       message: '导出失败',
@@ -359,6 +369,7 @@ const MENU_ACTIONS: Record<MenuCommand, () => void> = {
   'view.nextTab': () => tabs.cycle(1),
   'view.prevTab': () => tabs.cycle(-1),
   'view.commandPalette': () => palette.toggle(),
+  'view.settings': () => settings.toggle(),
   ...(Object.fromEntries(
     THEMES.map((t) => [`view.theme.${t.id}`, () => void themes.select(t.id)]),
   ) as Record<`view.theme.${(typeof THEMES)[number]['id']}`, () => void>),
@@ -409,6 +420,13 @@ const palette = new CommandPalette({
   commands: () => COMMANDS,
   restoreFocus: () => activeEditor().focus(),
   mac: api.platform.os === 'mac',
+})
+
+const settings = new SettingsPanel({
+  preferences,
+  theme: () => themes.theme,
+  selectTheme: (theme) => themes.select(theme),
+  restoreFocus: () => activeEditor().focus(),
 })
 
 api.on.menuCommand((command) => MENU_ACTIONS[command]?.())
@@ -479,10 +497,12 @@ async function restoreSession(): Promise<void> {
   await tabs.restore(session.tabs, session.active)
 }
 
-tabs.open()
-render()
-void themes.init()
+// 偏好必须在建第一个标签**之前**读完 —— 晚一步的话「默认进源码模式」
+// 作用不到启动时那个标签上，用户会觉得这个设置时灵时不灵
 void (async () => {
+  await Promise.all([themes.init(), preferences.init()])
+  tabs.open()
+  render()
   await restoreSession()
   await offerDraftRecovery()
 })()

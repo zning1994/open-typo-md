@@ -458,3 +458,160 @@ body {
   color: var(--typo-fg-muted);
   font-size: 13px;
 }
+
+/* —— 设置面板 —— */
+
+.typo-settings {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  display: flex;
+  justify-content: center;
+  /* 跟命令面板同一个规矩：靠上而不是居中，浮层压住正文中央会让人失去位置感 */
+  padding-top: 10vh;
+  background: rgb(0 0 0 / 25%);
+}
+
+.typo-settings[hidden] {
+  display: none;
+}
+
+.typo-settings__box {
+  width: min(520px, 92vw);
+  max-height: 76vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--typo-bg);
+  color: var(--typo-fg);
+  border: 1px solid var(--typo-border);
+  border-radius: 10px;
+  box-shadow: 0 16px 48px rgb(0 0 0 / 28%);
+  overflow: hidden;
+}
+
+.typo-settings__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--typo-border);
+}
+
+.typo-settings__title {
+  flex: 1;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.typo-settings__close {
+  border: 0;
+  background: transparent;
+  color: var(--typo-fg-muted);
+  font: inherit;
+  font-size: 18px;
+  line-height: 1;
+  cursor: default;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.typo-settings__close:hover {
+  background: var(--typo-selection);
+  color: var(--typo-fg);
+}
+
+.typo-settings__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 16px 12px;
+}
+
+.typo-settings__section {
+  padding: 12px 0;
+}
+.typo-settings__section + .typo-settings__section {
+  border-top: 1px solid var(--typo-border);
+}
+
+.typo-settings__section-title {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--typo-fg-muted);
+}
+
+.typo-settings__row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 7px 0;
+}
+
+.typo-settings__label {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+
+.typo-settings__note {
+  color: var(--typo-fg-muted);
+  font-size: 11px;
+}
+
+.typo-settings__control {
+  flex: none;
+  font: inherit;
+  font-size: 13px;
+  color: var(--typo-fg);
+  background: var(--typo-bg);
+  border: 1px solid var(--typo-border);
+  border-radius: 5px;
+  padding: 3px 6px;
+}
+
+.typo-settings__number {
+  width: 5.5em;
+}
+
+.typo-settings__check {
+  /* 复选框用系统控件，跟着主题走配色 —— 自绘要把键盘与读屏行为重做一遍 */
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  accent-color: var(--typo-accent);
+}
+
+.typo-settings__footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--typo-border);
+  background: var(--typo-status-bg);
+}
+
+.typo-settings__reset {
+  font: inherit;
+  font-size: 12px;
+  color: var(--typo-fg);
+  background: transparent;
+  border: 1px solid var(--typo-border);
+  border-radius: 5px;
+  padding: 3px 10px;
+  cursor: default;
+}
+.typo-settings__reset:hover {
+  border-color: var(--typo-border-strong);
+}
+
+.typo-settings__hint {
+  flex: 1;
+  text-align: right;
+  font-size: 11px;
+  color: var(--typo-fg-muted);
+}
