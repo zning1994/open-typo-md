@@ -129,3 +129,39 @@ const outline = new StateField<OutlineItem[]>(...)   // 依赖 syntaxTree
 | 全量 mdast 解析（10k 行，导出时） | < 500ms，且在 utility 进程里做，不阻塞 UI |
 
 基准测试放 `benchmarks/`，CI 每次跑并对比基线，回退超过 20% 则失败（见 07）。
+
+## 7. 围栏代码块的语言高亮
+
+M1 只给代码块加了底色，没有按语言高亮 —— `markdownLanguageSupport()` 没传
+`codeLanguages`，Lezer 就把围栏内容当作纯文本。
+
+**做法**：给 `markdown()` 传 `codeLanguages`。Lezer 支持**混合语言解析**，
+会把 ```` ```ts ```` 的内容交给 TypeScript 解析器，产出的 token 直接落进
+现有的 `HighlightStyle`，不需要第二套渲染路径，也不需要第二个编辑器实例。
+
+**语言从哪来**：`@codemirror/language-data` 提供约百种语言的
+`LanguageDescription`，每种都是**动态 import**，用到才加载。这正好落在
+架构 01 的懒加载要求上 —— Vite 会把它们切成独立 chunk，主 bundle 不受影响。
+
+```ts
+import { languages } from '@codemirror/language-data'
+
+markdown({ base: commonmarkLanguage, codeLanguages: languages })
+```
+
+**需要注意的三件事**：
+
+1. **体积预算要重新核对**。语言包虽然懒加载，但**文件仍然会打进安装包**。
+   Linux 的 AppImage 已经贴着 120MB 的线（07 §2），加语言包之前必须先量。
+   如果超了，就从 `languages` 全集收窄成一份常用语言清单
+   （js/ts/py/go/rust/java/c/cpp/json/yaml/sh/sql/html/css/md），
+   其余按需下载或直接不支持。
+
+2. **别名要覆盖真实写法**。用户写的是 ```` ```js ````、```` ```JS ````、
+   ```` ```node ````，`language-data` 自带 alias 表，但要确认大小写不敏感。
+   匹配不上时**退化为纯文本，不能报错、不能吞内容**（原则 P2）。
+
+3. **解析成本进的是按键路径**。一个几百行的代码块会让增量解析变重。
+   `codeLanguages` 的加载是异步的，加载完成后需要触发一次重解析 ——
+   这中间的窗口期里代码块显示为纯文本，属于可接受的过渡态，
+   但不能因此丢掉用户此刻的输入。

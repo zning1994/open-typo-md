@@ -1,19 +1,21 @@
-# Typo
+# Brainforge Typo
 
 一个开源的 Markdown 「所见即所得」编辑器 —— 无分屏、无预览窗格，写下的就是看到的。
 
 > **状态：M1 完成**（实时预览内核可用）。可以打开、编辑、保存 CommonMark 文档。
-> 表格、数学公式、文件树、主题、插件尚未实现 —— 见[路线图](docs/design/08-roadmap.md)。
+> 表格、多窗口、代码块语法高亮尚未实现，下一步就做 —— 见[路线图](docs/design/08-roadmap.md)。
+>
+> 仓库名 `open-typo-md` 与内部包名 `@typo/*` 保持不变，它们不是用户可见的部分。
 
 ---
 
 ## 这是什么
 
-大多数 Markdown 编辑器是「左边源码 / 右边预览」。Typo 走另一条路：
+大多数 Markdown 编辑器是「左边源码 / 右边预览」。Brainforge Typo 走另一条路：
 只有一个编辑区，标题、粗体、链接、图片都以最终形态呈现；
 只有当光标进入某个元素时，它的 Markdown 标记才就地显形，供你直接编辑。
 
-同类体验的商业产品是 [Typora](https://typora.io/)。Typo 是一个**独立实现**：
+同类体验的商业产品是 [Typora](https://typora.io/)。本项目是一个**独立实现**：
 不复用其代码、资源或界面素材，只借鉴「无缝实时预览」这一交互范式。
 
 ## 核心设计取向
@@ -63,16 +65,23 @@ Linux 上跑端到端测试需要一个显示环境：`xvfb-run -a pnpm test:e2e
 
 **还没有**（按路线图排期）
 
+- 多窗口（当前只有单窗口单文档）、代码块不折行与语法高亮（M1.5，下一步）
 - 表格、任务列表、删除线等 GFM 语法（M2）
 - 文件树、标签页、大纲、数学公式、图表（M3）
 - 主题引擎、HTML / PDF 导出（M4）
 - 插件系统（M5）
+
+已知的粗糙之处都记在[路线图](docs/design/08-roadmap.md)各里程碑末尾的「实际偏差」里，
+不藏着掖着。
 
 ## 试用 CI 构建的安装包
 
 每次推到 `main`，[Actions](https://github.com/zning1994/open-typo-md/actions) 里会产出三个平台的安装包。
 注意页面上显示的 `typo-macos-arm64-dmg` 这类名字是**产物包**的名称，不是文件名 ——
 GitHub 一律把产物打成 zip，解开之后才是 `Typo-0.1.0-arm64.dmg`。
+
+（下面出现的文件名与应用名会随 M1.5 的改名一起变成 `BrainforgeTypo-*`，
+届时这一节会同步更新。）
 
 **这些包都没有签名**，因为签名证书还没配（M6 的发布工程内容，见 docs/design/07 §7）。
 所以首次打开会被系统拦下来：
@@ -132,6 +141,7 @@ docs/           设计文档与架构决策记录
 | [0002](docs/adr/0002-editor-core.md)          | 编辑器内核选 CodeMirror 6 而非 ProseMirror |
 | [0003](docs/adr/0003-dual-parser.md)          | 编辑解析器与语义解析器分离         |
 | [0004](docs/adr/0004-plugin-isolation.md)     | 插件隔离与权限模型                 |
+| [0005](docs/adr/0005-windows-and-tabs.md)     | 窗口与标签页的关系                 |
 
 ## 参与开发
 

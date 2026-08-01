@@ -112,10 +112,30 @@ export interface HostBridge {
 **收益**：编辑器全部逻辑可以在 Node 里用内存 HostBridge 单测，不需要起 Electron。
 端到端测试只覆盖真正需要真实文件系统的路径。
 
+## 4.1 多窗口
+
+M1 实现的是单窗口单文档（`mainWindow` 是模块级单例）。多窗口的完整模型
+—— 以及它跟 M3 的标签页怎么共存 —— 见 [ADR-0005](../adr/0005-windows-and-tabs.md)。
+这里只记对**进程模型**的三条硬性影响：
+
+**1. main 侧不能再有窗口单例。** 用一个窗口注册表持有全部窗口及其状态，
+所有「当前窗口」的语义一律解析为 `BrowserWindow.getFocusedWindow()`。
+
+**2. IPC 消息必须能反查发送方窗口。** 这是 M1 遗留的实打实的缺陷：
+`respond-close` 通道没有任何窗口标识，直接操作 `mainWindow`。两个窗口同时
+询问「要不要保存」时，回复会串台、关错窗口。修法是所有 renderer → main 的
+消息都用 `event.sender` 反查 `BrowserWindow.fromWebContents()`。
+
+**3. 进程级的东西保持进程级。** 路径白名单、设置、协议处理器都不随窗口分裂 ——
+它们本来就是进程范围的资源。`applyContentSecurityPolicy()` 目前每次
+`createWindow()` 都调一遍（靠 `onHeadersReceived` 只保留最后一个监听器
+才没出问题），多窗口下应当挪到 app ready 时只注册一次。
+
 ## 5. IPC 约定
 
 - 所有 IPC 通道名集中在 `apps/desktop/src/shared/channels.ts`，双端共用同一份类型。
 - 一律 `invoke/handle`（请求-响应），事件推送单独用带前缀的 `send`。
+- **凡是会改变某个窗口状态的消息，都必须能确定是哪个窗口**（见 §4.1 第 2 条）。
 - **main 侧不信任 renderer 传来的任何路径**：每个文件操作都要经过
   `assertInsideWorkspace(path)` —— 规范化、解析符号链接、再校验是否位于当前工作区
   或用户显式选择过的文件白名单内。这是防「渲染进程被 XSS 后读走 `~/.ssh`」的关键一环。
