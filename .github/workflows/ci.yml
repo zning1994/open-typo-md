@@ -11,9 +11,13 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # 不让 electron / playwright 在装依赖时下载二进制，交由需要的 job 自己处理
-  ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+  # Playwright 只用来驱动 Electron，不需要它自带的浏览器二进制
   PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+
+# 注意：ELECTRON_SKIP_BINARY_DOWNLOAD 只在 check job 里设置，不放在这里。
+# Electron 的安装脚本判断的是「这个变量有没有被设置」，不是它的值 ——
+# 设成 '0' 同样会跳过下载（非空字符串在 JS 里是真值），
+# 于是后面的 job 想「覆盖成 0 再下载」是行不通的。
 
 jobs:
   # ── 静态检查 + 单元测试：最快的反馈，任何分支任何 PR 都跑 ──────────────
@@ -31,7 +35,10 @@ jobs:
           cache: pnpm
 
       - name: 安装依赖
+        # 这个 job 只跑 vitest，不需要 Electron 二进制
         run: pnpm install --frozen-lockfile
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
 
       - name: 分层依赖方向
         run: pnpm layers
@@ -79,13 +86,19 @@ jobs:
 
       - name: 安装依赖（含 Electron 二进制）
         run: pnpm install --frozen-lockfile
-        env:
-          ELECTRON_SKIP_BINARY_DOWNLOAD: '0'
 
       - name: 构建
         run: pnpm build
 
+      # Linux runner 上没有 X server，Electron 起不来，必须套一层虚拟显示
+      - name: 端到端测试（Linux）
+        if: runner.os == 'Linux'
+        run: xvfb-run -a pnpm test:e2e
+        env:
+          CI: 'true'
+
       - name: 端到端测试
+        if: runner.os != 'Linux'
         run: pnpm test:e2e
         env:
           CI: 'true'
@@ -123,8 +136,6 @@ jobs:
 
       - name: 安装依赖（含 Electron 二进制）
         run: pnpm install --frozen-lockfile
-        env:
-          ELECTRON_SKIP_BINARY_DOWNLOAD: '0'
 
       - name: 打包
         # 未配置签名证书，产出的是未签名包，仅供内部试用

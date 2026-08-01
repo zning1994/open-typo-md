@@ -3,7 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "description": "Typo 桌面版",
+  "author": {
+    "name": "Typo Contributors",
+    "email": "zning1994@users.noreply.github.com"
+  },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zning1994/open-typo-md.git"
+  },
   "main": "dist/main/index.cjs",
   "scripts": {
     "dev": "node scripts/dev.mjs",
@@ -25,9 +33,5 @@
     "electron-builder": "^26.15.3",
     "esbuild": "^0.28.1",
     "vite": "^7.3.6"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/zning1994/open-typo-md.git"
   }
 }

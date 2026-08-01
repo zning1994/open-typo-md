@@ -16,6 +16,12 @@ asar: true
 
 extraMetadata:
   main: dist/main/index.cjs
+  # 覆盖掉带 scope 的包名 `@typo/desktop`：deb / rpm 会拿它当包名，
+  # `@` 和 `/` 在文件路径里非法，构建会直接失败
+  name: typo
+
+# 显式指定产物文件名，同样是为了不让 scope 名漏进文件路径
+artifactName: ${productName}-${version}-${arch}.${ext}
 
 fileAssociations:
   - ext: md
@@ -49,6 +55,9 @@ nsis:
   perMachine: false
 
 linux:
+  # 必须显式指定：否则 electron-builder 会从包名 `@typo/desktop` 推出
+  # `@typodesktop`，而 AppImage 不接受文件名里的 `@`
+  executableName: typo
   category: Office
   target:
     - target: AppImage
