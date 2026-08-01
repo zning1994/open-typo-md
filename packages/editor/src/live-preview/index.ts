@@ -14,9 +14,11 @@ import {
   type ViewUpdate,
 } from '@codemirror/view'
 import { livePreviewConfig } from '../config.js'
+import { blockPreview } from './blocks.js'
 import { computeDecorations } from './build.js'
 
 export { computeDecorations, type BuildResult } from './build.js'
+export { blockPreview, computeBlockDecorations } from './blocks.js'
 export { activeState, revealsLine, revealsRange, type ActiveState } from './active.js'
 
 class LivePreviewPlugin {
@@ -79,6 +81,8 @@ const livePreviewPlugin = ViewPlugin.fromClass(LivePreviewPlugin, {
 export function livePreview(): Extension {
   return [
     livePreviewPlugin,
+    // 块级装饰必须走 StateField（见 blocks.ts 开头的说明）
+    blockPreview(),
     // 让方向键一次跨过被隐藏的标记，而不是「按一次没反应、按两次跳两格」
     EditorView.atomicRanges.of(
       (view) => view.plugin(livePreviewPlugin)?.atomic ?? Decoration.none,

@@ -3,6 +3,8 @@ export type { EditorStats, EditorStatus, TypoEditorOptions } from './editor.js'
 export { livePreviewConfig, type AssetResolver, type LivePreviewConfig } from './config.js'
 export {
   livePreview,
+  blockPreview,
+  computeBlockDecorations,
   computeDecorations,
   activeState,
   revealsLine,

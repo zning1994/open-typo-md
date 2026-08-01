@@ -148,17 +148,47 @@ test.describe('状态栏', () => {
 })
 
 test.describe('代码块', () => {
+  test('围栏在光标离开后隐藏，进入后显形', async ({ page }) => {
+    await resetDoc(page, '前文\n\n```js\nconst a = 1\n```\n\n后文')
+    await page.keyboard.press('ControlOrMeta+End')
+    expect(await visibleText(page)).not.toContain('```')
+    // 语言名改由角标呈现
+    await expect(page.locator('.cm-typo-code-first')).toHaveAttribute('data-typo-lang', 'js')
+
+    // 点进代码内容行，围栏应当就地显形，这样用户才删得掉这个块
+    await page.locator('.cm-line').filter({ hasText: 'const a = 1' }).first().click()
+    expect(await visibleText(page)).toContain('```js')
+  })
+
+  test('隐藏围栏后，代码首行仍带代码块样式', async ({ page }) => {
+    // 藏行时若把后面那个换行一起盖掉，会和下一行合并、把下一行的行装饰整个丢掉
+    await resetDoc(page, '前文\n\n```js\nconst a = 1\n```\n\n后文')
+    await page.keyboard.press('ControlOrMeta+End')
+    const first = page.locator('.cm-typo-code-first')
+    await expect(first).toHaveText('const a = 1')
+    await expect(first).toHaveClass(/cm-typo-code-block/)
+  })
+
   test('代码不折行，长行产生横向滚动', async ({ page }) => {
     const long = 'const x = ' + '"很长的一行代码".repeat(1) + '.repeat(30) + '1'
-    await resetDoc(page, '```js\n' + long + '\n```')
+    // 前后各垫一段：以围栏开头是退化路径（开围栏不藏）；
+    // 结尾也要有内容，否则光标停在文末 == 贴着代码块的闭区间边界 == 算「块内」
+    await resetDoc(page, '前文\n\n```js\n' + long + '\n```\n\n后文')
 
-    const codeLine = page.locator('.cm-typo-code-block').nth(1)
-    // scrollWidth > clientWidth 就说明内容溢出而不是折行了
-    const overflows = await codeLine.evaluate((el) => el.scrollWidth > el.clientWidth + 1)
-    expect(overflows).toBe(true)
+    const codeLine = page.locator('.cm-typo-code-block').first()
+
+    // 用轮询而不是一次性读取：装饰是在语法树就绪后才应用的，
+    // 直接断言会跑在它前面，读到的还是「按散文折行」的中间态
+    await expect
+      .poll(() => codeLine.evaluate((el) => el.scrollWidth > el.clientWidth + 1))
+      .toBe(true)
 
     const whiteSpace = await codeLine.evaluate((el) => getComputedStyle(el).whiteSpace)
     expect(whiteSpace).toBe('pre')
+
+    // 滚动条必须可见 —— 藏掉它等于既不能拖也看不出能滚
+    const scrollbar = await codeLine.evaluate((el) => getComputedStyle(el).scrollbarWidth)
+    expect(scrollbar).not.toBe('none')
   })
 
   test('散文仍然折行', async ({ page }) => {
@@ -174,15 +204,18 @@ test.describe('代码块', () => {
 
   test('同一个代码块内各行的横向滚动保持同步', async ({ page }) => {
     const long = 'x'.repeat(400)
-    await resetDoc(page, '```js\nconst a = "' + long + '"\nconst b = "' + long + '"\n```')
+    await resetDoc(
+      page,
+      '前文\n\n```js\nconst a = "' + long + '"\nconst b = "' + long + '"\n```\n\n后文',
+    )
 
     const lines = page.locator('.cm-typo-code-block')
-    await lines.nth(1).evaluate((el) => {
+    await lines.nth(0).evaluate((el) => {
       el.scrollLeft = 120
       el.dispatchEvent(new Event('scroll', { bubbles: false }))
     })
 
-    await expect.poll(() => lines.nth(2).evaluate((el) => el.scrollLeft)).toBe(120)
+    await expect.poll(() => lines.nth(1).evaluate((el) => el.scrollLeft)).toBe(120)
   })
 
   test('按语言高亮：js 代码块里出现关键字 token', async ({ page }) => {

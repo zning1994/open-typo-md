@@ -130,7 +130,11 @@ describe('链接与图片', () => {
 })
 
 describe('代码', () => {
-  it('围栏代码块的 ``` 保持可见（藏了就删不掉这个块）', () => {
+  it('行内装饰层不碰围栏 —— 藏 ``` 是块级装饰层的事', () => {
+    // preview() 只跑 computeDecorations（ViewPlugin 那条路）。围栏的隐藏靠
+    // blocks.ts 的 StateField，两条路在 CodeMirror 里是分开的：
+    // 会改变行结构的装饰不允许由 ViewPlugin 提供。
+    // 围栏实际隐藏与显形的行为由 e2e/live-preview.spec.ts 覆盖。
     const doc = '```js\nconst a = 1\n```'
     expect(preview(doc)).toBe(doc)
     expect(lineClasses(mkState(doc), 2)).toContain('cm-typo-code-block')

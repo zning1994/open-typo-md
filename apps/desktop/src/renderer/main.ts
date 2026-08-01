@@ -114,7 +114,23 @@ const MENU_ACTIONS: Record<MenuCommand, () => void> = {
 }
 
 api.on.menuCommand((command) => MENU_ACTIONS[command]?.())
-api.on.openFile((path) => void controller.openPath(path))
+
+/**
+ * 外部要求打开文件（Finder 双击 / 右键「打开方式」/ 命令行参数 / 第二次启动）。
+ *
+ * 这里必须走**和 ⌘O 完全相同的落点规则** —— main 侧不知道当前窗口脏没脏，
+ * 只能把文件送过来由渲染进程决定。早先直接 openPath 会顶掉用户正在写的东西，
+ * 这正是「在 Finder 里右键打开会覆盖当前窗口」的原因。
+ */
+api.on.openFile((path) => {
+  void (async () => {
+    if (controller.isEmptyUntitled()) {
+      await controller.openPath(path, { alreadyConfirmed: true })
+    } else {
+      await api.window.create(path)
+    }
+  })()
+})
 api.on.requestClose(() => {
   void controller.canClose().then((canClose) => api.respondClose(canClose))
 })

@@ -78,10 +78,38 @@ export const baseTheme = EditorView.theme({
     // （不同元素之间是继承关系，不存在选择器优先级之争）。
     whiteSpace: 'pre',
     overflowX: 'auto',
-    // 每行一条滚动条太吵；横向滚动由 codeBlockScrollSync 统一驱动
-    scrollbarWidth: 'none',
+    // 滚动条必须看得见。
+    //
+    // 起初为了「每行一条滚动条太吵」把它藏了，那是个错误的取舍：
+    // 藏掉之后既没有可拖动的东西，也没有「这里还有内容」的提示，
+    // 用不带横向滚轮的鼠标就彻底滚不动了。能用优先于好看。
+    scrollbarWidth: 'thin',
   },
-  '.cm-typo-code-block::-webkit-scrollbar': { display: 'none' },
+  '.cm-typo-code-block::-webkit-scrollbar': { height: '6px' },
+  '.cm-typo-code-block::-webkit-scrollbar-thumb': {
+    backgroundColor: v('border', '#d0d7de'),
+    borderRadius: '3px',
+  },
+  '.cm-typo-code-block::-webkit-scrollbar-track': { background: 'transparent' },
+
+  // 围栏被藏起来时，在代码块首行右上角标出语言。
+  // 同时补回上下留白 —— 藏围栏用的是「与上一行合并」，会顺带吃掉块前的空行
+  '.cm-typo-code-first': { position: 'relative', marginTop: '0.9em', paddingTop: '0.4em' },
+  '.cm-typo-code-block:not(:has(+ .cm-typo-code-block))': {
+    marginBottom: '0.9em',
+    paddingBottom: '0.4em',
+  },
+  '.cm-typo-code-first[data-typo-lang]:not([data-typo-lang=""])::after': {
+    content: 'attr(data-typo-lang)',
+    position: 'absolute',
+    top: '0',
+    right: '0.4em',
+    fontSize: '0.75em',
+    lineHeight: '1.6',
+    color: v('fg-muted', '#6e7781'),
+    pointerEvents: 'none',
+    userSelect: 'none',
+  },
   '.cm-typo-hr-line': { display: 'flex', alignItems: 'center', minHeight: '1.7em' },
   '.cm-typo-hr': {
     display: 'inline-block',
