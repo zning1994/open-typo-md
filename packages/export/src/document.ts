@@ -19,14 +19,22 @@ export interface DocumentOptions {
   /**
    * 是否带 `<meta name="viewport">`。默认带。
    *
-   * **打印 / 转 PDF 时必须关掉。** `width=device-width` 会把布局视口绑到窗口的
-   * 实际宽度上，而负责打印的是一个从不显示的隐藏窗口 —— 在 macOS 上它的
-   * device-width 是 0，于是整份文档被压成零宽，**一个字都画不出来**，
-   * 产出一页纯白。这条排查了四轮 CI（见 06 §3.3）。
-   *
-   * 给人看的 HTML 则要保留它：那是一份真的网页，会在手机上被打开。
+   * 给人看的 HTML 要带 —— 那是一份真的网页，会在手机上被打开。
+   * 打印 / 转 PDF 那一份不带：PDF 没有「设备宽度」这回事，
+   * 让布局去迁就一个从不显示的窗口有多宽，只会让产物取决于无关的东西。
    */
   viewport?: boolean
+  /**
+   * `<html lang>`。**默认不写**。
+   *
+   * 我们并不知道用户这篇文档是什么语言 —— 编辑器界面是中文，不代表内容是。
+   * 写一个错的 `lang` 比不写更糟：读屏软件会用错发音，浏览器会用错断词规则。
+   *
+   * 而且写死 `zh-CN` 还踩过一个实打实的坑：**macOS 上带着它转 PDF，
+   * 整页一个字都画不出来**。排查过程见 06 §3.3 —— 一个看着人畜无害的属性，
+   * 花了五轮 CI 才定位到。
+   */
+  lang?: string
 }
 
 /**
@@ -110,9 +118,10 @@ export function buildDocument(fragment: string, options: DocumentOptions): strin
     options.viewport === false
       ? ''
       : '\n<meta name="viewport" content="width=device-width, initial-scale=1">'
+  const lang = options.lang ? ` lang="${escapeText(options.lang)}"` : ''
 
   return `<!doctype html>
-<html lang="zh-CN">
+<html${lang}>
 <head>
 <meta charset="utf-8">${viewport}
 <meta name="generator" content="Brainforge Typo">

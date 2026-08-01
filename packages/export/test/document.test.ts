@@ -1,15 +1,25 @@
 /**
  * 单文件文档外壳。
  *
- * 这里只有一件事真正值得钉死：**`viewport` meta 必须能关掉**。
- * 带着它去打印，`width=device-width` 会把布局视口绑到打印用的那个隐藏窗口上，
- * 而隐藏窗口的「设备宽度」各平台不一致 —— macOS 上是 0，整份文档被压成零宽，
- * 产出一页纯白。这个缺陷追了四轮 CI（见 06 §3.3），值得留一条测试守着。
+ * 这里最值得钉死的是 **`<html lang>` 默认不写**。写死 `zh-CN` 曾经让 macOS 上
+ * 转出来的 PDF 整页一个字都没有 —— 一个看着人畜无害的属性，花了五轮 CI
+ * 才定位到（见 06 §3.3）。而且我们本来也不知道用户这篇文档是什么语言。
  */
 import { describe, expect, it } from 'vitest'
 import { buildDocument } from '@typo/export'
 
 describe('外壳', () => {
+  it('默认不写 lang —— 我们并不知道用户这篇文档是什么语言', () => {
+    const html = buildDocument('<p>正文</p>', { title: '文' })
+    expect(html).toContain('<html>')
+    expect(html).not.toContain('lang=')
+  })
+
+  it('给了 lang 才写，且会转义', () => {
+    expect(buildDocument('', { title: '文', lang: 'zh-CN' })).toContain('<html lang="zh-CN">')
+    expect(buildDocument('', { title: '文', lang: 'a"b' })).toContain('lang="a&quot;b"')
+  })
+
   it('默认带 viewport —— 给人看的 HTML 是一份真网页，会在手机上被打开', () => {
     expect(buildDocument('<p>正文</p>', { title: '文' })).toContain('name="viewport"')
   })

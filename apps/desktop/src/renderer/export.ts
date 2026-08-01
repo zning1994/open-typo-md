@@ -171,8 +171,8 @@ export async function exportHtmlDocument(
  * - **一律浅色**。深色主题打出来是一整页黑，既费墨也几乎读不了。
  *   应用自己的打印样式（themes.css 的 `@media print`）已经这么做了，
  *   导出的 PDF 没有理由不一致。真要深色 PDF，可以先导出 HTML 再自己打印。
- * - **不带 viewport meta**。PDF 没有「设备宽度」这回事，而带上它会在 macOS 上
- *   把整份文档压成零宽（见 `buildDocument` 的说明与 06 §3.3）。
+ * - **不带 viewport meta**。PDF 没有「设备宽度」这回事，让布局去迁就一个从不
+ *   显示的窗口有多宽，只会让产物取决于无关的东西。
  */
 export async function exportPdfHtml(context: ExportContext): Promise<string> {
   return exportHtmlDocument(context, { theme: 'light', viewport: false })
