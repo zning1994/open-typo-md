@@ -24,9 +24,11 @@ import { unified } from 'unified'
 import rehypeParse from 'rehype-parse'
 import rehypeRemark from 'rehype-remark'
 import remarkGfm from 'remark-gfm'
+import remarkMath from 'remark-math'
 import remarkStringify from 'remark-stringify'
-import { cleanTree, hasSemantics } from './clean.js'
-import type { Root } from 'hast'
+import { MATH_DISPLAY, MATH_TEX, cleanTree, hasSemantics } from './clean.js'
+import type { Handle } from 'hast-util-to-mdast'
+import type { Element, Root } from 'hast'
 
 /**
  * 输出风格。
@@ -48,9 +50,30 @@ const STRINGIFY_OPTIONS = {
 
 const parser = unified().use(rehypeParse)
 
+/**
+ * `<math>` → mdast 的公式节点。
+ *
+ * `clean.ts` 已经把 TeX 捞进属性里了（见那边的 `normalizeMath`），这里只负责
+ * 换个节点类型。没有这一步的话 `hast-util-to-mdast` 不认识 `<math>`，
+ * 整棵子树会被**悄悄丢掉** —— issue #14 的回归就是这样：从 Mosu 复制为富文本
+ * 再粘回 Mosu，粗体在、公式没了。
+ */
+const mathHandler: Handle = (_state, node) => {
+  const element = node as Element
+  const tex = element.properties?.[MATH_TEX]
+  if (typeof tex !== 'string') return undefined
+  const block = element.properties?.[MATH_DISPLAY] === 'block'
+  // `math` / `inlineMath` 不在 mdast 的核心类型里（它们来自 remark-math 的
+  // 类型扩展），这个 handler 的返回类型也管不到，所以这里断言一次
+  return { type: block ? 'math' : 'inlineMath', value: tex } as never
+}
+
 const compiler = unified()
-  .use(rehypeRemark)
+  .use(rehypeRemark, { handlers: { math: mathHandler } })
   .use(remarkGfm)
+  // 只为了 stringify：把 `inlineMath` / `math` 写成 `$…$` 与 `$$…$$`。
+  // 不加的话 mdast-util-to-markdown 不认识这两种节点，又是一次静默丢弃
+  .use(remarkMath)
   .use(remarkStringify, STRINGIFY_OPTIONS)
 
 /**

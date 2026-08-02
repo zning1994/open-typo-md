@@ -91,7 +91,10 @@ const DROP_IF_BLANK = new Set([
 ])
 
 /** 即使不含文字也必须保留的元素。 */
-const MEANINGFUL_WHEN_EMPTY = new Set(['img', 'br', 'hr', 'input', 'td', 'th'])
+// `math` 在这里：归一之后它是个**没有子节点**的元素（TeX 挂在属性上），
+// 而「空容器就丢掉」那条规则只看子节点 —— 不加的话，只含一个公式的段落
+// 会被整段当成空段落删掉，公式随之消失
+const MEANINGFUL_WHEN_EMPTY = new Set(['img', 'br', 'hr', 'input', 'td', 'th', 'math'])
 
 /**
  * 按 class 整棵丢掉的东西 —— **一份显式名单，不是前缀匹配**。
@@ -123,6 +126,8 @@ const DROPPED_CLASSES = new Set([
  * 而走转换反而会引入转义。见 `hasSemantics` 的说明。
  */
 const SEMANTIC = new Set([
+  // 公式是结构：只有一个公式的 HTML 也值得转，纯文本表示不了它
+  'math',
   'h1',
   'h2',
   'h3',
@@ -267,6 +272,85 @@ function isFakeBold(node: Element): boolean {
   return declares(styleOf(node), 'font-weight', /(?:normal|[1-5]00)\b/)
 }
 
+/**
+ * 数学公式：从渲染结果里把**原始 TeX** 捞回来（issue #14）。
+ *
+ * 剪贴板里的公式永远是**渲染产物**，不是源码：KaTeX 给的是一棵 MathML 树加
+ * 一层用定位拼出来的 `.katex-html`。这棵树只够渲染，反推不回用户写的 `$x^2$`。
+ *
+ * 幸好渲染产物里带着源码。两个来源：
+ *
+ * 1. `data-tex` —— Mosu 自己导出的片段（见 `@mosu/export` 的 `TEX_ATTR`）。
+ *    放在属性上是因为属性在任何目标里都不会被当成文本渲染出来；
+ * 2. `<annotation encoding="application/x-tex">` —— KaTeX / MathJax 的标准做法，
+ *    维基百科和一堆技术博客粘过来的就是这个形态。
+ *
+ * 捞不到就**原样留着**，不做任何处理 —— 那时 `<math>` 会退化成它的字符文本
+ * （`x2`），难看但没丢字。这比现在的行为好：修之前整棵 `<math>` 会被
+ * `hast-util-to-mdast` 悄悄丢掉，公式一个字都不剩。
+ */
+// hast 把 `data-tex` 这个属性名存成 camelCase 的 `dataTex`（`property-information`
+// 的规则）。照着 HTML 里的写法去读会永远读不到 —— 这条踩过一次：
+// 外部 KaTeX（走 `<annotation>`）能认出来，而我们自己导出的片段认不出来
+const TEX_ATTR = 'dataTex'
+/** 归一之后放 TeX 的属性名，`html-to-markdown.ts` 的 handler 读它。 */
+export const MATH_TEX = 'dataMosuTex'
+/** 归一之后放「行内还是块级」的属性名。 */
+export const MATH_DISPLAY = 'dataMosuDisplay'
+
+function attr(node: Element, name: string): string | null {
+  const value = node.properties?.[name]
+  return typeof value === 'string' && value !== '' ? value : null
+}
+
+/** 元素下所有文本拼起来。 */
+function textOf(node: Element): string {
+  let out = ''
+  for (const child of node.children) {
+    if (child.type === 'text') out += child.value
+    else if (isElement(child)) out += textOf(child)
+  }
+  return out
+}
+
+function findElement(node: Element, ok: (el: Element) => boolean): Element | null {
+  for (const child of node.children) {
+    if (!isElement(child)) continue
+    if (ok(child)) return child
+    const nested = findElement(child, ok)
+    if (nested) return nested
+  }
+  return null
+}
+
+/**
+ * 把一段公式归一成一个不带子节点的 `<math>`，TeX 与显示模式挂在属性上。
+ *
+ * 捞不到 TeX 时返回 null，调用方按普通元素处理。
+ */
+function normalizeMath(node: Element): Element | null {
+  const math = node.tagName === 'math' ? node : findElement(node, (el) => el.tagName === 'math')
+  if (!math) return null
+
+  const annotation = findElement(math, (el) => el.tagName === 'annotation')
+  const tex = (attr(math, TEX_ATTR) ?? (annotation ? textOf(annotation) : '')).trim()
+  if (tex === '') return null
+
+  // 块级的判据：KaTeX 在 `<math>` 上写 display="block"，外面再套一层
+  // `.katex-display`。两个都认，因为不同来源留下的痕迹不一样
+  const block =
+    attr(math, 'display') === 'block' ||
+    classesOf(node).includes('katex-display') ||
+    classesOf(math).includes('katex-display')
+
+  return {
+    type: 'element',
+    tagName: 'math',
+    properties: { [MATH_TEX]: tex, [MATH_DISPLAY]: block ? 'block' : 'inline' },
+    children: [],
+  }
+}
+
 function cleanNode(node: RootContent): RootContent[] {
   if (node.type === 'comment' || node.type === 'doctype') return []
   if (node.type === 'text') {
@@ -278,6 +362,20 @@ function cleanNode(node: RootContent): RootContent[] {
   const name = node.tagName.toLowerCase()
   if (DROPPED.has(name)) return []
   if (classesOf(node).some((c) => DROPPED_CLASSES.has(c.toLowerCase()))) return []
+
+  // 公式要在**清洗之前**认出来：`.katex` 里那层 `.katex-html` 是给眼睛看的
+  // 定位产物，任由它往下走会摊成一串没有意义的字符（`x2`），
+  // 而真正的源码藏在同一棵树的别处
+  if (name === 'math' || classesOf(node).includes('katex')) {
+    const math = normalizeMath(node)
+    if (math) return [math]
+    // 捞不到 TeX：至少把公式里的字符留下。什么都不做的话
+    // `hast-util-to-mdast` 不认识 `<math>`，整棵子树会被**悄悄丢掉**
+    const source =
+      node.tagName === 'math' ? node : findElement(node, (el) => el.tagName === 'math')
+    const text = source ? textOf(source).trim() : ''
+    return text === '' ? [] : [{ type: 'text', value: text }]
+  }
 
   const children = cleanChildren(node.children)
 

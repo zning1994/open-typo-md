@@ -62,6 +62,26 @@ function prune(node: Parent, drop: (el: Element) => boolean): void {
   }
 }
 
+/** 元素下所有文本拼起来。 */
+function textOf(node: Parent): string {
+  let out = ''
+  for (const child of node.children) {
+    if (child.type === 'text') out += child.value
+    else if (isElement(child)) out += textOf(child)
+  }
+  return out
+}
+
+/**
+ * TeX 源码存放的属性名。
+ *
+ * 这个属性是**给我们自己读的**（`@mosu/import` 粘贴回来时靠它还原
+ * `$…$`），顺带对任何工具都是无损线索。用属性而不是留着 `<annotation>`：
+ * 属性在任何目标里都**不会被当成文本渲染出来**，而 `<annotation>` 会 ——
+ * 那正是 issue #14 里「三份叠在一起」的其中一份。
+ */
+export const TEX_ATTR = 'data-tex'
+
 /** 把每个 `.katex` 收敛成单独一个 `<math>`。 */
 export function collapseKatex(tree: Root): void {
   const walk = (node: Parent): void => {
@@ -77,9 +97,16 @@ export function collapseKatex(tree: Root): void {
       // 三份重叠虽然难看，也好过把公式整个弄丢（原则 P2）
       if (!math) return child
 
-      // `<annotation>` 是给机器读的 TeX 源码。MathML 渲染时它不显示，
-      // 但**目标不支持 MathML 时它会作为文本露出来** —— 那就又变成两份了
+      // `<annotation>` 里是原始 TeX。MathML 渲染时它不显示，但**目标不支持
+      // MathML 时它会作为文本露出来** —— 那就又变成两份了。
+      //
+      // 所以：把 TeX **搬到属性上**再删掉这个节点。丢掉它是不行的 ——
+      // 那串 TeX 是这段公式唯一无损的表示，`<math>` 的元素树只够渲染，
+      // 反推不回用户写的源码（issue #14 的回归：粘回 Mosu 时公式整个没了）。
+      const annotation = find(math, (el) => el.tagName === 'annotation')
+      const tex = annotation ? textOf(annotation).trim() : ''
       prune(math, (el) => el.tagName === 'annotation')
+      if (tex !== '') math.properties = { ...math.properties, [TEX_ATTR]: tex }
       return math as ElementContent
     })
   }

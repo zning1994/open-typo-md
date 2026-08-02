@@ -390,6 +390,30 @@ describe('富文本片段', () => {
     expect(html).not.toContain('annotation')
   })
 
+  it('原始 TeX 搬到属性上 —— 它是这段公式唯一无损的表示', async () => {
+    // 删掉 `<annotation>` 是对的（它会在不支持 MathML 的目标里露成第二份文本），
+    // 但把那串 TeX 一起丢掉就错了：`<math>` 的元素树只够渲染，反推不回源码。
+    // 属性不会被当成文本渲染出来，所以两个性质可以兼得。
+    // 粘回 Mosu 时 `@mosu/import` 靠它还原 `$x^2$`（issue #14 的回归）
+    const html = await markdownToHtmlFragment('$x^2$', { forFragment: true })
+    expect(html).toContain('data-tex="x^2"')
+  })
+
+  it('块级公式带 display="block"，还原时才分得清 $ 和 $$', async () => {
+    const html = await markdownToHtmlFragment('$$\n\\int_0^1 x\n$$', { forFragment: true })
+    expect(html).toMatch(/<math[^>]*display="block"/)
+    expect(html).toContain('data-tex=')
+  })
+
+  it('TeX 里的引号会被属性转义，不撕开标签', async () => {
+    // 判据只盯引号：`<` 在属性值里本来就合法，不需要转义，
+    // 而引号会提前闭合属性。（一开始把 `<` 也写进断言了，那是错的）
+    const html = await markdownToHtmlFragment('$\\text{"q"}$', { forFragment: true })
+    const attr = /data-tex="([^"]*)"/.exec(html)?.[1] ?? ''
+    expect(attr).toContain('&#x22;')
+    expect(attr).not.toContain('"')
+  })
+
   it('关键排版摊成 style 属性 —— 目标应用不会带上我们的 CSS', async () => {
     const html = await markdownToHtmlFragment('> 引用\n\n`行内`\n\n| a |\n| --- |\n| 1 |\n', {
       forFragment: true,

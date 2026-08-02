@@ -379,3 +379,56 @@ describe('按 class 丢弃是一份显式名单', () => {
     )
   })
 })
+
+/**
+ * 公式：从渲染结果里把原始 TeX 捞回来（issue #14 的回归）。
+ *
+ * 剪贴板里的公式永远是**渲染产物**而不是源码。修之前 `hast-util-to-mdast`
+ * 不认识 `<math>`，整棵子树被**悄悄丢掉** —— 用户从 Mosu 复制为富文本再粘回
+ * Mosu，粗体在、公式一个字不剩。
+ */
+describe('公式', () => {
+  /** KaTeX / MathJax 的标准形态：MathML 里带一份 `<annotation>` 原始 TeX。 */
+  const katex = (tex: string, mathml: string, display = '') =>
+    `<span class="katex"><span class="katex-mathml"><math${display}><semantics><mrow>${mathml}</mrow>` +
+    `<annotation encoding="application/x-tex">${tex}</annotation></semantics></math></span>` +
+    `<span class="katex-html" aria-hidden="true">噪声</span></span>`
+
+  test('行内公式还原成 $…$', () => {
+    expect(
+      md(`<h1>T</h1><p>公式 ${katex('x^2', '<msup><mi>x</mi><mn>2</mn></msup>')} 完</p>`),
+    ).toBe('# T\n\n公式 $x^2$ 完')
+  })
+
+  test('块级公式还原成 $$…$$', () => {
+    const html = `<h1>T</h1><p>${katex('\\int_0^1 x', '<mi>x</mi>', ' display="block"')}</p>`
+    expect(md(html)).toContain('$$\n\\int_0^1 x\n$$')
+  })
+
+  test('`.katex-html` 那份视觉噪声不会漏进正文', () => {
+    // 它是给眼睛看的定位产物，任由它往下走会摊成一串没有意义的字符
+    const out = md(`<h1>T</h1><p>${katex('x^2', '<mi>x</mi>')}</p>`)
+    expect(out).not.toContain('噪声')
+  })
+
+  test('Mosu 自己导出的片段靠 data-tex 还原', () => {
+    // 我们导出时把 TeX 放在属性上而不是留 `<annotation>` —— 属性不会被当成
+    // 文本渲染出来。注意 hast 把它存成 camelCase 的 `dataTex`
+    const html = '<h1>T</h1><p>甲 <math data-tex="a+b"><mi>a</mi></math> 乙</p>'
+    expect(md(html)).toBe('# T\n\n甲 $a+b$ 乙')
+  })
+
+  test('只有一个公式的段落不会被当成空段落删掉', () => {
+    // 归一之后的 `<math>` 没有子节点，正好撞上「空容器就丢掉」那条规则
+    expect(md('<h1>T</h1><p><math data-tex="x^2"></math></p>')).toBe('# T\n\n$x^2$')
+  })
+
+  test('整篇只有一个公式时也值得转 —— 纯文本表示不了它', () => {
+    expect(md('<p><math data-tex="\\frac{a}{b}"></math></p>')).toBe('$\\frac{a}{b}$')
+  })
+
+  test('捞不到 TeX 时留下字符，不把公式整个弄丢', () => {
+    // 退化成难看但没丢字（原则 P2）—— 修之前这里是一个字都不剩
+    expect(md('<h1>T</h1><p>甲 <math><mi>x</mi></math> 乙</p>')).toBe('# T\n\n甲 x 乙')
+  })
+})
