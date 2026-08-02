@@ -48,7 +48,17 @@ jobs:
       - name: 构建
         run: pnpm docs:build
 
+      # `enablement: true`：仓库没开 Pages 时**由工作流自己开**。
+      #
+      # 不加的话第一次部署必然失败，错误是「Get Pages site failed … Not Found」——
+      # 而那句话读起来像构建出了问题，实际上构建早就成功了，
+      # 挂的是「这个仓库还没有 Pages 站点」。让工作流自备这一步，
+      # 就不必在 README 里写一条「记得先去 Settings 里点一下」的仪式。
+      #
+      # 需要 `permissions: pages: write`，上面已经给了。
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - uses: actions/upload-pages-artifact@v3
         with:
