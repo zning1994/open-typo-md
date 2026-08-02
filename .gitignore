@@ -8,3 +8,7 @@ coverage/
 .vite/
 playwright-report/
 test-results/
+
+# VitePress（官网/文档站）的构建缓存与产物
+docs/.vitepress/cache/
+docs/.vitepress/dist/

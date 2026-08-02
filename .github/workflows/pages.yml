@@ -1,0 +1,66 @@
+name: Pages
+
+# 官网 / 文档站。站点源码就是 `docs/` 本身（见 docs/.vitepress/config.ts 开头）。
+#
+# 只在**文档或站点配置真的变了**的时候跑 —— 每次改代码都重新部署一遍站点
+# 纯属浪费，而且会让部署历史里全是与站点无关的记录。
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'README.md'
+      - '.github/workflows/pages.yml'
+      - 'package.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 部署不能并发：后发的应该赢，但**不取消正在进行的那次**（`cancel-in-progress:
+# false`）—— 半路取消一次部署会让 Pages 停在中间状态。
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: 构建站点
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # lastUpdated 要读每个文件的最后提交时间，浅克隆拿不到
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+
+      - name: 构建
+        run: pnpm docs:build
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/.vitepress/dist
+
+  deploy:
+    name: 部署
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

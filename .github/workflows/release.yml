@@ -18,8 +18,17 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
+      # **串行跑，不是为了省资源。**
+      #
+      # 三个平台都带 `--publish always`，而草稿 release 是「没有就建一个」——
+      # 并发时三个作业会同时发现「没有」然后各建一个，结果是产物散落在两三个
+      # 草稿里，或者其中两个直接报「已存在」失败。electron-builder 的这个竞态
+      # 是已知的，上游没打算修（发布本来就不该并发）。
+      #
+      # 代价是墙钟时间从 ~6 分钟变成 ~18 分钟。发布一个版本一年也没几次。
+      max-parallel: 1
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [macos-latest, ubuntu-latest, windows-latest]
 
     steps:
       - uses: actions/checkout@v5
@@ -41,7 +50,13 @@ jobs:
         run: pnpm verify
 
       - name: 打包并上传到 Release 草稿
-        run: pnpm --filter @typo/desktop exec electron-builder --config electron-builder.yml --publish always
+        # 公证只在 macOS 上、且确实配了凭据时才打开 ——
+        # 没有凭据却要求公证的话，electron-builder 会直接失败，
+        # 而「没有证书」是这个项目当前的正常状态，不该让发布挂掉
+        run: >-
+          pnpm --filter @typo/desktop exec electron-builder
+          --config electron-builder.yml --publish always
+          ${{ (runner.os == 'macOS' && secrets.APPLE_TEAM_ID != '') && '-c.mac.notarize=true' || '' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # 代码签名：配置了证书就用，没配就打未签名包。
@@ -54,3 +69,20 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.CSC_LINK != '' }}
+
+      # 产物到底签没签名，必须在 Actions 页面上一眼看得见。
+      #
+      # 没有这一步的话，「忘了配 secret」与「配好了」产出的是同样成功的绿勾，
+      # 而两者的区别要等用户下载之后才发现 —— 那时已经发出去了。
+      - name: 记录签名状态
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" != "macOS" ]; then
+            echo "- **${{ runner.os }}**：签名不适用" >> "$GITHUB_STEP_SUMMARY"
+          elif [ -z "${{ secrets.CSC_LINK }}" ]; then
+            echo "- **macOS**：⚠️ 未签名（仅 ad-hoc）。用户首次打开会被 Gatekeeper 拦下，需在「系统设置 → 隐私与安全性」里放行。" >> "$GITHUB_STEP_SUMMARY"
+          elif [ -z "${{ secrets.APPLE_TEAM_ID }}" ]; then
+            echo "- **macOS**：⚠️ 已签名但**未公证**。Gatekeeper 仍会拦截 —— 公证才是解除拦截的那一步。" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- **macOS**：✅ 已签名并公证，双击即开。" >> "$GITHUB_STEP_SUMMARY"
+          fi

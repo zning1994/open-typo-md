@@ -77,7 +77,7 @@ Linux 上跑端到端测试需要一个显示环境：`xvfb-run -a pnpm test:e2e
 - **大纲面板**（⌘⇧E）与**命令面板**（⌘⇧P）
 - **文件监听**：外部改动无冲突时静默重载，有冲突才问你
 - **崩溃恢复**：未保存内容 500ms 防抖写草稿，下次启动询问是否恢复
-- **5 套主题**：跟随系统 / 浅色 / 深色 / 护眼 / 高对比 / GitHub，带打印样式
+- **5 套主题 + 跟随系统**：浅色 / 深色 / 护眼 / 高对比 / GitHub，带打印样式
 - **导出为 HTML**：自包含单文件 —— 样式、图片、公式字体、图表 SVG 全内联，
   发出去双击就能看；文档里的 `<script>` 默认被消毒掉
 - **复制为富文本**：粘进邮件 / 飞书 / Word 格式不散
@@ -114,16 +114,21 @@ Linux 上跑端到端测试需要一个显示环境：`xvfb-run -a pnpm test:e2e
 注意页面上显示的 `typo-macos-arm64-dmg` 这类名字是**产物包**的名称，不是文件名 ——
 GitHub 一律把产物打成 zip，解开之后才是 `BrainforgeTypo-0.1.0-arm64.dmg`。
 
-**这些包都没有签名**，因为签名证书还没配（M6 的发布工程内容，见 docs/design/07 §7）。
+**这些包都没有签名**，因为开发者证书还没配（见 [07 §6.1](docs/design/07-quality.md)）。
 所以首次打开会被系统拦下来：
 
-**macOS** —— 提示「"Brainforge Typo" 已损坏，无法打开。你应该将它移到废纸篓」。
-应用没有损坏，这是 Gatekeeper 对未签名应用的（相当误导人的）说法。
-把应用拖进 `/Applications` 之后执行（路径含空格，引号不能省）：
+**macOS** —— 提示「Apple 无法验证"Brainforge Typo"是否包含恶意软件」。
+应用没问题，只是没有经过公证。两种放行办法：
 
 ```bash
+# 办法一：右键点应用 → 打开 → 在弹窗里再点一次「打开」
+# 办法二：直接去掉 quarantine 标记（路径含空格，引号不能省）
 xattr -dr com.apple.quarantine "/Applications/Brainforge Typo.app"
 ```
+
+（更早的版本会报「已损坏，无法打开」——那是完全没签名导致的，已经用 ad-hoc
+签名修掉了。ad-hoc 只解决「能不能跑」，解除 Gatekeeper 拦截**必须**靠
+Developer ID 证书 + 公证，那是 M6 的内容。）
 
 **Windows** —— SmartScreen 提示「Windows 已保护你的电脑」，点「更多信息」→「仍要运行」。
 
@@ -149,6 +154,15 @@ docs/           设计文档与架构决策记录
 ```
 
 依赖方向严格单向向下，由 `pnpm layers` 在 CI 里强制。
+
+## 官网与文档站
+
+设计文档同时发布在 <https://zning1994.github.io/open-typo-md/>（VitePress，带搜索与导航）。
+本地预览：
+
+```bash
+pnpm docs:dev
+```
 
 ## 文档索引
 

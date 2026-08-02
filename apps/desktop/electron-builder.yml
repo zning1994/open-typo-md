@@ -66,9 +66,23 @@ mac:
       arch: [x64, arm64]
     - target: zip
       arch: [x64, arm64]
-  # 未配置签名证书时打出未签名包，便于 CI 与本地试用；
-  # 正式发布必须配置签名与公证（docs/design/07 §6）
-  identity: null
+
+  # —— 签名策略：这里刻意什么都不写死 ——
+  #
+  # `identity` **不设置**时，electron-builder 去钥匙串里找证书，找不到就跳过
+  # 签名（不报错）。于是同一份配置在两种场景下都对：
+  #
+  # - CI / 本地没有证书：跳过签名，随后 `afterPack` 补一个 ad-hoc 签名，
+  #   让包在 Apple Silicon 上至少能跑起来（见 scripts/after-pack.mjs）；
+  # - 配了 CSC_LINK：正常签名，`hardenedRuntime` 默认就是 true，
+  #   `build/entitlements.mac.plist` 与 `.inherit.plist` 会被自动采用。
+  #
+  # 早先这里写着 `identity: null`（= 永不签名）。那在「还没有证书」的阶段是对的，
+  # 但它会**把配了证书的那条路也堵死**，属于把临时状态固化进配置。
+  #
+  # 公证由 release.yml 在检测到 APPLE_TEAM_ID 时用 `-c.mac.notarize=true` 打开 ——
+  # 写在这里的话，没有凭据的构建会直接失败。
+  # 完整的发布清单见 docs/design/07 §6。
 
 win:
   target:
