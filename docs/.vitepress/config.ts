@@ -58,6 +58,7 @@ const ADR = [
 const zhSidebar: DefaultTheme.Sidebar = {
   '/design/': [
     { text: '设计文档', items: DESIGN.map(([s, text]) => ({ text, link: `/design/${s}` })) },
+    { text: '实测记录', items: [{ text: '两个解析器的已知差异', link: '/known-divergences' }] },
     {
       text: '架构决策记录',
       collapsed: true,
@@ -66,10 +67,26 @@ const zhSidebar: DefaultTheme.Sidebar = {
   ],
   '/adr/': [
     { text: '架构决策记录', items: ADR.map(([s, text]) => ({ text, link: `/adr/${s}` })) },
+    { text: '实测记录', items: [{ text: '两个解析器的已知差异', link: '/known-divergences' }] },
     {
       text: '设计文档',
       collapsed: true,
       items: DESIGN.map(([s, text]) => ({ text, link: `/design/${s}` })),
+    },
+  ],
+  // 这一页不在 design/ 或 adr/ 下，得单独给一份侧栏 —— 否则从设计文档点过来
+  // 之后侧栏整个消失，读者会以为自己离开了文档区
+  '/known-divergences': [
+    { text: '实测记录', items: [{ text: '两个解析器的已知差异', link: '/known-divergences' }] },
+    {
+      text: '设计文档',
+      collapsed: true,
+      items: DESIGN.map(([s, text]) => ({ text, link: `/design/${s}` })),
+    },
+    {
+      text: '架构决策记录',
+      collapsed: true,
+      items: ADR.map(([s, text]) => ({ text, link: `/adr/${s}` })),
     },
   ],
 }
