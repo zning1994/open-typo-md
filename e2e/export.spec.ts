@@ -11,7 +11,7 @@
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { clickMenu, expect, resetDoc, test } from './fixtures.js'
+import { clickMenu, expect, openDocInNewWindow, resetDoc, test } from './fixtures.js'
 import type { ElectronApplication } from '@playwright/test'
 
 let dir: string
@@ -101,11 +101,7 @@ test('图片转成 data URI —— 自包含的关键一环', async ({ app, page
   const docPath = path.join(dir, 'doc.md')
   await writeFile(docPath, '![图](a.png)\n', 'utf8')
 
-  const before = page.context().pages().length
-  await page.evaluate((p) => window.mosu.window.create(p), docPath)
-  await expect.poll(() => page.context().pages().length).toBeGreaterThan(before)
-  const doc = page.context().pages().at(-1)!
-  await doc.waitForSelector('.cm-content', { state: 'visible' })
+  const doc = await openDocInNewWindow(app, page, docPath)
   await expect.poll(() => doc.locator('.cm-content').textContent()).toContain('图')
 
   const html = await exportTo(app, path.join(dir, 'img.html'))

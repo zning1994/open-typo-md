@@ -555,7 +555,7 @@ async function offerDraftRecovery(): Promise<void> {
 
   for (const draft of drafts) {
     const tab = tabs.active().controller.isEmptyUntitled() ? tabs.active() : tabs.open()
-    await tab.controller.restoreDraft(draft.text, draft.path)
+    await tab.controller.restoreDraft(draft.text, draft.path, draft.baselineHash)
   }
 }
 

@@ -51,6 +51,8 @@ export interface MemoryHost extends HostBridge {
   seed(path: string, text: string, meta?: Partial<TextFileMeta>): void
   /** 模拟外部程序（另一个编辑器、git checkout）改了文件。 */
   externalEdit(path: string, text: string): void
+  /** 模拟外部把文件删掉（`git checkout`、同步客户端的先删后建）。 */
+  externalDelete(path: string): void
   /** 读出当前「磁盘」内容，用于断言。 */
   peek(path: string): string | undefined
   /** 读出已落盘的附件字节，用于断言。 */
@@ -92,6 +94,11 @@ export function createMemoryHost(options: { os?: 'mac' | 'win' | 'linux' } = {})
         if (existing && options.expectedHash !== null) {
           const diskHash = weakHash(existing.text)
           if (diskHash !== options.expectedHash) throw new ConflictError(path, diskHash)
+        }
+        // 「我以为它不在了，结果它在」—— 跟真实实现保持同样的判定，
+        // 否则这条数据丢失路径在单测里永远测不出来
+        if (existing && options.expectedHash === null && options.expectMissing === true) {
+          throw new ConflictError(path, weakHash(existing.text))
         }
         const mtimeMs = touch()
         files.set(path, {
@@ -174,6 +181,9 @@ export function createMemoryHost(options: { os?: 'mac' | 'win' | 'linux' } = {})
         mtimeMs: touch(),
         readOnly: false,
       })
+    },
+    externalDelete(path) {
+      files.delete(path)
     },
     externalEdit(path, text) {
       const f = files.get(path)

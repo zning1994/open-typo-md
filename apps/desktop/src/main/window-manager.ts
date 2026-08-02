@@ -12,7 +12,6 @@ import { BrowserWindow, app, screen, shell } from 'electron'
 import { EVENTS } from '../shared/channels.js'
 import { APP_ORIGIN } from './app-protocol.js'
 import { getSetting, setSetting } from './settings.js'
-import { grantFile } from './path-guard.js'
 import { forgetSession, stageSession, type WindowSession } from './session.js'
 import { stopWatching } from './watcher.js'
 
@@ -189,10 +188,12 @@ export async function createWindow(options: CreateWindowOptions = {}): Promise<B
 
   if (options.openPath) {
     const target = options.openPath
+    // **这里不授权。** 这一层只负责开窗口和转发；`grantFile` 是授权原语，
+    // 放在这儿等于「谁能开窗口，谁就能授权任意路径」—— 而开窗口的入口之一
+    // 是渲染进程的 `window:create`。授权由调用方在**确认路径来自用户**之后自己做
+    // （见 index.ts 里三个 openPath 调用点各自的说明）。
     window.webContents.once('did-finish-load', () => {
-      void grantFile(target).then(() => {
-        if (!window.isDestroyed()) window.webContents.send(EVENTS.openFile, target)
-      })
+      if (!window.isDestroyed()) window.webContents.send(EVENTS.openFile, target)
     })
   }
 

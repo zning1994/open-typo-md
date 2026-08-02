@@ -112,6 +112,25 @@ export async function writeTextFile(
       if (error instanceof ConflictError) throw error
       // 文件不存在 —— 说明是新建，继续写
     }
+  } else if (options.expectMissing === true) {
+    /**
+     * 「我以为这个文件已经不在了」。
+     *
+     * 文件被外部删除之后基线被置为 null（`document.ts` 的
+     * `handleExternalChange`），而 null 会跳过上面那段冲突检测 —— 于是文件**又
+     * 回来之后**的第一次保存会拿陈旧的缓冲区静默盖掉新内容。
+     * `git checkout` 与先删后建的同步客户端都会造出这个时序。
+     *
+     * 所以在这条路径上单独确认一次：文件真不在就照常新建，
+     * 已经回来了就当成冲突交给用户决定 —— 跟正常的冲突走同一个对话框。
+     */
+    try {
+      const current = hashBytes(await readFile(real))
+      throw new ConflictError(target, current)
+    } catch (error) {
+      if (error instanceof ConflictError) throw error
+      // 读不到 —— 文件确实不在，继续新建
+    }
   }
 
   // 在**动手写之前**登记，否则文件系统事件会跑在登记前面，

@@ -25,6 +25,16 @@
  * 3. **原子替换会让 watcher 掉线。** `rename` 之后原来那个 inode 没了，
  *    绑在旧 inode 上的 watch 从此收不到任何事件 —— 表现是「改一次能发现，
  *    第二次就再也发现不了」。所以每次事件之后都重新挂一次 watch。
+ *
+ * 4. **挂不上的时候必须排重试。** 上面第 3 条只覆盖了「有事件」这条路径。
+ *    文件被外部删除时 `attach` 挂不上，早先的做法是把 watcher 置空就完事 ——
+ *    那是一条**单向的死路**：没有定时器、没有轮询，文件重新出现也永远收不到
+ *    通知。而 `watchFor` 里 `existing.has(real)` 又把这种条目当成「已在监听」
+ *    直接跳过，于是**重新调 watchFor 也救不回来**。渲染进程每次上报会话都会
+ *    重新武装一遍，一次都不生效。
+ *
+ *    `git checkout`、从废纸篓恢复、先删后建的同步客户端（OneDrive / Dropbox）
+ *    都会走到这条路径 —— 04 §8 早就把它们列为要处理的场景。
  */
 import { watch, type FSWatcher } from 'node:fs'
 import { readFile, stat } from 'node:fs/promises'
@@ -43,6 +53,16 @@ export interface FileChangeNotice {
   deleted: boolean
 }
 
+/**
+ * 挂 watch 失败后的重试节奏。
+ *
+ * 从 500ms 起、每次翻倍、封顶 5s。快的那一头是给 `git checkout`、从废纸篓恢复、
+ * 先删后建的同步客户端准备的（文件通常几十毫秒就回来）；封顶是给真的被永久
+ * 删掉的文件 —— 那种情况下每秒 stat 一次纯属浪费，而 5s 的延迟没人在意。
+ */
+const RETRY_MIN_MS = 500
+const RETRY_MAX_MS = 5_000
+
 interface Entry {
   /**
    * 渲染进程**请求**时用的那个路径。
@@ -57,6 +77,15 @@ interface Entry {
   real: string
   watcher: FSWatcher | null
   timer: NodeJS.Timeout | null
+  /**
+   * 挂 watch 失败后的重挂定时器，以及当前的退避间隔。
+   *
+   * 没有这两样的时候，「文件被外部删除」是一条**单向的死路**：`attach` 进了
+   * catch 分支把 watcher 置空，从此再没有任何东西会重新挂 —— 文件重新出现也
+   * 收不到通知。见文件头第 4 条。
+   */
+  retry: NodeJS.Timeout | null
+  retryDelay: number
 }
 
 /**
@@ -107,15 +136,49 @@ function disposeWatcher(entry: Entry): void {
   entry.watcher = null
 }
 
+function clearRetry(entry: Entry): void {
+  if (entry.retry) clearTimeout(entry.retry)
+  entry.retry = null
+}
+
+/**
+ * 排一次重挂。
+ *
+ * 挂上之后**要主动 settle 一次**：文件是在我们聋着的这段时间里回来的，
+ * 没有任何事件会告诉渲染进程这件事。不补这一下的话，用户看到的是
+ * 「文件回来了，但编辑器还以为它被删了」，而下一次保存会拿陈旧的缓冲区
+ * 盖掉刚回来的内容。
+ */
+function scheduleRetry(window: BrowserWindow, entry: Entry): void {
+  clearRetry(entry)
+  const delay = entry.retryDelay
+  entry.retryDelay = Math.min(RETRY_MAX_MS, entry.retryDelay * 2)
+  entry.retry = setTimeout(() => {
+    entry.retry = null
+    if (window.isDestroyed()) return
+    attach(window, entry)
+    if (entry.watcher) void settle(window, entry)
+  }, delay)
+}
+
 function attach(window: BrowserWindow, entry: Entry): void {
   disposeWatcher(entry)
   try {
     entry.watcher = watch(entry.real, () => schedule(window, entry))
-    // 文件被删除、磁盘拔出之类的错误不该让 main 崩掉
-    entry.watcher.on('error', () => disposeWatcher(entry))
+    // 文件被删除、磁盘拔出之类的错误不该让 main 崩掉。
+    // **重挂要排上** —— 否则这条错误路径同样是单向的死路
+    entry.watcher.on('error', () => {
+      disposeWatcher(entry)
+      scheduleRetry(window, entry)
+    })
+    // 挂上了就把退避重置，下一次掉线仍然反应很快
+    entry.retryDelay = RETRY_MIN_MS
+    clearRetry(entry)
   } catch {
-    // 文件还不存在（刚 rename 走）—— 下一次事件或下一次 watch 时再说
+    // 文件还不存在（刚 rename 走、或者被删了）——
+    // 排一次重挂，别把它永远丢在这儿
     entry.watcher = null
+    scheduleRetry(window, entry)
   }
 }
 
@@ -145,6 +208,7 @@ async function settle(window: BrowserWindow, entry: Entry): Promise<void> {
 
 function release(entry: Entry): void {
   if (entry.timer) clearTimeout(entry.timer)
+  clearRetry(entry)
   disposeWatcher(entry)
 }
 
@@ -185,8 +249,22 @@ export async function watchFor(
     entry.requested = requested
   }
   for (const [real, requested] of wanted) {
-    if (existing.has(real)) continue
-    const entry: Entry = { requested, real, watcher: null, timer: null }
+    const found = existing.get(real)
+    if (found) {
+      // **已经在表里 ≠ 还在监听。** 原来这里直接 `continue`，于是一个 watcher
+      // 为 null 的条目永远跳过 —— 而渲染进程每次上报会话都会重新调这个函数，
+      // 等于「不停地重新武装，但一次都不生效」。
+      if (!found.watcher && !found.retry) attach(window, found)
+      continue
+    }
+    const entry: Entry = {
+      requested,
+      real,
+      watcher: null,
+      timer: null,
+      retry: null,
+      retryDelay: RETRY_MIN_MS,
+    }
     existing.set(real, entry)
     attach(window, entry)
   }

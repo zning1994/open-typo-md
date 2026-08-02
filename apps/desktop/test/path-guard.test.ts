@@ -4,7 +4,7 @@
  * 这是渲染进程被打穿之后唯一还站着的一道墙，所以它的边界值得逐条钉死 ——
  * 尤其是「读文件」和「列目录」这两条**故意分开**的许可。
  */
-import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -52,6 +52,16 @@ describe('读文件的许可', () => {
     await grantDirectory(root)
 
     await expect(assertAllowed(at('sub', 'c.md'))).resolves.toContain('c.md')
+  })
+
+  it('授权一个**还不存在**的文件，照样把它所在目录整个放开', async () => {
+    // 这不是缺陷，是「另存为」必须的：目标文件此刻还没有。
+    // 记在这里是因为它决定了 issue #4 的破坏力 —— `grantFile` 只要被喂进
+    // 一个渲染进程编造的路径，连「那个文件得真的存在」这道天然限制都没有。
+    await writeFile(at('neighbour'), 'x', 'utf8')
+    await grantFile(at('does-not-exist.md'))
+
+    await expect(assertAllowed(at('neighbour'))).resolves.toContain('neighbour')
   })
 
   it('已授权目录里指向外面的符号链接挡得住 —— 校验的是解析之后的真实路径', async () => {
@@ -110,3 +120,46 @@ describe('列目录的许可', () => {
     }
   })
 })
+
+/**
+ * 谁有资格授权（issue #4 的回归）。
+ *
+ * 上面每一条都在验「校验」这一半。但 #4 暴露的是**另一半**：校验再严，只要
+ * 授权原语能被渲染进程间接触发，整堵墙就是纸的。当时有两处 `grantFile(target)`
+ * ——`window:create` 的 IPC 处理器里一处，`createWindow` 内部一处 —— 而
+ * `window:create` 的入参完全由渲染进程决定。喂一个 `~/.ssh/id_rsa` 进去，
+ * `~/.ssh` 整棵子树就进了白名单。
+ *
+ * 所以规则不是「小心点用」，而是**授权只能发生在 index.ts**：那里是进程入口，
+ * 对话框结果、命令行参数、`open-file` 事件、会话恢复都在它手上，每一处都能
+ * 当场判断路径到底是不是用户选的。别的模块拿不到这个上下文，就不该有这个能力。
+ *
+ * 这是一条静态规则，所以用静态方式验。行为测试在这里做不到 —— 要把 electron
+ * 的 `BrowserWindow`/`ipcMain` 全套搭起来，成本远超它能挡住的东西，
+ * 而且搭出来的假货未必和真环境同构。
+ */
+describe('授权原语的调用面', () => {
+  const MAIN = new URL('../src/main/', import.meta.url)
+
+  it('只有 index.ts 能调 grantFile / grantDirectory', async () => {
+    const files = (await readdir(MAIN)).filter((name) => name.endsWith('.ts'))
+    // path-guard.ts 是定义方，index.ts 是唯一的授权方
+    const exempt = new Set(['path-guard.ts', 'index.ts'])
+
+    const offenders: string[] = []
+    for (const name of files) {
+      if (exempt.has(name)) continue
+      const source = await readFile(new URL(name, MAIN), 'utf8')
+      // 去掉注释再找：这些文件里有好几段专门在讲「为什么这里不能授权」，
+      // 照着文本匹配会把解释当成犯案现场
+      if (/\bgrant(File|Directory)\s*\(/.test(stripComments(source))) offenders.push(name)
+    }
+
+    expect(offenders).toEqual([])
+  })
+})
+
+/** 粗略去掉行注释与块注释。够用即可 —— 这里只是给上面那条规则降噪。 */
+function stripComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
+}

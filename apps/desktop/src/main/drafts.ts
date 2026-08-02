@@ -120,7 +120,10 @@ export async function listDrafts(): Promise<Draft[]> {
         continue
       }
 
-      found.push({ id, text, ...meta })
+      // `baselineHash` 是后加的字段，旧版本写的草稿里没有这个键，而上面那个
+      // `as DraftMeta` 是不检查的断言 —— 归一一下，让吐出去的对象真的符合类型。
+      // （恢复那侧的默认参数也接得住 undefined，这里是让边界干净。）
+      found.push({ id, text, ...meta, baselineHash: meta.baselineHash ?? null })
     } catch {
       // 半截的草稿目录（写到一半崩了）：丢掉，别让它卡住整个恢复流程
       await rm(dir, { recursive: true, force: true }).catch(() => undefined)

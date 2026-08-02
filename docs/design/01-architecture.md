@@ -143,10 +143,45 @@ M1 实现的是单窗口单文档（`mainWindow` 是模块级单例）。多窗�
 - 一律 `invoke/handle`（请求-响应），事件推送单独用带前缀的 `send`。
 - **凡是会改变某个窗口状态的消息，都必须能确定是哪个窗口**（见 §4.1 第 2 条）。
 - **main 侧不信任 renderer 传来的任何路径**：每个文件操作都要经过
-  `assertInsideWorkspace(path)` —— 规范化、解析符号链接、再校验是否位于当前工作区
-  或用户显式选择过的文件白名单内。这是防「渲染进程被 XSS 后读走 `~/.ssh`」的关键一环。
+  `assertAllowed(path)`（读写）或 `assertAllowedDirectory(path)`（列目录）——
+  规范化、解析符号链接、再校验是否位于当前工作区或用户显式选择过的文件白名单内。
+  这是防「渲染进程被 XSS 后读走 `~/.ssh`」的关键一环。
 
-### 5.1 contextBridge 是**按值拷贝**的
+### 5.1 校验严不严不重要，**谁能授权**才重要
+
+上面那条只说了一半。`path-guard.ts` 里有两类函数：
+
+| | 函数 | 作用 |
+|---|---|---|
+| **校验** | `assertAllowed` / `assertAllowedDirectory` | 拒绝白名单外的路径 |
+| **授权** | `grantFile` / `grantDirectory` | 把路径**加进**白名单 |
+
+校验函数写得再严，只要授权函数能被渲染进程间接触发，整堵墙就是纸的 ——
+这正是 issue #4 的形态。`window:create` 的处理器里当时有一句
+`await grantFile(target)`，而 `target` 完全由渲染进程给。喂一个
+`~/.ssh/id_rsa` 进去，`~/.ssh` 整个目录就进了 `allowedDirs`，读写全开。
+放大它的两点：`grantFile` 会连**所在目录**一起授权（相对路径图片要用），
+而且**目标文件根本不需要存在**（`realpath` 失败被 catch 掉，dirname 照样入表），
+所以攻击方连「先猜中一个真实文件名」都不必。
+
+修的时候还发现同一条通道上有**两处**授权：IPC 处理器一处、`createWindow`
+内部一处。只删前者等于没修 —— 这也是为什么规矩要定成一条能机械检查的边界，
+而不是「小心点用」：
+
+> **`grantFile` / `grantDirectory` 只能在 `main/index.ts` 里调用。**
+
+理由是那里是进程入口，对话框结果、命令行参数、`open-file` 事件、会话恢复
+全在它手上，每一处都能当场判断路径究竟是不是用户选的。别的模块拿不到这个
+上下文，就不该有这个能力。`path-guard.test.ts` 里的「授权原语的调用面」
+按文件扫描把这条钉死了。
+
+同源的还有 issue #7：`dialog:save` 在授权用户选中的文件之后，顺手
+`grantDirectory(dirname(filePath))`。`grantDirectory` 写的是 `workspaceRoots`，
+而它是**递归**的 —— 于是「另存为到 ~/Documents」把整个 ~/Documents 的
+**目录枚举**权也交了出去。授权时要问的不只是「这个路径是不是用户选的」，
+还有「用户选它的时候，同意的是哪一种权限」。
+
+### 5.2 contextBridge 是**按值拷贝**的
 
 暴露出去之后再改 preload 这一侧的原对象，渲染进程**一无所知**。
 

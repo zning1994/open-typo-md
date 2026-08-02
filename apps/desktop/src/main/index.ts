@@ -291,8 +291,20 @@ function registerIpc(): void {
         ],
       })
       if (result.canceled || !result.filePath) return null
+      // 只授权这个文件，**不授权它所在的目录**。
+      //
+      // 原来这里还跟着一句 `grantDirectory(dirname(filePath))`，而
+      // `grantDirectory` 会把目录写进 `workspaceRoots`，`assertAllowedDirectory`
+      // 在其上是递归的 —— 于是「另存为到 ~/Documents」顺带把整个 ~/Documents
+      // 的**目录枚举**权交了出去。`dialog:open` 从来没这么做过，两者行为不一致。
+      //
+      // path-guard.ts §权限拆分 专门写了这两种权限不能合并，`path-guard.test.ts`
+      // 里还有一条测试叫「只打开过一个文件时，它所在的目录不能列」——
+      // 这一行破坏的正是那条不变量守着的东西。
+      //
+      // 实测去掉之后另存为的全部相关操作照常成功：fs:write、fs:save-attachment、
+      // 导出用的 fs:write-text 都只需要文件级授权。
       await grantFile(result.filePath)
-      await grantDirectory(path.dirname(result.filePath))
       return result.filePath
     },
   )
@@ -370,8 +382,28 @@ function registerIpc(): void {
 
   handle(CHANNELS.sessionClaim, async (sender) => (sender ? claimSession(sender) : null))
 
+  /**
+   * 在新窗口打开一个文件。
+   *
+   * **绝不在这里 `grantFile(target)`。** 那一行曾经在，是一个把整个路径白名单
+   * 架空的洞：`grantFile` 是**授权**原语不是校验原语，它无条件把文件加进白名单、
+   * 并把它**所在目录**加进 `allowedDirs`，而 `assertAllowed` 在目录上是递归放行的。
+   * 于是渲染进程只要调一次 `window.create('~/.ssh/id_rsa')`，就把 `~/.ssh` 整棵
+   * 子树交了出去 —— 读和写都放开，而且**目标文件根本不需要存在**
+   * （`realpath` 失败被 catch 掉，dirname 照样入表）。
+   *
+   * 删掉它不影响任何现有行为：唯一的调用方（renderer 的 openFileFlow）只在
+   * `dialog.openFile()` 返回之后才走到这儿，而 `dialog:open` 已经授权过那个路径，
+   * 授权又是进程全局的。
+   *
+   * 光删这一行还不够 —— `createWindow` 里也有一份同样的 `grantFile(openPath)`，
+   * 走的是同一条通道，删了这边不删那边等于没修。那一份也一并删了，
+   * 改成由**每个调用点**在确认路径来自用户之后自己授权。
+   *
+   * 校验交给下游：真正要读写时 `assertAllowed` 会拦，没授权就拒。
+   * 这一层的职责只是开窗口。
+   */
   handle(CHANNELS.windowCreate, async (_sender, target?: string) => {
-    if (target) await grantFile(target)
     await createWindow(target ? { openPath: target } : {})
   })
 
@@ -394,6 +426,10 @@ function registerIpc(): void {
  */
 async function openStartupWindows(startupPath: string | null): Promise<void> {
   if (startupPath) {
+    // 这条路径来自命令行参数或 macOS 的 `open-file` 事件 —— 是用户在
+    // 访达/终端里亲手指定的，等价于在对话框里选中它，所以在这里授权。
+    // （`createWindow` 自己不再授权，理由见 window-manager.ts 里 openPath 那段。）
+    await grantFile(startupPath)
     await createWindow({ openPath: startupPath })
     return
   }

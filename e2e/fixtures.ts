@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import {
   _electron as electron,
   test as base,
+  expect,
   type ElectronApplication,
   type Page,
 } from '@playwright/test'
@@ -155,6 +156,35 @@ export async function stubOpenDialog(app: ElectronApplication, paths: string[]):
   await app.evaluate(({ dialog }, filePaths) => {
     dialog.showOpenDialog = async () => ({ canceled: false, filePaths })
   }, paths)
+}
+
+/**
+ * 在新窗口里打开一个真实文件，返回那个窗口。
+ *
+ * **一定要走这条，不要在用例里 `window.mosu.window.create(path)`。**
+ * 那个 IPC 的入参完全由渲染进程决定，而修完 issue #4 之后它**不再授权**
+ * 自己拿到的路径 —— 于是新窗口开得出来，文件却读不进去。
+ *
+ * 用例当初能过，靠的正是那个洞：路径白名单里凡是渲染进程自己说了算的入口，
+ * 都是把整堵墙架空的入口。这里改走对话框，跟用户真实走的路一致，
+ * 授权发生在「用户选中文件」的那一刻。
+ */
+export async function openDocInNewWindow(
+  app: ElectronApplication,
+  page: Page,
+  target: string,
+): Promise<Page> {
+  const before = page.context().pages().length
+  await stubOpenDialog(app, [target])
+  await clickMenu(app, ['文件', '在新窗口打开…'])
+  await expect
+    .poll(() => page.context().pages().length, { timeout: 15_000 })
+    .toBeGreaterThan(before)
+
+  const created = page.context().pages().at(-1)
+  if (!created) throw new Error('新窗口没有出现')
+  await created.waitForSelector('.cm-content', { state: 'visible' })
+  return created
 }
 
 /** 点一个真实的原生菜单项，`labels` 是从顶层菜单往下的路径。 */

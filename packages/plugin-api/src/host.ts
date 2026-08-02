@@ -57,6 +57,15 @@ export interface WriteOptions {
    * 写入会以 `ConflictError` 失败而不是静默覆盖。传 null 表示新文件。
    */
   expectedHash: string | null
+  /**
+   * 「我以为这个文件已经不在了」。
+   *
+   * 文件被外部删除后基线被置为 null，而 null 会跳过冲突检测 —— 于是文件又
+   * 回来之后的第一次保存会静默盖掉新内容（`git checkout`、先删后建的同步
+   * 客户端都会造出这个时序）。带上这一位时，写入前会确认文件确实不存在；
+   * 已经回来了就抛 `ConflictError`，交给用户决定。
+   */
+  expectMissing?: boolean
 }
 
 export interface DirEntry {

@@ -269,7 +269,14 @@ export class DocumentController {
   private async writeTo(target: string, expectedHash: string | null): Promise<boolean> {
     const text = this.editor.getDoc()
     try {
-      const result = await this.host.fs.write(target, text, { meta: this.meta, expectedHash })
+      const result = await this.host.fs.write(target, text, {
+        meta: this.meta,
+        expectedHash,
+        // 基线为 null 有两种来路：真的是新文件，或者文件被外部删了
+        // （`handleExternalChange` 把基线清成了 null）。后者要多确认一次 ——
+        // 文件可能已经回来了，那时静默覆盖就是数据丢失
+        expectMissing: expectedHash === null && this.externallyDeleted,
+      })
       this.baselineHash = result.hash
       this.savedText = text
       // 写成功 == 文件此刻确实存在，「已删除」标记就该摘掉
@@ -388,12 +395,30 @@ export class DocumentController {
   /**
    * 把一份草稿装回编辑器（崩溃恢复，docs/design/04 §4）。
    *
-   * 有原文件的话**先读原文件建立基线**，再把草稿内容盖上去 —— 这样文档立刻
-   * 处于「已打开 + 脏」的状态，用户按一次 ⌘S 就落盘，且冲突检测照常生效。
-   * 直接把草稿当成文件内容装进去是错的：基线会等于草稿，
-   * 于是「磁盘上其实还是旧内容」这件事再也没人知道。
+   * 有原文件的话先读原文件，再把草稿内容盖上去 —— 这样文档立刻处于
+   * 「已打开 + 脏」的状态，用户按一次 ⌘S 就落盘。
+   *
+   * ## 基线必须用**草稿记下的那个**，不能用刚读到的磁盘 hash
+   *
+   * 这是一个静默数据丢失的洞。`openPath` 会把 `baselineHash` 设成**磁盘此刻**
+   * 的 hash；如果停机期间文件在别处变过（`git pull`、云盘同步、另一个编辑器），
+   * 那个新内容就成了基线，于是后续保存**跳过冲突检测直接覆盖**，一句提示都没有。
+   *
+   * 而完全相同的冲突在应用正常运行时是**会**弹框的 —— 差别只在中间有没有崩溃。
+   * 崩溃恢复恰恰是磁盘最可能已经变了的时刻（重启前顺手 `git pull` 很自然）。
+   *
+   * 草稿从一开始就**正确记录了**崩溃前的基线（`drafts.ts` 的 `DraftMeta`），
+   * 只是从来没人读过它 —— 写了，没读。现在把它透传进来。
+   *
+   * 传 null 表示这份草稿没有基线（未命名文档，或旧版本写的草稿）。
+   * 那时退回原来的行为：以磁盘为基线。**不能退化成「拒绝保存」** ——
+   * 用户的内容还在编辑器里，保住它比守住一次冲突检测重要。
    */
-  async restoreDraft(text: string, target: string | null): Promise<void> {
+  async restoreDraft(
+    text: string,
+    target: string | null,
+    baselineHash: string | null = null,
+  ): Promise<void> {
     if (target) {
       await this.openPath(target, { alreadyConfirmed: true })
       // 打不开（文件被删了）就退化成一份未命名文档，内容仍然保住
@@ -401,6 +426,15 @@ export class DocumentController {
         this.filePath = null
         this.baselineHash = null
         this.savedText = ''
+      } else if (baselineHash !== null) {
+        // 关键的一行：把基线拨回崩溃前那一刻。磁盘此刻若已不同，
+        // 下一次保存就会走到既有的冲突提示分支。
+        //
+        // 旧版本写的草稿里没有这个字段（`baselineHash` 是后加的，而
+        // `drafts.ts` 里那个 `as DraftMeta` 是不检查的断言），传进来是
+        // `undefined` —— 默认值 `= null` 正好接住它，落到下面的「无基线」
+        // 分支，退回原行为。
+        this.baselineHash = baselineHash
       }
     }
     this.editor.replaceDoc(text)

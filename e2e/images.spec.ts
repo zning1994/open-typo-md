@@ -12,7 +12,7 @@
 import { mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { docText, expect, resetDoc, test } from './fixtures.js'
+import { docText, expect, openDocInNewWindow, resetDoc, test } from './fixtures.js'
 import type { Page } from '@playwright/test'
 
 /** 1×1 的合法 PNG，base64。 */
@@ -43,25 +43,9 @@ async function pasteImage(page: Page, name: string, mime = 'image/png'): Promise
   )
 }
 
-/**
- * 在新窗口里打开一个真实文件，返回那个窗口。
- *
- * 必须走 `window.create(path)` 这条产品自己的路，而不是直接调 `fs.read`：
- * 附件要落在「当前文档旁边」，而渲染进程是否知道自己的路径，
- * 恰恰是由这条打开流程决定的。
- */
-async function openInNewWindow(page: Page, target: string): Promise<Page> {
-  const before = page.context().pages().length
-  await page.evaluate((path) => window.mosu.window.create(path), target)
-  await expect
-    .poll(() => page.context().pages().length, { timeout: 15_000 })
-    .toBeGreaterThan(before)
-
-  const created = page.context().pages().at(-1)
-  if (!created) throw new Error('新窗口没有出现')
-  await created.waitForSelector('.cm-content', { state: 'visible' })
-  return created
-}
+// 打开必须走 `openDocInNewWindow`（产品自己的对话框流程），不能直接调
+// `fs.read`：附件要落在「当前文档旁边」，而渲染进程是否知道自己的路径，
+// 恰恰是由这条打开流程决定的。
 
 let dir: string
 
@@ -83,10 +67,10 @@ test('未保存的文档粘贴图片：文档一个字都不动', async ({ page 
 })
 
 test.describe('保存过的文档', () => {
-  test('粘贴图片落进 assets/，文档里插入相对路径', async ({ page }) => {
+  test('粘贴图片落进 assets/，文档里插入相对路径', async ({ app, page }) => {
     const target = path.join(dir, 'doc.md')
     await writeFile(target, '正文\n', 'utf8')
-    const doc = await openInNewWindow(page, target)
+    const doc = await openDocInNewWindow(app, page, target)
 
     await doc.locator('.cm-content').click()
     await doc.keyboard.press('ControlOrMeta+End')
@@ -102,10 +86,10 @@ test.describe('保存过的文档', () => {
     await resetDoc(doc)
   })
 
-  test('截图粘贴不生成 alt，拖入的具名文件用文件名做 alt', async ({ page }) => {
+  test('截图粘贴不生成 alt，拖入的具名文件用文件名做 alt', async ({ app, page }) => {
     const target = path.join(dir, 'doc.md')
     await writeFile(target, '', 'utf8')
-    const doc = await openInNewWindow(page, target)
+    const doc = await openDocInNewWindow(app, page, target)
 
     await doc.locator('.cm-content').click()
     // Chromium 给截图合成的文件名恒为 image.png，拿它当 alt 是纯噪声
@@ -119,10 +103,10 @@ test.describe('保存过的文档', () => {
     await resetDoc(doc)
   })
 
-  test('同一张图粘两次只落一个文件（内容哈希去重）', async ({ page }) => {
+  test('同一张图粘两次只落一个文件（内容哈希去重）', async ({ app, page }) => {
     const target = path.join(dir, 'doc.md')
     await writeFile(target, '', 'utf8')
-    const doc = await openInNewWindow(page, target)
+    const doc = await openDocInNewWindow(app, page, target)
 
     await doc.locator('.cm-content').click()
     await pasteImage(doc, 'a.png')
@@ -137,10 +121,10 @@ test.describe('保存过的文档', () => {
     await resetDoc(doc)
   })
 
-  test('非图片类型不接管粘贴', async ({ page }) => {
+  test('非图片类型不接管粘贴', async ({ app, page }) => {
     const target = path.join(dir, 'doc.md')
     await writeFile(target, '', 'utf8')
-    const doc = await openInNewWindow(page, target)
+    const doc = await openDocInNewWindow(app, page, target)
 
     await doc.locator('.cm-content').click()
     await pasteImage(doc, 'evil.sh', 'application/x-sh')

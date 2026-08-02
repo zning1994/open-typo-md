@@ -308,12 +308,33 @@ describe('外部修改（docs/design/04 §3）', () => {
 
   it('被删除之后保存会重新创建文件', async () => {
     await openSeeded('原内容')
+    // 真的把它删掉 —— 之前这里只改控制器状态、文件还在 host 里，
+    // 于是这条用例实际上在断言「静默覆盖一个仍然存在的文件」是对的
+    host.externalDelete('/a.md')
     await controller.handleExternalChange(null, true)
     editor.type('补充')
 
     expect(await controller.save()).toBe(true)
     expect(host.peek('/a.md')).toBe('原内容补充')
     expect(controller.state().deleted).toBe(false)
+  })
+
+  it('被删除之后**又被重新创建**：保存要弹冲突，不能静默盖掉', async () => {
+    // 报告里的时序：git checkout 先删后建、云盘同步、从废纸篓恢复。
+    // 删除会把基线置为 null，而 null 一直是「新文件，跳过冲突检测」的意思 ——
+    // 于是回来的新内容会被陈旧的缓冲区无声抹掉
+    await openSeeded('原内容')
+    host.externalDelete('/a.md')
+    await controller.handleExternalChange(null, true)
+    editor.type('我崩溃前敲的')
+
+    // 别人把文件放回来了，内容跟我这边完全不同
+    host.seed('/a.md', '别人重新创建的内容')
+
+    host.answerConfirmWith(2) // 取消
+    expect(await controller.save()).toBe(false)
+    expect(host.dialogLog.some((e) => e.includes(en['doc.conflict.title']))).toBe(true)
+    expect(host.peek('/a.md')).toBe('别人重新创建的内容')
   })
 
   it('未命名文档收到事件时不理会', async () => {
@@ -403,6 +424,38 @@ describe('草稿与监听（docs/design/04 §4）', () => {
     expect(editor.getDoc()).toBe('崩溃前没保存的内容')
     expect(ctrl.isDirty()).toBe(true) // 相对磁盘是脏的，⌘S 一下就落盘
     expect(host.peek('/a.md')).toBe('磁盘上的旧内容') // 磁盘还没动
+  })
+
+  it('崩溃期间磁盘变过：恢复后保存要弹冲突，不能静默覆盖', async () => {
+    // 这是报告里那条数据丢失路径。草稿**一直正确记录着**崩溃前的基线
+    // （drafts.ts 的 DraftMeta），只是从来没人读过它 —— 写了，没读。
+    //
+    // 不透传的话 restoreDraft 会用 openPath 重新算基线 = 磁盘此刻的内容，
+    // 于是「别人改过」这件事再也没人知道，下一次保存直接盖掉。
+    const { controller: ctrl } = withEffects()
+    host.seed('/a.md', '崩溃前的内容 A')
+    const baselineAtCrash = (await host.fs.read('/a.md')).hash
+
+    // 停机期间别人改了它（git pull / 云盘同步）
+    host.externalEdit('/a.md', '同事拉下来的新内容 B')
+
+    await ctrl.restoreDraft('我崩溃前敲的东西', '/a.md', baselineAtCrash)
+
+    host.answerConfirmWith(2) // 取消
+    expect(await ctrl.save()).toBe(false)
+    expect(host.dialogLog.some((e) => e.includes(en['doc.conflict.title']))).toBe(true)
+    expect(host.peek('/a.md')).toBe('同事拉下来的新内容 B') // B 保住了
+  })
+
+  it('草稿没有基线（未命名 / 旧版本写的）时退回原行为，绝不因此拒绝保存', async () => {
+    // 保住用户的内容比守住一次冲突检测重要
+    const { controller: ctrl } = withEffects()
+    host.seed('/a.md', '磁盘内容')
+
+    await ctrl.restoreDraft('草稿内容', '/a.md', null)
+
+    expect(await ctrl.save()).toBe(true)
+    expect(host.peek('/a.md')).toBe('草稿内容')
   })
 
   it('原文件已经没了，草稿退化成未命名文档但内容保住', async () => {
