@@ -91,6 +91,12 @@ win:
     - target: portable
       arch: [x64]
 
+# 便携版与安装版**都是 .exe**，套同一个全局 artifactName 会解析成同一个文件名，
+# 后打的覆盖先打的。给便携版单独一个命名模板 —— 这个冲突只在 release 的全量
+# 矩阵里才出现（CI 只打 nsis），所以它一直藏着
+portable:
+  artifactName: BrainforgeTypo-${version}-${arch}-portable.${ext}
+
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true

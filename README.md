@@ -22,6 +22,21 @@
 同类体验的商业产品是 [Typora](https://typora.io/)。本项目是一个**独立实现**：
 不复用其代码、资源或界面素材，只借鉴「无缝实时预览」这一交互范式。
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/public/shots/hero-dark.png">
+  <img src="docs/public/shots/hero-light.png" alt="Brainforge Typo 编辑一篇带表格、任务列表与数学公式的文档">
+</picture>
+
+上面这张图是**脚本跑真应用拍的**（`pnpm screenshots`），不是设计稿 ——
+表格的列宽、公式的排版都是产品自己算出来的。界面改了重跑一条命令就能更新，
+所以它不会像手工截图那样悄悄过期。
+
+**光标进入，标记才现身** —— 这是它跟「左边源码 / 右边预览」最本质的区别：
+
+| 光标不在里面 | 光标进去 |
+| --- | --- |
+| ![只有排版](docs/public/shots/reveal-before.png) | ![星号就地现身](docs/public/shots/reveal-after.png) |
+
 ## 核心设计取向
 
 | 取向              | 说明                                                                    |

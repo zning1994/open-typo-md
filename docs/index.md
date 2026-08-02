@@ -27,6 +27,49 @@ features:
     details: 编辑器内核是纯 Web 库，不 import 任何 Node/Electron API，宿主能力全部靠注入。浏览器或别的壳都能复用。
 ---
 
+<style>
+/* 站点的深浅色是靠 <html class="dark"> 切的，不是 prefers-color-scheme，
+   所以两张图各挂一个类，由 CSS 决定谁露面。 */
+.shot { border-radius: 10px; border: 1px solid var(--vp-c-divider); overflow: hidden; }
+.shot img { display: block; width: 100%; }
+.shot-dark { display: none; }
+.dark .shot-light { display: none; }
+.dark .shot-dark { display: block; }
+.shot-pair { display: grid; gap: 16px; margin: 24px 0; }
+@media (min-width: 768px) { .shot-pair { grid-template-columns: 1fr 1fr; } }
+.shot-caption { margin-top: 8px; font-size: 13px; color: var(--vp-c-text-2); }
+</style>
+
+<div class="shot shot-light"><img src="/shots/hero-light.png" alt="Brainforge Typo 编辑一篇带表格、任务列表与数学公式的文档" /></div>
+<div class="shot shot-dark"><img src="/shots/hero-dark.png" alt="Brainforge Typo 的深色主题" /></div>
+
+<p class="shot-caption">图是脚本跑真应用拍的（<code>pnpm screenshots</code>），不是设计稿 ——
+表格的列宽、公式的排版、下面那张流程图，都是产品自己算出来的。</p>
+
+## 光标进入，标记才现身
+
+这是整个交互的核心，也是它跟「左边源码 / 右边预览」最本质的区别：
+平时你看到的是排好版的文字，光标走进去，那一处的 Markdown 标记就地显形供你编辑。
+**没有模式切换，没有第二个窗格。**
+
+<div class="shot-pair">
+  <div>
+    <div class="shot"><img src="/shots/reveal-before.png" alt="光标不在段落里时，加粗文字只显示排版效果" /></div>
+    <p class="shot-caption">光标不在里面 —— 只有排版</p>
+  </div>
+  <div>
+    <div class="shot"><img src="/shots/reveal-after.png" alt="光标进入后，加粗的两侧显形出星号标记" /></div>
+    <p class="shot-caption">光标进去 —— <code>**</code> 就地现身</p>
+  </div>
+</div>
+
+## 代码、公式、图表都在同一个编辑区里
+
+代码块按语言高亮且不跟随散文折行；公式走 KaTeX；` ```mermaid ` 围栏直接出图。
+全部懒加载 —— 不用这些功能的文档不会为它们付出启动成本。
+
+<div class="shot"><img src="/shots/blocks-light.png" alt="代码块按 TypeScript 高亮，下方是一张 mermaid 流程图" /></div>
+
 ## 现在是什么状态
 
 **能用了，但还没有正式发布。** 版本 0.1.0，M4.5 那一档刚做完：
