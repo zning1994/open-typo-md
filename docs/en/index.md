@@ -11,10 +11,10 @@ hero:
   actions:
     - theme: brand
       text: "GitHub"
-      link: https://github.com/zning1994/open-typo-md
+      link: https://github.com/zning1994/mosu
     - theme: alt
       text: "Download"
-      link: https://github.com/zning1994/open-typo-md/releases
+      link: https://github.com/zning1994/mosu/releases
     - theme: alt
       text: "Design docs (Chinese)"
       link: /design/00-overview
@@ -86,7 +86,7 @@ was cut and why. That list is part of the project, not an embarrassment to hide.
 
 There is no tagged release yet, but every push to `main` produces installers for all three
 platforms under
-[Actions](https://github.com/zning1994/open-typo-md/actions).
+[Actions](https://github.com/zning1994/mosu/actions).
 
 ⚠️ **Those builds are unsigned.** macOS will refuse them on first launch (right-click → Open, or
 allow them under System Settings → Privacy & Security) and Windows SmartScreen will warn. This is

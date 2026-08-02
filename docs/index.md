@@ -14,7 +14,7 @@ hero:
       link: /design/00-overview
     - theme: alt
       text: "GitHub"
-      link: https://github.com/zning1994/open-typo-md
+      link: https://github.com/zning1994/mosu
     - theme: alt
       text: "路线图"
       link: /design/08-roadmap
@@ -79,7 +79,7 @@ Markdown、表格编辑、文件树、多标签页、会话恢复、设置面板
 ## 想先试试
 
 还没有打过正式的 release，但每次推到 `main` 都会在
-[Actions](https://github.com/zning1994/open-typo-md/actions) 里产出三个平台的包。
+[Actions](https://github.com/zning1994/mosu/actions) 里产出三个平台的包。
 
 ⚠️ **这些包都没有签名。** macOS 上首次打开会被 Gatekeeper 拦下（需要右键 → 打开，
 或去「系统设置 → 隐私与安全性」放行），Windows 上会被 SmartScreen 提示。

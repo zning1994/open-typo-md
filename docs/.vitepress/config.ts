@@ -20,14 +20,14 @@
  */
 import { defineConfig, type DefaultTheme, type LocaleConfig } from 'vitepress'
 
-const REPO = 'open-typo-md'
+const REPO = 'mosu'
 const GITHUB = `https://github.com/zning1994/${REPO}`
 
 /**
  * 站点域名。**必须跟 `docs/public/CNAME` 里那一行一致。**
  *
  * 用自定义域名时站点挂在域名根下，所以 `base` 是 `/`；如果哪天退回
- * `<user>.github.io/<repo>/`，`base` 要改成 `/open-typo-md/`，否则所有
+ * `<user>.github.io/<repo>/`，`base` 要改成 `/mosu/`，否则所有
  * 资源都会 404 —— 而那个失败的样子是「页面出来了但一片空白」，
  * 不容易一眼看出是 base 的问题。
  */

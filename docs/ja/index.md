@@ -11,10 +11,10 @@ hero:
   actions:
     - theme: brand
       text: "GitHub"
-      link: https://github.com/zning1994/open-typo-md
+      link: https://github.com/zning1994/mosu
     - theme: alt
       text: "ダウンロード"
-      link: https://github.com/zning1994/open-typo-md/releases
+      link: https://github.com/zning1994/mosu/releases
     - theme: alt
       text: "設計ドキュメント（中国語）"
       link: /design/00-overview
@@ -85,7 +85,7 @@ GFM（表・タスクリスト・打ち消し線・脚注）、数式、Mermaid 
 
 タグ付きリリースはまだありませんが、`main` へのプッシュごとに 3 プラットフォーム分の
 インストーラが
-[Actions](https://github.com/zning1994/open-typo-md/actions) に生成されます。
+[Actions](https://github.com/zning1994/mosu/actions) に生成されます。
 
 ⚠️ **これらのビルドは署名されていません。** macOS は初回起動を拒否します（右クリック →
 「開く」、または「システム設定 → プライバシーとセキュリティ」から許可）。Windows では

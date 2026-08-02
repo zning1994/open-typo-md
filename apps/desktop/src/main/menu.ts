@@ -189,7 +189,7 @@ export function buildMenu(
       submenu: [
         {
           label: t('menu.help.homepage'),
-          click: () => void shell.openExternal('https://github.com/zning1994/open-typo-md'),
+          click: () => void shell.openExternal('https://github.com/zning1994/mosu'),
         },
       ],
     },

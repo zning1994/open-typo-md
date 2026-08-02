@@ -13,7 +13,8 @@
 > 其中三条是**缩范围 / 换做法**的版本，各自明确没做的部分都写在路线图里。
 > 下一步是插件系统（M5）—— 见[路线图](docs/design/08-roadmap.md)。
 >
-> 仓库名 `open-typo-md` 与内部包名 `@mosu/*` 保持不变，它们不是用户可见的部分。
+> 仓库名与内部包名 `@mosu/*` 都已统一到 Mosu。旧地址 `open-typo-md` 由 GitHub 永久重定向，
+> 已有的 clone 不用改 remote。
 
 ---
 
@@ -135,7 +136,7 @@ Linux 上跑端到端测试需要一个显示环境：`xvfb-run -a pnpm test:e2e
 
 ## 试用 CI 构建的安装包
 
-每次推到 `main`，[Actions](https://github.com/zning1994/open-typo-md/actions) 里会产出三个平台的安装包。
+每次推到 `main`，[Actions](https://github.com/zning1994/mosu/actions) 里会产出三个平台的安装包。
 注意页面上显示的 `mosu-macos-arm64-dmg` 这类名字是**产物包**的名称，不是文件名 ——
 GitHub 一律把产物打成 zip，解开之后才是 `Mosu-0.1.0-arm64.dmg`。
 

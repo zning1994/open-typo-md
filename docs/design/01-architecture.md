@@ -28,7 +28,7 @@
 pnpm workspace + TypeScript project references，单仓多包。
 
 ```
-open-typo-md/
+mosu/
 ├── apps/
 │   ├── desktop/            # Electron：main / preload / renderer 入口
 │   │   ├── src/main/       #   窗口、菜单、IPC 处理、文件服务

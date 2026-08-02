@@ -14,8 +14,8 @@ An open-source WYSIWYG Markdown editor — no split pane, no preview pane. What 
 > version; exactly what was cut is written down in the roadmap.
 > Next up is the plugin system (M5).
 >
-> The repository name `open-typo-md` and the internal package scope `@mosu/*` are unchanged —
-> they are not user-facing.
+> The repository name and the internal package scope `@mosu/*` now both say Mosu.
+> The old `open-typo-md` URL redirects permanently, so existing clones need no remote change.
 
 ---
 
@@ -135,7 +135,7 @@ Every rough edge is written down at the end of each milestone in the roadmap, un
 ## Trying the CI builds
 
 Every push to `main` produces installers for all three platforms under
-[Actions](https://github.com/zning1994/open-typo-md/actions). Note that the names shown there
+[Actions](https://github.com/zning1994/mosu/actions). Note that the names shown there
 (`mosu-macos-arm64-dmg` and the like) are **artifact bundle** names, not file names — GitHub
 always zips artifacts, so unpack first.
 
