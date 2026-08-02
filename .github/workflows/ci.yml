@@ -23,21 +23,34 @@ env:
 #
 # ## action 的版本别往回退
 #
-# 每次运行会报八条 Node 20 弃用警告，来源是 action **自己**在 `action.yml` 里
-# 声明的 `runs.using` —— 只能靠升到声明了 node24 的版本来消掉，改我们这边的
-# `node-version` 没有用（那管的是 `run:` 步骤）。
+# Node 20 的弃用警告来自 action **自己**在 `action.yml` 里声明的 `runs.using`，
+# 只能靠升到声明了 node24 的版本来消掉 —— 改我们这边的 `node-version` 没有用，
+# 那管的是 `run:` 步骤。
 #
-# 各自的第一个 node24 版本是查出来的，不是猜的（`git clone --depth 1 --branch
-# <tag>` 之后读 action.yml 的 `runs.using`）：
+# 全仓在用的 action 逐个查过（`git clone --depth 1 --branch <tag>` 之后读
+# `action.yml` 的 `runs.using`），不是按版本号猜的：
 #
-# | action | 首个 node24 版本 |
-# | --- | --- |
-# | `pnpm/action-setup` | v5 |
-# | `actions/upload-artifact` | **v6** |
-# | `actions/deploy-pages` | v5 |
+# | action | 我们用的 | `using` | 首个 node24 版本 |
+# | --- | --- | --- | --- |
+# | `actions/checkout` | v5 | node24 | v5 |
+# | `actions/setup-node` | v5 | node24 | v5 |
+# | `actions/upload-artifact` | v7 | node24 | **v6** |
+# | `pnpm/action-setup` | v6 | node24 | v5 |
+# | `actions/configure-pages` | v6 | node24 | v6 |
+# | `actions/deploy-pages` | v5 | node24 | v5 |
+# | `actions/upload-pages-artifact` | v5 | composite | — |
 #
-# 中间那条是这里唯一反直觉的地方：**`upload-artifact@v5` 仍然是 node20**，
-# 顺手升一个大版本修不掉这个警告。
+# 两条踩过的坑，都不是看版本号能看出来的：
+#
+# 1. **`upload-artifact@v5` 仍然是 node20。** 顺手升一个大版本修不掉这个警告。
+# 2. **`upload-pages-artifact` 是 composite**，它自己不声明运行时；Pages 那条
+#    警告其实来自它**内部**调的 `upload-artifact`（v3 内部是 v4，v5 内部是 v7）。
+#
+# 还有一条踩坑的方式：这些警告会**互相遮蔽** —— 同一个 job 里报的是一份合并的
+# 清单，修掉两条之后第三条才冒出来。所以要一次把全仓扫完，别只修报出来的那几个。
+#
+# `checkout` 与 `setup-node` 停在 v5（各自最新是 v7）：它们在 v5 上已经是
+# node24，没有警告要消，为了追新而升只是白白引入变更面。
 #
 # `pnpm/action-setup` 从 v4 升到 v6 对我们是零风险：入参集合没变，
 # 而我们一个入参都没传 —— 版本由 package.json 的 `packageManager` 决定。

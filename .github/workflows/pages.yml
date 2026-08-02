@@ -56,7 +56,7 @@ jobs:
       # 就不必在 README 里写一条「记得先去 Settings 里点一下」的仪式。
       #
       # 需要 `permissions: pages: write`，上面已经给了。
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
         with:
           enablement: true
 
