@@ -64,6 +64,38 @@ describe('读文件的许可', () => {
     await expect(assertAllowed(at('neighbour'))).resolves.toContain('neighbour')
   })
 
+  it('通过符号链接目录授权一个**还不存在**的文件，之后写它和它的邻居都放行', async () => {
+    // macOS 上 `/var` 指向 `/private/var`，而临时目录全在它下面 —— 这条用例
+    // 就是那个形状。「另存为」的目标此刻还不存在，于是 `realpath(文件)` 会抛；
+    // 如果因此连**父目录的真实路径**也不登记，后续写入会被自己的墙拦下。
+    //
+    // 这不是假想：修 issue #7 删掉 `dialog:save` 里那句 grantDirectory 之后，
+    // macOS 与 Windows 的 PDF 导出用例当场红了，而 Linux 全绿（/tmp 不是链接）。
+    const real = await mkdtemp(path.join(tmpdir(), 'mosu-real-'))
+    const link = path.join(root, 'via-link')
+    try {
+      await symlink(real, link, 'dir')
+      // 用户在对话框里选的是**链接下面**的一个还不存在的文件
+      await grantFile(path.join(link, 'new.pdf'))
+
+      // 用链接路径写它自己
+      await expect(assertAllowed(path.join(link, 'new.pdf'))).resolves.toContain('new.pdf')
+      // 用真实路径写它自己 —— 校验解析之后拿到的正是这个
+      await expect(assertAllowed(path.join(real, 'new.pdf'))).resolves.toContain('new.pdf')
+      // 同目录的邻居（导出会连着写好几个文件）
+      await expect(assertAllowed(path.join(real, 'other.pdf'))).resolves.toContain('other.pdf')
+    } finally {
+      await rm(real, { recursive: true, force: true }).catch(() => undefined)
+    }
+  })
+
+  it('但目录**枚举**权仍然不给 —— issue #7 守的是这条', async () => {
+    // 上一条放开的是「写这个目录里的文件」，不是「看这个目录里有什么」。
+    // 两者混在一起正是 issue #7：另存为到 ~/Documents 顺带交出了整个目录清单
+    await grantFile(at('saved.md'))
+    await expect(assertAllowedDirectory(root)).rejects.toThrow('未获授权')
+  })
+
   it('已授权目录里指向外面的符号链接挡得住 —— 校验的是解析之后的真实路径', async () => {
     const outside = await mkdtemp(path.join(tmpdir(), 'mosu-outside-'))
     try {

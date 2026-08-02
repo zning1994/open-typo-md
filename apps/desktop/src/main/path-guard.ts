@@ -32,12 +32,28 @@ function normalize(target: string): string {
   return path.resolve(target)
 }
 
-/** 把某个文件及其所在目录加入白名单。用户通过对话框选择文件时调用。 */
+/**
+ * 把某个文件及其所在目录加入白名单。用户通过对话框选择文件时调用。
+ *
+ * **授权与校验必须用同一套路径解析。** `assertAllowed` 对一个还不存在的文件
+ * 走的是「解析它父目录的真实路径，再拼上文件名」，所以这里也必须把**父目录的
+ * 真实路径**登记进去 —— 只登记用户看到的那个路径是不够的。
+ *
+ * 差别在有符号链接的平台上立刻现形：macOS 的 `/var` 指向 `/private/var`，
+ * 临时目录全在它下面。「另存为」的目标文件此刻还不存在，于是下面 `realpath(abs)`
+ * 进 catch，`/private/var/...` 一次都没被登记 —— 后续任何写入都被自己的墙拦下。
+ *
+ * 这条曾经被 `dialog:save` 里那句 `grantDirectory(dirname)` 顺带兜住了
+ * （`grantDirectory` 会 realpath 目录）。修 issue #7 时把那句删掉是对的 ——
+ * 它同时交出了**目录枚举**权 —— 但它身上还挂着这件正事，删了就露出来了。
+ * 表现是 macOS / Windows 的 PDF 导出用例红了，而 Linux 全绿（`/tmp` 不是链接）。
+ */
 export async function grantFile(target: string): Promise<void> {
   const abs = normalize(target)
   allowedFiles.add(abs)
   allowedDirs.add(path.dirname(abs))
-  // 符号链接指向别处时，真实路径也要授权，否则后续校验会拒绝自己刚开的文件
+
+  // 文件自己的真实路径：它存在时才解析得出来（符号链接可能指向别的目录）
   try {
     const real = await realpath(abs)
     if (real !== abs) {
@@ -45,7 +61,17 @@ export async function grantFile(target: string): Promise<void> {
       allowedDirs.add(path.dirname(real))
     }
   } catch {
-    // 文件还不存在（另存为的目标），此时只授权目录即可
+    // 文件还不存在（另存为的目标）—— 下面那段仍然要跑
+  }
+
+  // 父目录的真实路径。**这一段不能放进上面的 catch 里**：即便文件存在，
+  // 它自身不是符号链接而**父目录是**的情况照样要覆盖（macOS 的 /var 就是）。
+  try {
+    const realDir = await realpath(path.dirname(abs))
+    allowedDirs.add(realDir)
+    allowedFiles.add(path.join(realDir, path.basename(abs)))
+  } catch {
+    // 目录也不存在：没什么可授权的，校验那一侧自然会拒绝
   }
 }
 
