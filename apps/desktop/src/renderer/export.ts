@@ -194,8 +194,13 @@ export async function exportPdfHtml(context: ExportContext): Promise<string> {
  * 生成「复制为富文本」用的片段。
  *
  * 只要片段，不要外壳：往剪贴板写整份带 `<head>` 的文档，
- * 粘进 Word 会多出一堆空行。样式靠内联 —— 目标应用不会带上我们的 CSS。
+ * 粘进 Word 会多出一堆空行。
+ *
+ * `forFragment` 就是「目标应用不会带上我们的 CSS」这句话的实现（issue #14）——
+ * 在它之前这里只是原样返回，注释写着「样式靠内联」而没有任何东西在内联。
+ * 后果不只是丢样式：KaTeX 的三份并行表示全都露了出来，
+ * 一个 `$E = mc^2$` 粘出去是 `E=mc2E = mc^2E=mc2`。
  */
 export async function exportHtmlFragment(context: ExportContext): Promise<string> {
-  return markdownToHtmlFragment(context.markdown, hooksFor(context))
+  return markdownToHtmlFragment(context.markdown, { ...hooksFor(context), forFragment: true })
 }

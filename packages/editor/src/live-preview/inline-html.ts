@@ -15,7 +15,7 @@
  * 1. **一个字节的 HTML 都不进 DOM。** 没有 `innerHTML`，没有 `insertAdjacentHTML`，
  *    没有 `DOMParser`。渲染效果全部由 CodeMirror 的 mark 装饰 + CSS 类名达成 ——
  *    也就是说，我们从头到尾只往 DOM 里写**类名**，那是个封闭集合。
- * 2. **标签集合是封闭的**，见 `RENDERABLE`：只有纯排版语义、不带任何行为的那几个。
+ * 2. **标签集合是封闭的**（`RENDERABLE_HTML_TAGS`）：只有纯排版语义、不带任何行为的那几个。
  * 3. **带属性的标签一律不认**。`<b>` 渲染，`<b class="x">` 原样显示。
  *    属性是绝大多数注入面的载体（`on*`、`style`、`href`、`src`），
  *    而这几个标签的属性对排版毫无用处 —— 不解析属性，就没有属性可以被利用。
@@ -30,44 +30,16 @@
  * `<div>…</div>` 那种整块的 HTML 仍然原样显示。块级 HTML 的意义几乎全在
  * 属性和布局上（表格、iframe、带样式的容器），照上面第 3 条根本渲染不出
  * 有价值的东西，而放开属性又正好踩回那条安全路径。
+ *
+ * ## 白名单本身不在这个文件里
+ *
+ * 它在 `@mosu/markdown` 的 inline-html.ts —— 因为**导出**那一侧要用同一份。
+ * 各写一份的后果就是 issue #1：编辑器里 `H<sub>2</sub>O` 显示成 H₂O，
+ * 导出之后变成 H2O，内容的意思变了。
  */
 import type { EditorState } from '@codemirror/state'
 import type { SyntaxNode } from '@lezer/common'
-import { INLINE_NODES } from '@mosu/markdown'
-
-/**
- * 会被渲染的标签，以及它们对应的类名后缀。
- *
- * 入选标准只有一条：**纯排版语义、没有行为、不需要属性也有意义**。
- * 按这条标准落选的例子：`<a>`（离了 href 没意义）、`<img>`（同上）、
- * `<span>`（离了 class/style 没意义）、`<code>`（Markdown 有 `` ` ``，
- * 两套写法渲染成同一个样子只会让人分不清源码里到底是哪个）。
- */
-const RENDERABLE = new Map<string, string>([
-  ['b', 'b'],
-  ['strong', 'strong'],
-  ['i', 'i'],
-  ['em', 'em'],
-  ['u', 'u'],
-  ['s', 's'],
-  ['del', 's'],
-  ['ins', 'u'],
-  ['sub', 'sub'],
-  ['sup', 'sup'],
-  ['kbd', 'kbd'],
-  ['mark', 'mark'],
-])
-
-/** 空元素：没有闭合标签，自己就是全部。目前只有 `<br>`。 */
-const VOID_TAGS = new Set(['br'])
-
-/**
- * 标签的字面写法。
- *
- * 刻意**不允许属性**，也不允许标签名与 `>` 之间出现除了自闭合斜杠以外的东西 ——
- * 正则从 `^` 锚到 `$`，`<b class="x">` 直接匹配失败，于是走「认不出来」那条路。
- */
-const TAG = /^<(\/?)([a-zA-Z][a-zA-Z\d]*)\s*(\/?)>$/
+import { INLINE_NODES, parseInlineHtmlTag } from '@mosu/markdown'
 
 export type TagKind = 'open' | 'close' | 'void'
 
@@ -76,35 +48,21 @@ export interface HtmlTag {
   to: number
   /** 小写化的标签名。 */
   name: string
-  /** 类名后缀，来自 `RENDERABLE`。 */
+  /** 类名后缀，来自 `RENDERABLE_HTML_TAGS`。 */
   cls: string
   kind: TagKind
 }
 
 /**
- * 解析单个标签。认不出来（有属性、不在白名单、自闭合了一个非空元素）返回 null。
+ * 解析单个标签，把结果配上文档位置。
+ *
+ * 认不出来（有属性、不在白名单、自闭合了一个非空元素）返回 null ——
+ * 判定规则在 `@mosu/markdown`，跟导出那一侧共用同一份。
  */
 export function parseHtmlTag(source: string, from: number, to: number): HtmlTag | null {
-  const match = TAG.exec(source)
-  if (!match) return null
-
-  const closing = match[1] === '/'
-  const name = (match[2] ?? '').toLowerCase()
-  const selfClosing = match[3] === '/'
-
-  const cls = RENDERABLE.get(name)
-  const isVoid = VOID_TAGS.has(name)
-  if (cls === undefined && !isVoid) return null
-
-  if (isVoid) {
-    // `</br>` 不是合法写法，不认
-    if (closing) return null
-    return { from, to, name, cls: name, kind: 'void' }
-  }
-  // `<b/>` 这种把非空元素自闭合的写法，浏览器的处理各不相同，我们不猜
-  if (selfClosing) return null
-
-  return { from, to, name, cls: cls as string, kind: closing ? 'close' : 'open' }
+  const tag = parseInlineHtmlTag(source)
+  if (!tag) return null
+  return { from, to, name: tag.name, cls: tag.as, kind: tag.kind }
 }
 
 export interface HtmlPair {

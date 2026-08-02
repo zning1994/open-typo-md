@@ -11,7 +11,14 @@
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { clickMenu, expect, openDocInNewWindow, resetDoc, test } from './fixtures.js'
+import {
+  clickMenu,
+  expect,
+  openDocInNewWindow,
+  resetDoc,
+  test,
+  visibleText,
+} from './fixtures.js'
 import type { ElectronApplication } from '@playwright/test'
 
 let dir: string
@@ -116,8 +123,13 @@ test('文档里的 script 不会被带进导出产物', async ({ app, page }) =>
   await resetDoc(page, '正文\n\n<script>alert(1)</script>')
   const html = await exportTo(app, path.join(dir, 'safe.html'))
 
-  expect(html).not.toContain('alert(1)')
-  expect(html).not.toContain('<script>alert')
+  // 判据是「没有活的 script 元素」，不是「字符串里没有 alert 这几个字母」。
+  // 修 issue #1 之前白名单外的 HTML 是被整段删掉的，于是
+  // `not.toContain('alert(1)')` 恰好通过 —— 但它通过的理由是「内容丢了」。
+  // 现在这段按字面显示，那几个字母当然还在，那正是用户写下的东西。
+  expect(html).not.toMatch(/<script/i)
+  // 而且它没丢：收件人看得见这里本来写了什么（原则 P2）
+  expect(html).toContain('alert(1)')
 })
 
 test('复制为富文本：HTML 与纯文本都写进剪贴板', async ({ app, page }) => {
@@ -131,4 +143,39 @@ test('复制为富文本：HTML 与纯文本都写进剪贴板', async ({ app, p
   // 纯文本兜底：目标应用不支持富文本时才有东西可粘
   const text = await app.evaluate(({ clipboard }) => clipboard.readText())
   expect(text).toContain('**粗体**')
+})
+
+/**
+ * 编辑器与导出对同一段行内 HTML 给出同一个答案（issue #1）。
+ *
+ * 这一条只能在这里验：它要同时问「屏幕上是什么」和「文件里是什么」，
+ * 而这两个问题分别属于两个包。单测各自都绿过 —— 绿的是各自的规则，
+ * 不是**两者一致**。用户报的正是这条不一致：
+ * 编辑器里 `H<sub>2</sub>O` 是 H₂O，导出之后成了 H2O。
+ */
+test('编辑器渲染成什么，导出就是什么', async ({ app, page }) => {
+  // 末尾留一段纯文本：光标停在行尾，而标签**被光标碰到时会露出源码**
+  // （见 inline-html.spec 的「光标进去露出标签」）。不留的话量到的是源码态，
+  // 断言就变成在验一件跟本条无关的事
+  await resetDoc(page, '水是 H<sub>2</sub>O，按 <kbd>Esc</kbd> 退出，<b>粗</b> 完')
+
+  // 屏幕上：标签不见了，只剩排版效果
+  expect(await visibleText(page)).toContain('水是 H2O，按 Esc 退出，粗 完')
+
+  const html = await exportTo(app, path.join(dir, 'parity.html'))
+  expect(html).toContain('H<sub>2</sub>O')
+  expect(html).toContain('<kbd>Esc</kbd>')
+  expect(html).toContain('<b>粗</b>')
+})
+
+test('编辑器按字面显示的，导出也按字面显示 —— 不删也不执行', async ({ app, page }) => {
+  await resetDoc(page, '示例：<span style="color:red">x</span> 完')
+
+  expect(await visibleText(page)).toContain('<span style="color:red">x</span> 完')
+
+  const html = await exportTo(app, path.join(dir, 'literal.html'))
+  // 没有活的 span 被造出来
+  expect(html).not.toMatch(/<span style=/)
+  // 但那串字符一个都没少 —— 尖括号被转义了，引号在文本节点里不需要转义
+  expect(html).toContain('&#x3C;span style="color:red">x&#x3C;/span>')
 })

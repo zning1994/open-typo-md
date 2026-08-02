@@ -49,3 +49,76 @@ describe('外壳', () => {
     expect(html.indexOf('font-family')).toBeLessThan(html.indexOf('--a'))
   })
 })
+
+/**
+ * `<style>` 里的东西不能用 HTML 文本转义器去处理（issue #15）。
+ *
+ * 原来这两处用的都是 `escapeText`，而它是**文本节点**的转义器。
+ * 放进 `<style>` 里两头都不对：`}` `{` `;` 一个都不在它的名单里（拦不住注入），
+ * 而 `<style>` 是 raw text 元素、里面**不解码实体**（会破坏本来正确的 CSS）。
+ */
+describe('样式表这一段', () => {
+  /** `<style>` 到它第一个结束标签之间的内容 —— 也就是真正进 CSS 解析器的那部分。 */
+  function firstStyleBody(html: string): string {
+    const open = html.indexOf('<style>')
+    return html.slice(open + '<style>'.length, html.indexOf('</style>', open))
+  }
+
+  it('contentWidth 只收 CSS 长度，`42em}body{…` 整条丢掉', () => {
+    const html = buildDocument('<p>x</p>', {
+      title: 't',
+      contentWidth: '42em}body{display:none',
+    })
+    expect(html).not.toContain('display:none')
+    // 兜底样式里有默认宽度，少一条覆盖不会让产物坏掉
+    expect(html).toContain('--mosu-content-width: 42em;')
+  })
+
+  it('合法的长度照常写进去', () => {
+    const html = buildDocument('<p>x</p>', { title: 't', contentWidth: '  60ch  ' })
+    expect(html).toContain('--mosu-content-width: 60ch; }')
+  })
+
+  it('calc() 也放行 —— 一刀切掉就成了另一种静默丢东西', () => {
+    const html = buildDocument('<p>x</p>', { title: 't', contentWidth: 'calc(100% - 2em)' })
+    expect(html).toContain('--mosu-content-width: calc(100% - 2em); }')
+  })
+
+  it('url() 挡掉', () => {
+    const html = buildDocument('<p>x</p>', { title: 't', contentWidth: 'url(http://evil/x)' })
+    expect(html).not.toContain('evil')
+  })
+
+  it('合法 CSS 不会被实体化 —— <style> 里实体是不解码的，转了就是坏的', () => {
+    const html = buildDocument('<p>x</p>', {
+      title: 't',
+      css: ['.a::after { content: "a & b"; width: calc(100% - 1px); }'],
+    })
+    expect(firstStyleBody(html)).toContain('content: "a & b"')
+    expect(html).not.toContain('&amp;amp;')
+  })
+
+  it('css 里的 </style> 闭合不了样式表 —— 主题包可以来自第三方', () => {
+    const html = buildDocument('<p>x</p>', {
+      title: 't',
+      css: ['body::after{content:"</style><img src=x onerror=alert(1)>"}'],
+    })
+    // 判据是**位置**不是字面量：`<img …>` 这串字符出现在样式表里完全正常
+    // （它就是 content 的值），要命的是它出现在样式表**外面**。
+    // 所以断言「第一个 </style> 在它后面」—— 提前闭合的话就不是了。
+    expect(firstStyleBody(html)).toContain('onerror')
+    expect(html.indexOf('onerror')).toBeLessThan(html.indexOf('</style>'))
+  })
+
+  it('转义用的是 CSS 的写法，含义不变', () => {
+    const html = buildDocument('<p>x</p>', { title: 't', css: ['a{content:"</style>"}'] })
+    // CSS 字符串里 \/ 就是 / —— 挡住了标签识别，没改变样式的意思
+    expect(firstStyleBody(html)).toContain('<\\/style>')
+  })
+
+  it('标题仍然走 HTML 转义 —— 那个位置的规则没变', () => {
+    expect(buildDocument('', { title: '<b>&"' })).toContain(
+      '<title>&lt;b&gt;&amp;&quot;</title>',
+    )
+  })
+})
