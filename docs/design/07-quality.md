@@ -2,15 +2,37 @@
 
 ## 1. 测试分层
 
-| 层 | 工具 | 覆盖什么 | 跑的频率 |
+| 层 | 工具 | 覆盖什么 | 现状 |
 | --- | --- | --- | --- |
-| 单元 | Vitest | 解析器、序列化、装饰规则、路径解析、冲突判定 | 每次提交 |
-| 规范符合性 | Vitest + CommonMark/GFM 官方用例 | 两个解析器的一致性（见 03 §1） | 每次提交 |
-| 往返属性测试 | Vitest + fast-check | `parse(serialize(parse(x))) == parse(x)`；`open→save == 原字节` | 每次提交 |
-| 编辑器交互 | Playwright（真 Chromium） | 光标穿越隐藏标记、IME、表格 widget、撤销 | 每次 PR |
-| 端到端 | Playwright + Electron | 开关文件、外部修改冲突、崩溃恢复、导出 | 每次 PR |
-| 性能基准 | 自建 + CI 基线对比 | 见 §2 | 每次 PR |
-| 视觉回归 | Playwright 截图对比 | 各内置主题 × 各元素类型 | 每次 PR |
+| 单元 | Vitest | 解析器、序列化、装饰规则、路径解析、冲突判定 | ✅ 526 条，每次提交 |
+| 保真闭环 | Vitest + CommonMark 官方语料（652 例） | 打开→保存字节不变；装饰不吞内容 | ✅ 每次提交 |
+| **两个解析器的一致性** | Vitest + CommonMark/GFM 官方用例 | Lezer 与 remark 的块级结构比对 | ❌ **没有**，见 §1.1 |
+| 往返属性测试 | Vitest + fast-check | `parse(serialize(parse(x))) == parse(x)` | ⏸ 只有 `open→save == 原字节`，没上 fast-check |
+| 编辑器交互 + 端到端 | Playwright + 真 Electron | 光标穿越隐藏标记、IME、冲突、崩溃恢复、导出 | ✅ 200 条，每次 PR，三平台 |
+| 无障碍 | Playwright + axe-core | 见 §3 | ✅ 8 条，每次 PR |
+| 性能基准 | 自建 + 基线对比 | 见 §2 | ✅ 每次 PR（只有体积卡门槛） |
+| 视觉回归 | Playwright 截图对比 | 各内置主题 × 各元素类型 | ❌ 没有 |
+
+### 1.1 缺的那条最要紧：两个解析器从来没比对过
+
+ADR-0003 选了双解析器（编辑用 Lezer、导出用 remark），并把「一致性测试进 CI 必跑」
+写成**决策的一部分，不是可选项**。这条至今没有实现。
+
+不一致的后果 ADR 里写得很清楚：编辑器把某段显示成引用块（Lezer 判定），导出的
+HTML 里却是普通段落（remark 判定）—— 用户会认为是 bug，而且很难自己搞清楚。
+CommonMark 的阴暗角落（惰性延续、列表缩进判定、分隔符左右侧规则）正是两者最可能
+分歧的地方。
+
+现在有的是 `packages/editor/test/fidelity.test.ts`，它拿同一份 652 例语料跑
+**Lezer 那一侧**：字节保真 + 装饰不吞内容。那个文件的开头就写着「HTML 输出与
+规范期望值的逐一比对……属于 M3 导出管线的工作，届时会补上」——
+**M3 做完了，这条没补。**
+
+难点不在跑用例，在于两边的节点词汇不一样（Lezer 的 `ATXHeading2` vs mdast 的
+`heading{depth:2}`），要先写一层规范化映射才能比。这是一批单独的工作。
+
+`docs/known-divergences.md`（03 §1 与 ADR-0003 都引用了它）**也还不存在** ——
+没有比对就没有已知差异可登记。这两件事要一起做。
 
 ### 必须有的几组「防灾」测试
 
@@ -245,20 +267,25 @@ fs」的防灾测试得先把整个 Electron 桩起来。翻译器由 IPC 那一
 
 ## 6. CI 流水线
 
+实际的 `ci.yml`（`✅` 已有，`❌` 还没有）：
+
 ```
 push / PR
- ├─ lint + typecheck + 依赖方向检查
- ├─ 单元 + 规范符合性 + 属性测试
- ├─ 构建三平台（macOS / Windows / Linux）
- ├─ Playwright 交互 + E2E（三平台）
- ├─ 性能基准对比
- ├─ bundle 体积检查
- └─ 视觉回归
+ ├─ ✅ check：依赖方向 + typecheck + lint + 格式 + 单元测试（526 条）
+ ├─ ✅ e2e：三平台各构建一次，跑 200 条 Playwright（含无障碍与 IME）
+ ├─ ✅ bench：性能基准 + bundle 体积（只有体积卡门槛，见 §2.1）
+ ├─ ✅ artifacts：三平台各一个安装包，供下载试用
+ ├─ ❌ 两个解析器的一致性比对（见 §1.1）
+ └─ ❌ 视觉回归
+
+docs/** 变动
+ └─ ✅ pages：构建 VitePress 并发布到 typo.ohgiantai.com
 
 tag v*
- ├─ 打包 + 代码签名（macOS 公证 / Windows Authenticode）
- ├─ 生成 CHANGELOG + Release
- └─ 发布更新源（供自动更新使用）
+ ├─ ✅ 三平台全量打包（release.yml，串行，见 §6.6）
+ ├─ ⏸ 代码签名（配置已就位，等证书，见 §6.1 / §6.2）
+ ├─ ❌ 生成 CHANGELOG
+ └─ ❌ 发布更新源（自动更新还没做，M6）
 ```
 
 代码签名证书通过仓库 Secret 管理，只在 tag 触发的流水线里可用，

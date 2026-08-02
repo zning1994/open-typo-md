@@ -118,8 +118,12 @@ On Linux the end-to-end tests need a display: `xvfb-run -a pnpm test:e2e`.
 ## Not there yet
 
 - The plugin system (M5)
+- Cross-file search (there is only find-and-replace within one file today)
 - User theme directories with hot reload
-- Block-level HTML rendering (`<div>…</div>` — its meaning lives almost entirely in attributes)
+- Pandoc-based export (DOCX / ePub / LaTeX)
+- Block-level HTML rendering (`<div>…</div>`) — this one is a deliberate *no*, not a
+  scheduling matter: its meaning lives almost entirely in attributes, and attributes are
+  exactly what the "not one byte of HTML reaches the DOM" approach cannot cover
 - Drag-to-resize table columns, PDF headers/footers and TOC page numbers, rename/create/delete
   in the file tree
 

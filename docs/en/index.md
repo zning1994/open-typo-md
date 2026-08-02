@@ -71,9 +71,10 @@ paste-HTML-as-Markdown, table editing, a file tree, tabs, session restore, a set
 inline HTML rendering, customisable shortcuts, focus mode, typewriter mode and a
 Chinese/English/Japanese interface are all working.
 
-**Not there yet:** the plugin system, user theme directories with hot reload, block-level HTML
-rendering, drag-to-resize table columns, PDF headers/footers and TOC page numbers, and
-rename/create/delete in the file tree.
+**Not there yet:** the plugin system, cross-file search, user theme directories with hot
+reload, block-level HTML rendering (that one is a deliberate *no*, see the roadmap),
+drag-to-resize table columns, PDF headers/footers and TOC page numbers, rename/create/delete
+in the file tree, and Pandoc-based export (DOCX / ePub).
 
 Every milestone ends with a "what actually differed from the plan" section listing exactly what
 was cut and why. That list is part of the project, not an embarrassment to hide.
