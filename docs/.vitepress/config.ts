@@ -41,6 +41,7 @@ const DESIGN = [
   ['06-export', '06 · 导出'],
   ['07-quality', '07 · 质量基线'],
   ['08-roadmap', '08 · 路线图'],
+  ['09-distribution', '09 · 分发'],
 ] as const
 
 const ADR = [

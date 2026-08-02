@@ -141,6 +141,35 @@ M1 实现的是单窗口单文档（`mainWindow` 是模块级单例）。多窗�
   `assertInsideWorkspace(path)` —— 规范化、解析符号链接、再校验是否位于当前工作区
   或用户显式选择过的文件白名单内。这是防「渲染进程被 XSS 后读走 `~/.ssh`」的关键一环。
 
+### 5.1 contextBridge 是**按值拷贝**的
+
+暴露出去之后再改 preload 这一侧的原对象，渲染进程**一无所知**。
+
+这条踩过一次，而且潜伏了很久。preload 里原来是这么写的：
+
+```ts
+const api = { platform: { os: 'linux', locale: 'zh-CN' } }   // 先给个默认值
+void invoke(CHANNELS.platformInfo).then((info) => {
+  api.platform.os = info.os                                   // 再异步写回
+})
+contextBridge.exposeInMainWorld('typo', api)
+```
+
+那次写回根本传不过去，于是**渲染进程读到的 `platform.os` 永远是 `'linux'`**。
+
+后果不只是「macOS 上快捷键提示按 Windows 的样子显示」（这条一直存在，
+没人测过），还包括快捷键录制去看 `ctrlKey` 而不是 `metaKey` —— macOS 上按
+⌘⇧B 录出来是 `Shift+B`。**Linux 上「默认值恰好是对的」，所以它躲了很久**，
+直到新加的端到端用例在 macOS CI 上把它撞出来。
+
+规矩：**preload 要暴露的值必须在 `exposeInMainWorld` 之前就是终值。**
+需要向 main 取的，走 `ipcRenderer.sendSync`（preload 在页面脚本之前执行，
+一次同步 IPC 的代价可以忽略），别用「先占位、后回填」。
+
+推论：这类缺陷**在单平台上测不出来**，因为占位值总有一天恰好是对的。
+凡是「按平台取值」的东西，都该有一条**在本平台恒绿、专门守其他平台**的断言
+（`e2e/keybindings.spec.ts` 里那条就是）。
+
 ## 6. 安全模型
 
 Markdown 编辑器的特殊风险：文档内容来自外部（别人发来的 `.md`），而 Electron 渲染

@@ -194,6 +194,7 @@ pnpm docs:dev
 | [06 导出](docs/design/06-export.md)                     | HTML / PDF / DOCX / LaTeX 导出管线        |
 | [07 质量基线](docs/design/07-quality.md)                | 测试策略、性能预算、无障碍、国际化        |
 | [08 路线图](docs/design/08-roadmap.md)                  | 里程碑拆分与验收标准                      |
+| [09 分发](docs/design/09-distribution.md)               | 直接分发 / App Store / 定价的取舍          |
 
 **架构决策记录（ADR）**
 

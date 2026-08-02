@@ -142,6 +142,10 @@ fork 的 PR 拿不到（必须在 workflow 里显式限制）。
   信誉，EV 立刻生效但更贵）。`CSC_LINK` / `CSC_KEY_PASSWORD` 在 Windows 作业里
   同名复用，配上即可。
 
+**只讲流水线怎么搭。走哪条分发路线、代价是什么，在 [09 分发](09-distribution.md)** ——
+包括 Mac App Store 那条路上的架构冲突（App Sandbox 跟会话恢复、附件写盘、文件
+监听三处正面撞车），以及为什么现在还不该收费。
+
 ### 6.2 官网 / 文档站
 
 `docs/` 目录**本身**就是站点源码（VitePress），由 `.github/workflows/pages.yml`
@@ -191,7 +195,26 @@ GitHub 上一直也是这么渲染的，没人发现。**多一个渲染器就�
 - **图提交进仓库**：让 Pages 的构建去跑一遍 Electron 太重，而图的更新频率
   远低于代码。
 
-### 6.4 为什么发布作业是串行的
+### 6.4 CI 产物是 zip，Release 产物不是
+
+Actions 页面上下载到的永远是 zip —— 那是 `actions/upload-artifact` 的固有行为
+（GitHub 一律把产物打包），跟我们的配置无关，也改不掉。所以 CI 里那几个
+`typo-macos-arm64-dmg` 之类的名字指的是**产物包**，解开才是安装包。
+
+Release 走的是 `electron-builder --publish always`，它把 `.dmg` / `.exe` /
+`.AppImage` / `.deb` **原样**传成 release asset，用户点了直接就是安装包。
+
+会多出两样东西，都不是包装：
+
+- **macOS 的 `.zip`** —— Squirrel.Mac 自动更新只认 zip 不认 dmg。自动更新还没做
+  （M6），现在确实多余，但留着省一次改配置；
+- **`latest*.yml`** —— electron-updater 的元数据，同理。
+
+**一个只有全量矩阵才会踩的坑**：`nsis` 与 `portable` 都产出 `.exe`，
+套同一个全局 `artifactName` 会解析成同一个文件名，后打的覆盖先打的。
+CI 只打 nsis，所以它一直藏着。现在 `portable` 有自己的命名模板。
+
+### 6.5 为什么发布作业是串行的
 
 三个平台都带 `--publish always`，而草稿 release 的语义是「没有就建一个」。
 并发时三个作业会同时发现「没有」，于是各建一个 —— 产物散落在两三个草稿里，
