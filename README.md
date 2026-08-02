@@ -186,7 +186,7 @@ docs/           设计文档与架构决策记录
 
 ## 官网与文档站
 
-官网与设计文档：<https://typo.ohgiantai.com>（VitePress，带搜索与导航）。
+官网与设计文档：<https://mosu.ohgiantai.com>（VitePress，带搜索与导航）。
 本地预览：
 
 ```bash

@@ -31,7 +31,7 @@ const GITHUB = `https://github.com/zning1994/${REPO}`
  * 资源都会 404 —— 而那个失败的样子是「页面出来了但一片空白」，
  * 不容易一眼看出是 base 的问题。
  */
-const SITE = 'https://typo.ohgiantai.com'
+const SITE = 'https://mosu.ohgiantai.com'
 
 const DESIGN = [
   ['00-overview', '00 · 总览'],

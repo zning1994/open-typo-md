@@ -302,7 +302,7 @@ push / PR
  └─ ❌ 视觉回归
 
 docs/** 变动
- └─ ✅ pages：构建 VitePress 并发布到 typo.ohgiantai.com
+ └─ ✅ pages：构建 VitePress 并发布到 mosu.ohgiantai.com
 
 tag v*
  ├─ ✅ 三平台全量打包（release.yml，串行，见 §6.6）
@@ -409,7 +409,7 @@ README 里写清楚了。等真有下载量、或者开始收费，再回头算�
 只在 `docs/**`、`README.md` 或站点配置变动时触发：每次改代码都重新部署一遍站点
 纯属浪费，也会让部署历史里全是与站点无关的记录。
 
-**自定义域名** `typo.ohgiantai.com`（跟 `appId` 的 `com.ohgiantai.mosu` 同源）。
+**自定义域名** `mosu.ohgiantai.com`（跟 `appId` 的 `com.ohgiantai.mosu` 同源）。
 两处必须一致，改一处就得改另一处：
 
 - `docs/public/CNAME` —— VitePress 把 `public/` 原样拷进产物根目录，

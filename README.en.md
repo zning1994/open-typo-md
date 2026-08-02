@@ -180,7 +180,7 @@ Dependencies flow strictly one way; `pnpm layers` enforces it in CI.
 
 ## Documentation
 
-Website: <https://typo.ohgiantai.com>
+Website: <https://mosu.ohgiantai.com>
 
 **The design documents are written in Chinese and are not translated** — a deliberate
 trade-off, not unfinished work. There are nine of them plus five architecture decision records,
