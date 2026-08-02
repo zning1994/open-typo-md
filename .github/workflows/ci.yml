@@ -20,6 +20,27 @@ env:
 # 一来 Electron 的安装脚本判断的是「变量有没有被设置」而不是它的值，
 # 设成 '0' 照样跳过；二来 pnpm 会把「没装二进制」的安装结果缓存进共享 store，
 # 污染后面真正需要它的 job。省下的一分钟远不如这两笔调试成本。
+#
+# ## action 的版本别往回退
+#
+# 每次运行会报八条 Node 20 弃用警告，来源是 action **自己**在 `action.yml` 里
+# 声明的 `runs.using` —— 只能靠升到声明了 node24 的版本来消掉，改我们这边的
+# `node-version` 没有用（那管的是 `run:` 步骤）。
+#
+# 各自的第一个 node24 版本是查出来的，不是猜的（`git clone --depth 1 --branch
+# <tag>` 之后读 action.yml 的 `runs.using`）：
+#
+# | action | 首个 node24 版本 |
+# | --- | --- |
+# | `pnpm/action-setup` | v5 |
+# | `actions/upload-artifact` | **v6** |
+# | `actions/deploy-pages` | v5 |
+#
+# 中间那条是这里唯一反直觉的地方：**`upload-artifact@v5` 仍然是 node20**，
+# 顺手升一个大版本修不掉这个警告。
+#
+# `pnpm/action-setup` 从 v4 升到 v6 对我们是零风险：入参集合没变，
+# 而我们一个入参都没传 —— 版本由 package.json 的 `packageManager` 决定。
 
 jobs:
   # ── 静态检查 + 单元测试：最快的反馈，任何分支任何 PR 都跑 ──────────────
@@ -29,7 +50,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
       - uses: actions/setup-node@v5
         with:
@@ -56,7 +77,7 @@ jobs:
 
       - name: 上传覆盖率
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage
           path: coverage/
@@ -76,7 +97,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
       - uses: actions/setup-node@v5
         with:
@@ -112,7 +133,7 @@ jobs:
 
       - name: 上传失败报告
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report-${{ matrix.os }}
           path: |
@@ -139,7 +160,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
       - uses: actions/setup-node@v5
         with:
@@ -195,7 +216,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
       - uses: actions/setup-node@v5
         with:
@@ -234,7 +255,7 @@ jobs:
       # 名字里写清平台/架构/格式：Actions 页面上显示的是「产物包」的名称，
       # 不是文件名（GitHub 一律把产物打成 zip），叫得含糊会让人以为安装包没后缀
       - name: 上传安装包
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: mosu-${{ matrix.label }}
           path: |
