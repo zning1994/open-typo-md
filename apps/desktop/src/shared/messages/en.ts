@@ -181,6 +181,7 @@ export const en: Messages = {
   'panel.outline.untitled': '(untitled)',
   'panel.palette.label': 'Command palette',
   'panel.palette.placeholder': 'Type a command…',
+  'panel.palette.results': 'Matching commands',
   'panel.palette.empty': 'No matching command',
   'panel.files.refresh': 'Refresh',
   'panel.files.refreshLabel': 'Refresh file tree',

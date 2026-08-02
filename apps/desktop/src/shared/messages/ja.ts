@@ -180,6 +180,7 @@ export const ja: Messages = {
   'panel.outline.untitled': '（無題）',
   'panel.palette.label': 'コマンドパレット',
   'panel.palette.placeholder': 'コマンド名を入力…',
+  'panel.palette.results': '一致したコマンド',
   'panel.palette.empty': '一致するコマンドがありません',
   'panel.files.refresh': '更新',
   'panel.files.refreshLabel': 'ファイルツリーを更新',

@@ -25,12 +25,15 @@
     "screenshots": "node scripts/screenshots/capture.mjs",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
-    "docs:preview": "vitepress preview docs"
+    "docs:preview": "vitepress preview docs",
+    "bench": "node scripts/bench/run.mjs",
+    "bench:bundle": "node scripts/bench/bundle.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",
     "@playwright/test": "^1.62.1",
     "@types/node": "^22.19.0",
+    "axe-core": "^4.12.1",
     "commonmark-spec": "^0.31.2",
     "eslint": "^9.39.0",
     "globals": "^15.15.0",

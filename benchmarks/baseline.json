@@ -1,0 +1,13 @@
+{
+  "recordedAt": "2026-08-02",
+  "metrics": {
+    "coldStartMs": 807,
+    "keystrokeP95Ms": 0.1,
+    "keystrokeMedianMs": 0,
+    "keystrokeToPaintP95Ms": 17.2,
+    "open10kMs": 36,
+    "idleMemoryMb": 550,
+    "mainBundleBytes": 1382387,
+    "lazyBytes": 4416236
+  }
+}

@@ -37,7 +37,7 @@
   /* 颜色：语义化命名，不用 blue-500 那种 —— 主题作者要能看懂它是干嘛的 */
   --typo-bg: #ffffff;
   --typo-fg: #24292f;
-  --typo-fg-muted: #6e7781;
+  --typo-fg-muted: #69717b;
   --typo-accent: #0969da;
   --typo-border: #d0d7de;
   --typo-border-strong: #afb8c1;
@@ -46,10 +46,21 @@
   --typo-danger: #cf222e;
 
   /* 编辑器专属 */
-  --typo-marker-fg: #b0b6bd; /* 显形中的 Markdown 标记 */
+  /* 显形中的 Markdown 标记。
+     这个值曾经是 #b0b6bd（对白底 2.04:1）—— 淡是**故意**的，标记本该比正文轻。
+     但它是可选中可编辑的正文字符，WCAG 就该按正文算，2.04 是明确的违规。
+     现在压到刚过 4.5:1：跟正文（14.65:1）之间仍有巨大落差，「轻」还在，
+     只是不再轻到低视力用户看不见。六套主题都按这条改过，见 scripts/contrast.mjs */
+  --typo-marker-fg: #717479;
   --typo-cursor: #24292f;
   --typo-status-bg: #f6f8fa;
-  --typo-focus-dim: 0.35; /* 专注模式下非当前块的不透明度 */
+  /* 专注模式下非当前块的不透明度。
+     0.35 下变暗的正文只有 2.1:1，**明确达不到 WCAG AA 的 4.5:1** ——
+     而算下来要达标得调到 0.64（sepia 要 0.76），那时基本看不出变暗了，
+     功能等于没有。取舍是：默认保留 0.35（这个模式默认关着，且是用户主动开的），
+     但**尊重系统的「增强对比度」信号**，见文件末尾的 prefers-contrast。
+     详见 docs/design/07 §3.1。 */
+  --typo-focus-dim: 0.35;
 
   /* 代码高亮 token */
   --typo-string-fg: #0a3069;
@@ -68,7 +79,7 @@
   --typo-code-bg: #161b22;
   --typo-selection: #1f4b7f;
   --typo-danger: #f85149;
-  --typo-marker-fg: #6e7681;
+  --typo-marker-fg: #777e89;
   --typo-cursor: #e6edf3;
   --typo-status-bg: #161b22;
   --typo-string-fg: #a5d6ff;
@@ -88,7 +99,7 @@
     --typo-code-bg: #161b22;
     --typo-selection: #1f4b7f;
     --typo-danger: #f85149;
-    --typo-marker-fg: #6e7681;
+    --typo-marker-fg: #777e89;
     --typo-cursor: #e6edf3;
     --typo-status-bg: #161b22;
     --typo-string-fg: #a5d6ff;
@@ -102,18 +113,18 @@
   --typo-font-body: Georgia, 'Songti SC', 'SimSun', serif;
   --typo-bg: #f4ecd8;
   --typo-fg: #4a3f35;
-  --typo-fg-muted: #8a7a68;
+  --typo-fg-muted: #706354;
   --typo-accent: #9a5b2c;
   --typo-border: #d9caae;
   --typo-border-strong: #c0ac8c;
   --typo-code-bg: #eae0c8;
   --typo-selection: #dfc9a3;
   --typo-danger: #a33a2a;
-  --typo-marker-fg: #b8a68c;
+  --typo-marker-fg: #726757;
   --typo-cursor: #4a3f35;
   --typo-status-bg: #eee4cd;
-  --typo-string-fg: #5c6f3a;
-  --typo-number-fg: #8a5a2b;
+  --typo-string-fg: #556635;
+  --typo-number-fg: #845629;
   --typo-type-fg: #7a4b2a;
 }
 
@@ -156,7 +167,7 @@
   --typo-code-bg: #f6f8fa;
   --typo-selection: #ddf4ff;
   --typo-danger: #d1242f;
-  --typo-marker-fg: #adb5bd;
+  --typo-marker-fg: #6f7479;
   --typo-cursor: #1f2328;
   --typo-status-bg: #f6f8fa;
   --typo-string-fg: #0a3069;
@@ -217,5 +228,19 @@
   .cm-typo-math--block,
   .cm-typo-mermaid {
     break-inside: avoid;
+  }
+}
+
+/**
+ * 系统开了「增强对比度」时，专注模式不再变暗。
+ *
+ * 这跟 prefers-reduced-motion 是同一类判断：用户在**操作系统层面**说过
+ * 「我需要对比度」，那就不该再让应用里的某个效果把对比度压下去。
+ * 关掉的只是变暗，专注模式本身照常可用（只是看不出效果）——
+ * 对需要这个设置的用户来说，那正是他要的。
+ */
+@media (prefers-contrast: more) {
+  :root {
+    --typo-focus-dim: 1;
   }
 }

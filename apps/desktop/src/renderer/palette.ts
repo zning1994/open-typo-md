@@ -48,11 +48,23 @@ export class CommandPalette {
     this.input.type = 'text'
     this.input.placeholder = t('panel.palette.placeholder')
     this.input.setAttribute('aria-controls', 'typo-palette-list')
+    // 完整的 combobox 模式：焦点始终在输入框，「当前高亮的是哪一项」
+    // 靠 aria-activedescendant 告诉读屏软件。少了它，上下键在读屏软件那边
+    // 是完全没有反馈的 —— 视觉上有高亮，听觉上什么都没发生
+    this.input.setAttribute('role', 'combobox')
+    this.input.setAttribute('aria-expanded', 'true')
+    this.input.setAttribute('aria-autocomplete', 'list')
 
     this.list = document.createElement('ul')
     this.list.className = 'typo-palette__list'
     this.list.id = 'typo-palette-list'
     this.list.setAttribute('role', 'listbox')
+    this.list.setAttribute('aria-label', t('panel.palette.results'))
+    // 这个列表会滚动，而滚动区域必须能被键盘够到。它的键盘操作实际在输入框上
+    // （上下键 + aria-activedescendant），所以给 -1：可以编程聚焦、不占 Tab 位。
+    // 不给的话 axe 的 scrollable-region-focusable 会判违规，而那个判定是对的 ——
+    // 一个只能用鼠标滚的区域确实把键盘用户挡在外面了
+    this.list.tabIndex = -1
 
     box.append(this.input, this.list)
     this.root.append(box)
@@ -69,6 +81,7 @@ export class CommandPalette {
   /** 换语言后补上只写过一次的文案。列表每次打开都重画，不用管。 */
   retranslate(): void {
     this.root.setAttribute('aria-label', t('panel.palette.label'))
+    this.list.setAttribute('aria-label', t('panel.palette.results'))
     this.input.placeholder = t('panel.palette.placeholder')
   }
 
@@ -117,6 +130,7 @@ export class CommandPalette {
     const item = document.createElement('li')
     item.className = 'typo-palette__item'
     item.setAttribute('role', 'option')
+    item.id = `typo-palette-item-${index}`
     item.dataset['index'] = String(index)
 
     const label = document.createElement('span')
@@ -150,8 +164,12 @@ export class CommandPalette {
       const on = index === this.active
       item.classList.toggle('is-active', on)
       item.setAttribute('aria-selected', String(on))
-      if (on) item.scrollIntoView({ block: 'nearest' })
+      if (on) {
+        item.scrollIntoView({ block: 'nearest' })
+        this.input.setAttribute('aria-activedescendant', item.id)
+      }
     })
+    if (items.length === 0) this.input.removeAttribute('aria-activedescendant')
   }
 
   private onKeyDown(event: KeyboardEvent): void {

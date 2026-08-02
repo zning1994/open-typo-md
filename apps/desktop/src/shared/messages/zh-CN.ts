@@ -191,6 +191,7 @@ export const zhCN = {
   'panel.outline.untitled': '（无标题）',
   'panel.palette.label': '命令面板',
   'panel.palette.placeholder': '输入命令名…',
+  'panel.palette.results': '匹配到的命令',
   'panel.palette.empty': '没有匹配的命令',
   'panel.files.refresh': '刷新',
   'panel.files.refreshLabel': '刷新文件树',
