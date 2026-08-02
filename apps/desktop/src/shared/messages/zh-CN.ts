@@ -271,4 +271,15 @@ export const zhCN = {
   'error.imageNeedsPath': '请先保存文档，图片才知道该放在哪个目录旁边',
   'error.imageInsert': '图片「{name}」没能插入',
   'error.linkBlocked': '不允许打开该链接：{url}',
+  'menu.file.saveAll': '保存全部',
+  'command.file.saveAll': '保存全部',
+  'menu.context.findSelection': '查找选中内容',
+  'menu.context.closeOthers': '关闭其他标签页',
+  'menu.context.closeRight': '关闭右侧标签页',
+  'menu.context.copyPath': '复制文件路径',
+  'menu.context.reveal': '在文件夹中显示',
+  'saveAll.failed.title':
+    '{count, plural, one{有 1 个文档没能保存} other{有 # 个文档没能保存}}',
+  'saveAll.failed.detail': '{names}\n\n其余文档已经保存。',
+  'saveAll.nothing': '没有需要保存的修改。',
 } as const

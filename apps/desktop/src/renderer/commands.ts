@@ -113,6 +113,7 @@ const COMMAND_KEYS: Record<MenuCommand, MessageKey> = {
   'file.open': 'command.file.open',
   'file.openInNewWindow': 'command.file.openInNewWindow',
   'file.save': 'command.file.save',
+  'file.saveAll': 'command.file.saveAll',
   'file.saveAs': 'command.file.saveAs',
   'file.newTab': 'command.file.newTab',
   'file.closeTab': 'command.file.closeTab',

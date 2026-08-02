@@ -390,6 +390,84 @@ async function copyRichTextFlow(): Promise<void> {
   }
 }
 
+/**
+ * 「保存全部」（issue #19）。
+ *
+ * 三条要求都来自 issue 本身：只处理有修改的、未命名的逐个弹另存为、
+ * 任一失败要**明确告诉用户哪些还没存**。最后那条是关键 —— 静默地只存下去
+ * 一半，用户会以为全存好了，而那正是关窗时丢东西的前提。
+ *
+ * 一件都不脏时也给个回执：什么都不做的话用户分不清「没有可存的」和
+ * 「点了没反应」，多半会再点几下。
+ */
+async function saveAllFlow(): Promise<void> {
+  if (!tabs.hasDirty()) {
+    await host.dialog.message({ message: t('saveAll.nothing') })
+    return
+  }
+  const failed = await tabs.saveAll()
+  if (failed.length === 0) return
+  await host.dialog.message({
+    message: t('saveAll.failed.title', { count: failed.length }),
+    detail: t('saveAll.failed.detail', { names: failed.join('\n') }),
+  })
+}
+
+/**
+ * 编辑区的右键菜单（issue #18）。
+ *
+ * 菜单本身是原生的（理由见 main/menu.ts），这边只做两件事：把「现在有没有
+ * 选中东西」告诉 main，以及处理 main 做不了的那一项。剪切 / 复制 / 粘贴 /
+ * 全选走 Electron 的 role，压根不会回到这里。
+ */
+function installEditorContextMenu(): void {
+  editorHost.addEventListener('contextmenu', (event) => {
+    event.preventDefault()
+    const editor = activeEditor()
+    const { from, to } = editor.view.state.selection.main
+    void api.menu.context({ kind: 'editor', hasSelection: from !== to }).then((choice) => {
+      if (choice !== 'editor.findSelection') return
+      editor.focus()
+      openSearchPanel(editor.view)
+    })
+  })
+}
+
+/**
+ * 标签条的右键菜单（issue #17）。
+ *
+ * 右键的位置决定作用对象，所以先从 DOM 反查是哪个标签 —— 用的是左键点击
+ * 同一套 `data-tab` 标记（见 tabs.ts 的 onStripClick）。
+ *
+ * 「复制文件路径」与「在文件夹中显示」由 main 就地做掉，不会回到这里。
+ */
+function installTabContextMenu(): void {
+  tabStrip.addEventListener('contextmenu', (event) => {
+    const target = event.target
+    if (!(target instanceof HTMLElement)) return
+    const element = target.closest<HTMLElement>('[data-tab]')
+    if (!element) return
+    event.preventDefault()
+
+    const id = element.dataset['tab'] as string
+    const view = tabs.views().find((tab) => tab.id === id)
+    if (!view) return
+
+    void api.menu
+      .context({
+        kind: 'tab',
+        path: view.path,
+        hasOthers: tabs.othersOf(id).length > 0,
+        hasRight: tabs.rightOf(id).length > 0,
+      })
+      .then(async (choice) => {
+        if (choice === 'tab.close') await tabs.close(id)
+        else if (choice === 'tab.closeOthers') await tabs.closeMany(tabs.othersOf(id))
+        else if (choice === 'tab.closeRight') await tabs.closeMany(tabs.rightOf(id))
+      })
+  })
+}
+
 const MENU_ACTIONS: Record<MenuCommand, () => void> = {
   'file.open': () => void openFileFlow(false),
   'file.openInNewWindow': () => void openFileFlow(true),
@@ -400,6 +478,7 @@ const MENU_ACTIONS: Record<MenuCommand, () => void> = {
   'file.openFolder': () => void openFolderFlow(),
   'file.closeFolder': () => files.closeFolder(),
   'file.save': () => void activeController().save(),
+  'file.saveAll': () => void saveAllFlow(),
   'file.saveAs': () => void activeController().saveAs(),
   'file.exportHtml': () => void exportHtmlFlow(),
   'file.exportPdf': () => void exportPdfFlow(),
@@ -687,6 +766,10 @@ void (async () => {
   if (tabs.all().length === 0) tabs.open()
   // 放在建完第一个标签之后：retranslateAll 要重放活动编辑器的状态
   retranslateAll()
+  // 右键菜单挂在**容器**上而不是每个编辑器实例上 —— 标签是会来会走的，
+  // 逐个挂就得逐个摘，而容器从头到尾只有一个
+  installEditorContextMenu()
+  installTabContextMenu()
   await restoreSession()
   await offerDraftRecovery()
 })()

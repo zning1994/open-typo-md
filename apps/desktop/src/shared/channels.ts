@@ -41,6 +41,7 @@ export const CHANNELS = {
   settingsSet: 'settings:set',
   platformInfo: 'platform:info',
   windowCreate: 'window:create',
+  menuContext: 'menu:context',
   sessionReport: 'session:report',
   sessionClaim: 'session:claim',
 } as const
@@ -66,6 +67,7 @@ export type MenuCommand =
   | 'file.saveAs'
   | 'file.exportHtml'
   | 'file.exportPdf'
+  | 'file.saveAll'
   | 'file.newTab'
   | 'file.closeTab'
   | 'file.openFolder'
@@ -95,6 +97,42 @@ export type MenuCommand =
   | 'table.deleteColumn'
   | `table.align.${'left' | 'center' | 'right' | 'none'}`
   | 'table.format'
+
+/**
+ * 上下文菜单（右键菜单）的请求与结果。
+ *
+ * ## 为什么是 invoke 而不是「main 弹菜单 → 发命令回来」
+ *
+ * 标签页那个菜单的每一项都要带上「点的是哪个标签」。走 `menuCommand` 的话，
+ * 渲染进程得先把「刚才右键的是谁」存下来等回调 —— 一份跨事件存活的状态，
+ * 而它和真实的标签集合必然会有不同步的时候（菜单开着时标签被别的路径关掉）。
+ *
+ * 改成请求-响应：渲染进程问「用户选了哪一项」，上下文自始至终留在它自己手里。
+ * 这也正是 §5 那条「一律 invoke/handle」的约定。
+ *
+ * 剪切 / 复制 / 粘贴 / 全选**不在返回值里** —— 它们用 Electron 的 role，
+ * 由 main 直接作用在聚焦的 webContents 上，压根不需要回渲染进程一趟。
+ * 同理「复制文件路径」「在文件夹中显示」也由 main 就地做掉：
+ * 路径已经在请求里了，绕回去只是多一次往返和一个新的剪贴板权限。
+ */
+export type ContextMenuRequest =
+  | {
+      kind: 'editor'
+      /** 有没有选中文本 —— 决定剪切 / 复制 / 查找选中是否可点。 */
+      hasSelection: boolean
+    }
+  | {
+      kind: 'tab'
+      /** 右键的那个标签是否已经落盘（未命名的没有路径可复制、可显示）。 */
+      path: string | null
+      /** 还有没有别的标签 / 右边还有没有标签 —— 没有就把对应项禁掉。 */
+      hasOthers: boolean
+      hasRight: boolean
+    }
+
+/** 用户选中的那一项。`null` 表示菜单被取消，或者那一项已经由 main 做掉了。 */
+export type ContextMenuResult =
+  'tab.close' | 'tab.closeOthers' | 'tab.closeRight' | 'editor.findSelection' | null
 
 /**
  * preload 通过 contextBridge 暴露给渲染进程的全部能力。
@@ -169,6 +207,10 @@ export interface MosuBridgeApi {
   window: {
     /** 新开一个窗口；带 path 则在新窗口里打开该文件。 */
     create(path?: string): Promise<void>
+  }
+  menu: {
+    /** 弹一个上下文菜单，等用户选。见 `ContextMenuRequest` 的说明。 */
+    context(request: ContextMenuRequest): Promise<ContextMenuResult>
   }
   settings: {
     get(key: string): Promise<unknown>

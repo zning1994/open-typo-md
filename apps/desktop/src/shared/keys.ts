@@ -175,6 +175,9 @@ export const DEFAULT_BINDINGS: Partial<Record<MenuCommand, string>> = {
   'file.open': 'Mod+O',
   'file.openInNewWindow': 'Mod+Shift+O',
   'file.save': 'Mod+S',
+  // ⌘⌥S 而不是 ⌘⇧S：后者在绝大多数应用里是「另存为」，抢过来会让肌肉记忆
+  // 在这里失灵，而失灵的后果是把文件存到了别处
+  'file.saveAll': 'Mod+Alt+S',
   'file.saveAs': 'Mod+Shift+S',
   'file.newTab': 'Mod+T',
   'file.closeTab': 'Mod+W',

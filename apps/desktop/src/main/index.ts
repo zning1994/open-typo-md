@@ -17,13 +17,18 @@ import {
   shell,
 } from 'electron'
 import { ConflictError, UnsupportedEncodingError } from '@mosu/plugin-api'
-import { CHANNELS, EVENTS, type IpcFailure } from '../shared/channels.js'
+import {
+  CHANNELS,
+  EVENTS,
+  type ContextMenuRequest,
+  type IpcFailure,
+} from '../shared/channels.js'
 import { APP_SCHEME_PRIVILEGES, registerAppHandler } from './app-protocol.js'
 import { ASSET_SCHEME_PRIVILEGES, registerAssetHandler } from './asset-protocol.js'
 import { claimDrafts, dropDraft, dropDraftById, writeDraft } from './drafts.js'
 import { readTextFile, saveAttachment, writeTextFile } from './fs-service.js'
 import { watchFor } from './watcher.js'
-import { buildMenu } from './menu.js'
+import { buildMenu, popupContextMenu } from './menu.js'
 import { renderPdf, type PdfOptions } from './pdf.js'
 import { claimSession, flushSession, reportSession, savedSessions } from './session.js'
 import type { WindowSession } from './session.js'
@@ -403,6 +408,19 @@ function registerIpc(): void {
    * 校验交给下游：真正要读写时 `assertAllowed` 会拦，没授权就拒。
    * 这一层的职责只是开窗口。
    */
+  /**
+   * 右键菜单（issues #17 / #18）。
+   *
+   * 用**发起请求的那个窗口**弹，不是 `getFocusedWindow()`：多窗口下后者在
+   * 菜单弹出的这一瞬间未必还是同一个（用户可以在右键之后切窗口），
+   * 而 `event.sender` 说的是「谁问的」，那才是菜单该属于的窗口。
+   */
+  handle(CHANNELS.menuContext, async (sender, request: ContextMenuRequest) => {
+    // `handle` 已经把 event.sender 反查成了 BrowserWindow
+    if (!sender) return null
+    return popupContextMenu(sender, request, await translator())
+  })
+
   handle(CHANNELS.windowCreate, async (_sender, target?: string) => {
     await createWindow(target ? { openPath: target } : {})
   })

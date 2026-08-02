@@ -9,10 +9,23 @@
  * 用户改了绑定就重建一遍整个菜单 —— Electron 没有「改一个 accelerator」的
  * 接口，而重建的代价是几毫秒，不值得为它设计增量更新。
  */
-import { Menu, app, shell, type BrowserWindow, type MenuItemConstructorOptions } from 'electron'
-import { EVENTS, type MenuCommand } from '../shared/channels.js'
+import {
+  Menu,
+  app,
+  clipboard,
+  shell,
+  type BrowserWindow,
+  type MenuItemConstructorOptions,
+} from 'electron'
+import {
+  EVENTS,
+  type ContextMenuRequest,
+  type ContextMenuResult,
+  type MenuCommand,
+} from '../shared/channels.js'
 import { DEFAULT_BINDINGS, toAccelerator, type BindingMap } from '../shared/keys.js'
 import { createTranslate, type Translate } from '../shared/i18n.js'
+import { contextMenuTemplate } from '../shared/context-menu.js'
 
 const isMac = process.platform === 'darwin'
 
@@ -83,6 +96,7 @@ export function buildMenu(
         item(t('menu.file.openInNewWindow'), 'file.openInNewWindow'),
         { type: 'separator' },
         item(t('menu.file.save'), 'file.save'),
+        item(t('menu.file.saveAll'), 'file.saveAll'),
         item(t('menu.file.saveAs'), 'file.saveAs'),
         { type: 'separator' },
         item(t('menu.file.exportHtml'), 'file.exportHtml'),
@@ -196,4 +210,54 @@ export function buildMenu(
   ]
 
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))
+}
+
+/**
+ * 上下文菜单（右键菜单，issues #17 / #18）。
+ *
+ * ## 为什么用原生 Menu 而不是画一个 DOM 浮层
+ *
+ * 剪切 / 复制 / 粘贴走的是 Electron 的 **role**，由系统直接作用在聚焦的
+ * webContents 上。自己画浮层的话这三项就得自己实现 —— 而「粘贴」在渲染进程里
+ * 拿不到系统剪贴板的原始内容（那正是 preload 刻意没有暴露的能力），
+ * 绕过去要么开一个新的权限口子，要么行为跟原生菜单不一致。
+ *
+ * 顺带还白拿了三件事：macOS 上的外观与动画、键盘导航、以及各平台的项序惯例。
+ *
+ * ## 结果怎么回去
+ *
+ * 用 `popup` 的 `callback`（菜单关闭时触发）兜底返回 null，而每个自定义项的
+ * `click` 抢先把自己的 id 填进去。两者的先后顺序 Electron 没有保证，
+ * 所以 callback 里延后一拍再结算 —— 让已经排队的 click 有机会先跑。
+ * 用 `settled` 挡住重复结算。
+ */
+export function popupContextMenu(
+  window: BrowserWindow,
+  request: ContextMenuRequest,
+  t: Translate,
+): Promise<ContextMenuResult> {
+  return new Promise((resolve) => {
+    let settled = false
+    const finish = (result: ContextMenuResult): void => {
+      if (settled) return
+      settled = true
+      resolve(result)
+    }
+    const pick =
+      (result: ContextMenuResult): (() => void) =>
+      () =>
+        finish(result)
+
+    const template = contextMenuTemplate(request, t, pick, (kind, path) => {
+      if (kind === 'copy') clipboard.writeText(path)
+      else shell.showItemInFolder(path)
+    })
+
+    Menu.buildFromTemplate(template).popup({
+      window,
+      // 菜单已经关了，但自定义项的 click 可能还排在后面。延后一拍再兜底，
+      // 否则用户点了「关闭其他标签页」却拿到 null，什么都不会发生
+      callback: () => setImmediate(() => finish(null)),
+    })
+  })
 }

@@ -261,4 +261,15 @@ export const en: Messages = {
     'Save the document first — otherwise the image has no folder to sit next to',
   'error.imageInsert': 'Could not insert the image “{name}”',
   'error.linkBlocked': 'This link is not allowed to be opened: {url}',
+  'menu.file.saveAll': 'Save All',
+  'command.file.saveAll': 'Save All',
+  'menu.context.findSelection': 'Find Selection',
+  'menu.context.closeOthers': 'Close Other Tabs',
+  'menu.context.closeRight': 'Close Tabs to the Right',
+  'menu.context.copyPath': 'Copy File Path',
+  'menu.context.reveal': 'Reveal in Folder',
+  'saveAll.failed.title':
+    '{count, plural, one{1 document was not saved} other{# documents were not saved}}',
+  'saveAll.failed.detail': '{names}\n\nEverything else has been saved.',
+  'saveAll.nothing': 'Nothing to save.',
 }

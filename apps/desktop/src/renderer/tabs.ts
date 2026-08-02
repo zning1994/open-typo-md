@@ -250,6 +250,32 @@ export class TabManager {
     }
   }
 
+  /**
+   * 关掉一批标签（issue #17 的「关闭其他 / 关闭右侧」）。
+   *
+   * **逐个走 `close`**，所以每个脏标签照旧弹自己的确认框，用户在任何一个上
+   * 点取消，那一个就留下来、后面的继续问。不做「一次汇总确认」是有意的：
+   * 关窗那条汇总是因为**要么全关要么不关**（窗口本身要没了），
+   * 而这里每个标签的去留是独立的，汇总反而把选择权收走了。
+   *
+   * 先把 id 快照下来再遍历 —— `close` 会改动 `this.tabs`，
+   * 边遍历边改是这类批量操作最经典的漏掉一半。
+   */
+  async closeMany(ids: readonly string[]): Promise<void> {
+    for (const id of [...ids]) await this.close(id)
+  }
+
+  /** `id` 之外的全部标签。 */
+  othersOf(id: string): string[] {
+    return this.tabs.filter((tab) => tab.id !== id).map((tab) => tab.id)
+  }
+
+  /** `id` 右边的全部标签。 */
+  rightOf(id: string): string[] {
+    const index = this.tabs.findIndex((tab) => tab.id === id)
+    return index < 0 ? [] : this.tabs.slice(index + 1).map((tab) => tab.id)
+  }
+
   /** 往后 / 往前切一个标签，到头绕回去。 */
   cycle(delta: 1 | -1): void {
     if (this.tabs.length < 2) return
@@ -299,12 +325,44 @@ export class TabManager {
 
     if (choice === 2) return false
     if (choice === 1) return true
-    for (const tab of dirty) {
-      // 任何一个存不下去（只读、磁盘满、用户在另存为里取消）就整个中止 ——
-      // 继续关下去等于把它悄悄丢了
-      if (!(await tab.controller.save())) return false
+    // 任何一个存不下去（只读、磁盘满、用户在另存为里取消）就整个中止 ——
+    // 继续关下去等于把它悄悄丢了
+    return (await this.saveDirty()).length === 0
+  }
+
+  /**
+   * 保存所有有修改的标签，返回**没能存下去**的那些。
+   *
+   * 顺序保存而不是 `Promise.all`：未命名文档会弹另存为对话框，
+   * 并发弹出来的话用户面对的是一摞对话框，还分不清哪个对应哪篇。
+   *
+   * 一个失败**不中止**后面的 —— 「另存为里点了取消」是很常见的一步，
+   * 没理由因为它把后面几篇也一起丢下不管。调用方拿到失败清单自己决定
+   * 怎么说（关窗那条要求全部成功，「保存全部」那条只是告诉用户哪些还没存）。
+   */
+  private async saveDirty(): Promise<Tab[]> {
+    const failed: Tab[] = []
+    for (const tab of this.tabs) {
+      if (!tab.controller.isDirty()) continue
+      if (!(await tab.controller.save())) failed.push(tab)
     }
-    return true
+    return failed
+  }
+
+  /**
+   * 「保存全部」（issue #19）。返回还没存下去的文档名。
+   *
+   * 跟关窗那条走的是**同一个** `saveDirty` —— 两份「保存所有脏标签」的
+   * 实现迟早会分家，而分家的后果是「关窗时存下去了、菜单点保存全部却漏了一篇」
+   * 这种没人会想到去测的不一致。
+   */
+  async saveAll(): Promise<string[]> {
+    return (await this.saveDirty()).map((tab) => tab.controller.state().name)
+  }
+
+  /** 有没有需要保存的东西 —— 菜单据此决定要不要禁用。 */
+  hasDirty(): boolean {
+    return this.tabs.some((tab) => tab.controller.isDirty())
   }
 
   /** 会话快照：只记已经落盘的文件（未命名标签没有可恢复的落点）。 */

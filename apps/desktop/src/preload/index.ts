@@ -89,6 +89,9 @@ const api: MosuBridgeApi = {
   window: {
     create: (path) => invoke(CHANNELS.windowCreate, path),
   },
+  menu: {
+    context: (request) => invoke(CHANNELS.menuContext, request),
+  },
   settings: {
     get: (key) => invoke(CHANNELS.settingsGet, key),
     set: (key, value) => invoke(CHANNELS.settingsSet, key, value),

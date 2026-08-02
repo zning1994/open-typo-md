@@ -94,6 +94,10 @@ On Linux the end-to-end tests need a display: `xvfb-run -a pnpm test:e2e`.
   keeps the current line at the vertical centre of the viewport
 - **Interface language**: Simplified Chinese, English or Japanese, switchable in Settings
   without a restart
+- **Context menus**: in the editor (cut / copy / paste / paste as plain text / select all /
+  find selection, enabled per selection state) and on tabs (close others / close to the right /
+  copy file path / reveal in folder)
+- **Save All** (⌘⌥S) — anything that could not be saved is listed back to you by name
 - **Multiple windows**, **tabs** (⌘T / ⌘W) with independent undo stacks and dirty flags,
   and **session restore**
 - **Code blocks**: per-language highlighting, no wrapping with prose, block-level horizontal
