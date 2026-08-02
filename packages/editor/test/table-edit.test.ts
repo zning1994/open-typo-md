@@ -222,10 +222,23 @@ describe('回车', () => {
   it('在空的末行回车 = 退出表格 —— 否则用户被困在表里出不来', () => {
     const doc = `${TABLE}\n|  |  |`
     const result = run(tableNextRow, doc, doc.length - 3)
+    // 两个换行。一个是不够的：GFM 里表格行之后紧邻的非空行**还是表格行**，
+    // 用户「被送出表格」之后敲的第一个字会把自己送回去（issue #10）。
+    // 这条用例原来钉的正是那个坏行为
     expect(result.doc).toBe(
-      `${TABLE.replace(/\| 甲 \| 乙 \|/, '| 甲  | 乙  |').replace('| 1 | 2 |', '| 1   | 2   |')}\n`,
+      `${TABLE.replace(/\| 甲 \| 乙 \|/, '| 甲  | 乙  |').replace('| 1 | 2 |', '| 1   | 2   |')}\n\n`,
     )
     expect(result.from).toBe(result.doc.length)
+  })
+
+  it('退出之后敲的字确实落在表格外面 —— 这才是这条出口的意义', () => {
+    const doc = `${TABLE}\n|  |  |`
+    const exited = run(tableNextRow, doc, doc.length - 3)
+    // 在光标处接着敲，产出的源码里那句话不能变成一个单元格
+    const typed = exited.doc.slice(0, exited.from) + '正文' + exited.doc.slice(exited.from)
+    expect(typed.endsWith('\n\n正文')).toBe(true)
+    // 最后一行是纯文本，不带任何竖线
+    expect(typed.split('\n').at(-1)).toBe('正文')
   })
 })
 
@@ -313,5 +326,97 @@ describe('插入新表格', () => {
 
   it('已经在表格里时拒绝 —— 免得嵌出一张不成立的表', () => {
     expect(run(tableInsert(2, 2), TABLE, at(TABLE, '甲')).handled).toBe(false)
+  })
+})
+
+/**
+ * 嵌在 blockquote / 列表项里的表格（issue #8）。
+ *
+ * 这些用例之前一条都没有 —— 整个文件里**没有一张表格不是从第 0 列开始的**。
+ * 于是两个缺陷一直藏着：
+ *
+ * 1. `contentRanges` 用「首个非空白位置」判断有没有前导竖线，而 `> ` 里的 `>`
+ *    是非空白字符，于是 `"> "` 成了第 0 个单元格 —— 三列表格变四列；
+ * 2. `serializeTable` 不带任何前缀，第二行往后当场掉出 blockquote / 列表项。
+ *
+ * 判据用**源码**：源码优先模型下，源码就是产品本身。
+ */
+describe('嵌套在别的块里的表格', () => {
+  const QUOTED = ['> | 甲 | 乙 |', '> | --- | --- |', '> | 1 | 2 |'].join('\n')
+
+  it('引用块里的表格：列数是三列不是四列，`>` 不是内容', () => {
+    const state = mkState(QUOTED, { selection: QUOTED.length })
+    const table = tableAt(state, QUOTED.length)
+    expect(table).not.toBeNull()
+    const model = parseTable(state, table!)
+    expect(model?.columns).toBe(2)
+    expect(model?.rows).toEqual([
+      ['甲', '乙'],
+      ['1', '2'],
+    ])
+    expect(model?.prefix).toBe('> ')
+  })
+
+  it('格式化之后每一行都还在引用块里', () => {
+    const { doc } = run(tableFormat, QUOTED, QUOTED.length)
+    expect(doc).toBe(['> | 甲  | 乙  |', '> | --- | --- |', '> | 1   | 2   |'].join('\n'))
+    // 每一行都得带 `> `，少一行就是内容跑出了引用块
+    for (const line of doc.split('\n')) expect(line.startsWith('> ')).toBe(true)
+  })
+
+  it('末格按 Tab 长出的新行也带着前缀', () => {
+    // 报告里的真机复现就是这个：连按三次 Tab，第三次触发重排
+    const { doc } = run(tableNextCell, QUOTED, at(QUOTED, '2'))
+    expect(doc).toBe(
+      ['> | 甲  | 乙  |', '> | --- | --- |', '> | 1   | 2   |', '> |     |     |'].join('\n'),
+    )
+  })
+
+  it('插入行同样带前缀', () => {
+    const { doc } = run(tableInsertRowBelow, QUOTED, at(QUOTED, '1'))
+    for (const line of doc.split('\n')) expect(line.startsWith('> ')).toBe(true)
+    expect(doc.split('\n')).toHaveLength(4)
+  })
+
+  it('插入列不会把 `>` 算成一列', () => {
+    const { doc } = run(tableInsertColumnAfter, QUOTED, at(QUOTED, '甲'))
+    const cells = (doc.split('\n')[0] ?? '').split('|').length
+    // `> | 甲 | 新 | 乙 |` —— split 出 5 段（首尾各一个空串）
+    expect(cells).toBe(5)
+  })
+
+  it('Tab 在第一格上按，先去第二格而不是被 `>` 挡住', () => {
+    const { from, to, doc } = run(tableNextCell, QUOTED, at(QUOTED, '甲'))
+    // 只移动光标，不改文档
+    expect(doc).toBe(QUOTED)
+    expect(doc.slice(from, to)).toBe('乙')
+  })
+
+  const LISTED = ['- item', '', '  | 甲 | 乙 |', '  | --- | --- |', '  | 1 | 2 |'].join('\n')
+
+  it('列表项里的表格：重排之后缩进还在，仍然是一张表', () => {
+    const { doc } = run(tableFormat, LISTED, at(LISTED, '1'))
+    expect(doc).toBe(
+      ['- item', '', '  | 甲  | 乙  |', '  | --- | --- |', '  | 1   | 2   |'].join('\n'),
+    )
+  })
+
+  it('引用块里插一张新表，每一行都带 `> `', () => {
+    const doc = '> 引用正文'
+    const result = run(tableInsert(2, 2), doc, doc.length)
+    expect(result.handled).toBe(true)
+    for (const line of result.doc.split('\n')) {
+      if (line.trim() === '') continue
+      expect(line.startsWith('> ')).toBe(true)
+    }
+  })
+
+  it('顶层表格的前缀是空串 —— 不该凭空多出缩进', () => {
+    const state = mkState(TABLE, { selection: 0 })
+    const model = parseTable(state, tableAt(state, 0)!)
+    expect(model?.prefix).toBe('')
+    expect(run(tableFormat, TABLE, at(TABLE, '1')).doc.split('\n')[0]?.startsWith('|')).toBe(
+      true,
+    )
   })
 })

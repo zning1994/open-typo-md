@@ -72,3 +72,35 @@ describe('扩展名兜底', () => {
     expect(resolveCodeLanguage('PY')).toBe('Python')
   })
 })
+
+/**
+ * 「不要高亮」的写法（issue #3）。
+ *
+ * 这几个词必须在**扩展名兜底之前**短路掉，否则会撞上别人的扩展名声明。
+ * 实际撞上的是 sTeX：它声明了 `extensions: ['text', 'tex', …]`，
+ * 于是 ```` ```text ```` 的语言选择器显示「sTeX」，
+ * 而 `\section{}` 被按 TeX 命令着了色。
+ */
+describe('纯文本围栏', () => {
+  it.each(['text', 'plain', 'plaintext', 'txt'])('%s → 不匹配任何语言', (written) => {
+    expect(resolveCodeLanguage(written)).toBeNull()
+  })
+
+  it('大小写不敏感', () => {
+    expect(resolveCodeLanguage('TEXT')).toBeNull()
+    expect(resolveCodeLanguage('PlainText')).toBeNull()
+  })
+
+  it('不写语言时本来就是 null —— 两条路给出同一个答案', () => {
+    expect(resolveCodeLanguage('')).toBeNull()
+  })
+
+  it('真正的 TeX / LaTeX 照常认得出来 —— 挡掉的只是 `text` 这个词', () => {
+    expect(resolveCodeLanguage('tex')).not.toBeNull()
+    expect(resolveCodeLanguage('latex')).not.toBeNull()
+  })
+
+  it('带附加属性时也短路', () => {
+    expect(resolveCodeLanguage('text {highlight=1}')).toBeNull()
+  })
+})

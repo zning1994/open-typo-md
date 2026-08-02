@@ -19,25 +19,126 @@ import {
 } from '@codemirror/lang-markdown'
 import { syntaxTree } from '@codemirror/language'
 import { searchKeymap } from '@codemirror/search'
-import { EditorSelection, type Extension, type StateCommand } from '@codemirror/state'
+import {
+  EditorSelection,
+  type EditorState,
+  type Extension,
+  type SelectionRange,
+  type StateCommand,
+} from '@codemirror/state'
 import { keymap, type Command, type KeyBinding } from '@codemirror/view'
 import { BLOCK_NODES, headingLevel } from '@mosu/markdown'
 import { tableNextCell, tableNextRow, tablePrevCell } from './table-edit.js'
+
+/**
+ * 把选区往里收，直到两端都不是空白。
+ *
+ * 强调标记的两侧不能有空白，这是 CommonMark 的 flanking 规则（spec 例 379、391）：
+ * `** foo bar**` 和 `**foo bar **` 都按**字面**渲染。所以「选中 `def ` 按 Cmd-B」
+ * 产出的 `abc **def **ghi` 不是「加粗了但多个空格」，而是**根本没有加粗**，
+ * 用户文件里凭空多了四个星号（issue #9a）。
+ *
+ * 跨行选区是同一件事的另一种形态，而且常见得多：「选中一整行再 Cmd-B」时
+ * 选区末尾带着那个换行符，于是闭合标记落到了下一行的行首 ——
+ * `**para one\n**para two`。换行符也是空白，挤出去就对了。
+ */
+function squeeze(state: EditorState, range: SelectionRange): SelectionRange {
+  let { from, to } = range
+  while (from < to && /\s/.test(state.sliceDoc(from, from + 1))) from++
+  while (to > from && /\s/.test(state.sliceDoc(to - 1, to))) to--
+  // 选中的全是空白：塌回选区**起点**而不是终点。落在终点的话，
+  // 用户选了两个空格按 Cmd-B，标记会跑到空白的另一边去，看着像是选错了
+  return from === to ? EditorSelection.cursor(range.from) : EditorSelection.range(from, to)
+}
+
+/**
+ * 紧邻选区的这串 marker 里，包不包含**这一层**强调。
+ *
+ * 只比长度是不够的（issue #9c 的教训还差一半）：`*` 与 `**` 会叠在一起，
+ * 而 CommonMark 是按**总数**拆的 —— `***x***` 是粗体加斜体。所以：
+ *
+ * | 串长 | 含义 | 按斜体 | 按加粗 |
+ * | --- | --- | --- | --- |
+ * | `*` | 斜体 | 脱掉 → `x` | 再包 → `***x***` |
+ * | `**` | 粗体 | **再包** → `***x***` | 脱掉 → `x` |
+ * | `***` | 粗体 + 斜体 | 脱掉一层 → `**x**` | 脱掉两个 → `*x*` |
+ *
+ * 中间那一行就是报告里的现场：把它当成「一个斜体标记」去脱，粗体就没了。
+ *
+ * `~~` 和 `` ` `` 不叠，按长度判断就够。
+ */
+function hasLayer(run: number, len: number, ch: string): boolean {
+  if (ch !== '*' && ch !== '_') return run >= len
+  // 斜体占一个，所以看奇偶；粗体占两个，有两个以上就一定含它
+  return len === 1 ? run % 2 === 1 : run >= len
+}
+
+/** `pos` 紧邻**左侧**连续出现了几个 `ch`。 */
+function runBefore(state: EditorState, pos: number, ch: string): number {
+  let n = 0
+  while (pos - n > 0 && state.sliceDoc(pos - n - 1, pos - n) === ch) n++
+  return n
+}
+
+/** `pos` 紧邻**右侧**连续出现了几个 `ch`。 */
+function runAfter(state: EditorState, pos: number, ch: string): number {
+  let n = 0
+  const end = state.doc.length
+  while (pos + n < end && state.sliceDoc(pos + n, pos + n + 1) === ch) n++
+  return n
+}
+
+/**
+ * 行内代码的围栏。
+ *
+ * CommonMark 要求围栏的反引号数**多于**内容里最长的那串，否则内容里的反引号
+ * 会提前把 code span 闭掉。原来一律用一个反引号，于是选中 `a` + 反引号 + `b`
+ * 按 Ctrl+E 得到的东西只有开头那个 `a` 成了代码，后面还剩一个游离的反引号
+ * （issue #9b）。语义变了，不只是难看。
+ *
+ * 内容以反引号开头或结尾时还要各垫一个空格：`` ` `` + `` `a` `` 挨在一起
+ * 同样会被算进围栏。这两个空格在渲染时会被剥掉，不会进到代码内容里。
+ */
+function codeFence(content: string): { fence: string; pad: string } {
+  let longest = 0
+  for (const run of content.match(/`+/g) ?? []) longest = Math.max(longest, run.length)
+  return {
+    fence: '`'.repeat(longest + 1),
+    pad: content.startsWith('`') || content.endsWith('`') ? ' ' : '',
+  }
+}
 
 /**
  * 用成对标记包裹选区；已经被包裹则解包。
  *
  * 解包时刻意只看紧邻选区的字符，而不去查语法树 —— 用户选中 `粗体` 两个字
  * 按 Ctrl+B，期望的是把外面那对 `**` 去掉，而不是把整个段落的强调结构重算。
+ *
+ * 但「只看一个字符」曾经不够（issue #9c）：对 `这是**重点**内容` 里的「重点」
+ * 按 Ctrl+I 时，`*` 的左右各看一个字符都是 `*`，看起来正像一对斜体标记，
+ * 于是**把粗体的内侧星号拆走了** —— 用户按下「斜体」，得到的是粗体没了。
+ *
+ * 判据改成看整条 marker 串、按 CommonMark 的叠加规则拆（见 `hasLayer`）。
+ * 于是 `**重点**` 按斜体得到 `***重点***`，跟直接敲 `*` 的行为对上了
+ * （input.ts 的 wrapSelection 没有解包分支，一直给的就是这个结果）。
  */
 export function toggleWrap(marker: string): StateCommand {
   return ({ state, dispatch }) => {
     const len = marker.length
-    const tr = state.changeByRange((range) => {
-      const before = state.sliceDoc(range.from - len, range.from)
-      const after = state.sliceDoc(range.to, range.to + len)
+    const ch = marker[0] as string
+    const isCode = ch === '`'
 
-      if (before === marker && after === marker) {
+    const tr = state.changeByRange((raw) => {
+      const range = raw.empty ? raw : squeeze(state, raw)
+      // 整段全是空白：当成没选东西，退回「在光标处插入一对标记」
+      const empty = range.from === range.to
+
+      // 解包的条件：两侧的 marker 串里确实含着**这一层**强调
+      if (
+        !empty &&
+        hasLayer(runBefore(state, range.from, ch), len, ch) &&
+        hasLayer(runAfter(state, range.to, ch), len, ch)
+      ) {
         return {
           changes: [
             { from: range.from - len, to: range.from },
@@ -46,14 +147,20 @@ export function toggleWrap(marker: string): StateCommand {
           range: EditorSelection.range(range.from - len, range.to - len),
         }
       }
+
+      const content = state.sliceDoc(range.from, range.to)
+      const { fence, pad } = isCode ? codeFence(content) : { fence: marker, pad: '' }
+      const open = fence + pad
+      const close = pad + fence
+
       return {
         changes: [
-          { from: range.from, insert: marker },
-          { from: range.to, insert: marker },
+          { from: range.from, insert: open },
+          { from: range.to, insert: close },
         ],
-        range: range.empty
-          ? EditorSelection.cursor(range.from + len)
-          : EditorSelection.range(range.from + len, range.to + len),
+        range: empty
+          ? EditorSelection.cursor(range.from + open.length)
+          : EditorSelection.range(range.from + open.length, range.to + open.length),
       }
     })
     dispatch(state.update(tr, { scrollIntoView: true, userEvent: 'input.mosu.wrap' }))

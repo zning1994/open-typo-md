@@ -69,6 +69,15 @@ export interface TabManagerOptions {
   onStatus: (status: EditorStatus) => void
   /** 活动标签的文档内容变了（大纲要刷新）。 */
   onDocChange: () => void
+  /**
+   * 活动标签换了（切换、新开、关掉当前标签之后落到别的标签）。
+   *
+   * 跟 `onDocChange` 分开：后者在每次敲字时也会响，而这一条只在
+   * 「用户现在面对的是另一篇文档了」时响。命令面板这类**瞬时浮层**据此关掉 ——
+   * 不关的话，打开另一篇文档之后它还浮在上面，过滤文字原封不动，
+   * 而它列出的命令跟新文档已经没关系了（issue #3）。
+   */
+  onActivate: () => void
   /** 弹确认框。只用这一件事，没必要把整个 HostBridge 传进来。 */
   confirm: (options: {
     message: string
@@ -189,6 +198,7 @@ export class TabManager {
     tab.editor.focus()
     this.options.onStatus(tab.editor.status())
     this.options.onDocChange()
+    this.options.onActivate()
   }
 
   /**

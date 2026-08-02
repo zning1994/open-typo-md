@@ -181,4 +181,40 @@ test.describe('命令面板', () => {
 
     await expect(page.locator('.mosu-palette__item').first()).toContainText('大纲')
   })
+
+  /**
+   * 换了一篇文档就该收掉（issue #3）。
+   *
+   * 命令面板是**瞬时**浮层：过滤文字和候选项都是冲着刚才那篇文档去的。
+   * 留在屏幕上的话，用户面对的是新文档，而浮层里列的是旧文档的命令 ——
+   * 而且接下来的每一次按键都打进过滤框，不是打进文档。
+   */
+  test('打开另一篇文档时自动收起，不会浮在新文档上面', async ({ app, page }) => {
+    await resetDoc(page, '正文')
+    await openPalette(app, page)
+    await page.keyboard.type('表格')
+    await expect(page.locator('.mosu-palette')).toBeVisible()
+
+    await menu(app, ['文件', '新建标签页'])
+    await expect(page.locator('.mosu-palette')).toBeHidden()
+
+    // 焦点也该在新文档里 —— 不然「关掉了」只是看不见而已
+    await page.keyboard.type('新文档的内容')
+    await expect(page.locator('.tab-page:not([hidden]) .cm-content')).toContainText(
+      '新文档的内容',
+    )
+
+    await resetDoc(page)
+    await menu(app, ['文件', '关闭标签页'])
+  })
+
+  test('切回原来的标签同样收起', async ({ app, page }) => {
+    await resetDoc(page, '正文')
+    await menu(app, ['文件', '新建标签页'])
+    await openPalette(app, page)
+    await expect(page.locator('.mosu-palette')).toBeVisible()
+
+    await menu(app, ['文件', '关闭标签页'])
+    await expect(page.locator('.mosu-palette')).toBeHidden()
+  })
 })

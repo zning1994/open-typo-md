@@ -94,6 +94,29 @@ const DROP_IF_BLANK = new Set([
 const MEANINGFUL_WHEN_EMPTY = new Set(['img', 'br', 'hr', 'input', 'td', 'th'])
 
 /**
+ * 按 class 整棵丢掉的东西 —— **一份显式名单，不是前缀匹配**。
+ *
+ * 原来写的是 `c.startsWith('mso')`，两头都不对（issue #16d）：
+ *
+ * - **误伤**：Word 用 `class=msoIns` 标记修订里**插入的正文**，
+ *   `msoDel` 标记删除的。前缀一刀切把插入的字整段销毁了 ——
+ *   而那是用户真正想粘过来的内容。
+ * - **没生效**：注释里说的意图（挡住 Word 的正文标记）从来没实现过。
+ *   Word 实际的类名是 `MsoNormal` / `MsoListParagraph`，大写 `M`，
+ *   `startsWith('mso')` 恒为 false。
+ *
+ * 所以改成写死几个确实该丢的，大小写不敏感比较。`msoIns` **刻意不在里面**。
+ */
+const DROPPED_CLASSES = new Set([
+  // 批注锚点与批注正文：它们不是文档正文，粘过来只会变成夹在句子中间的碎片
+  'msocommentreference',
+  'msocommenttext',
+  // 修订里被删掉的文字。它在原文档里就是「已经删了」的状态，
+  // 粘过来会让读者以为那些字还在
+  'msodel',
+])
+
+/**
  * 「转换之后确实多了点东西」的判据。
  *
  * 刻意**不包含 `p` 和 `div`**：只有段落的 HTML 转出来跟 `text/plain` 没区别，
@@ -192,6 +215,24 @@ function element(tagName: string, children: RootContent[]): Element {
 }
 
 /**
+ * 这段行内样式里，属性 `name` 的值匹不匹配 `value`。
+ *
+ * 关键在于**锚到声明的开头**（`^` 或 `;`）。不锚的话，任何以这个名字结尾的
+ * 厂商私有属性都会命中 —— `mso-bidi-font-weight:normal` 会被当成
+ * `font-weight:normal`，于是（issue #16b）：
+ *
+ * - `<b style="mso-bidi-font-weight:normal">重点</b>` 的加粗被剥掉；
+ * - `<span style="mso-bidi-font-weight:bold">普通</span>` 凭空变粗；
+ * - 更糟的是 `mso-bidi-font-weight:normal;font-weight:bold` —— 真正的
+ *   `font-weight:bold` 被前面那个厂商后缀盖掉，整段加粗丢失。
+ *
+ * `-webkit-font-weight`、`mso-bidi-font-style` 之类同理。
+ */
+function declares(style: string, name: string, value: RegExp): boolean {
+  return new RegExp(`(?:^|;)\\s*${name}\\s*:\\s*${value.source}`, 'i').test(style)
+}
+
+/**
  * 把行内样式还原成语义标签。
  *
  * Word 与 Google 文档表达粗体的方式是 `<span style="font-weight:700">`，
@@ -206,9 +247,10 @@ function promoteStyledSpan(node: Element, children: RootContent[]): RootContent[
   if (!style || isBlank(children)) return children
 
   let out = children
-  if (/text-decoration[^;]*\bline-through\b/i.test(style)) out = [element('del', out)]
-  if (/font-style\s*:\s*italic\b/i.test(style)) out = [element('em', out)]
-  if (/font-weight\s*:\s*(?:bold(?:er)?|[6-9]00)\b/i.test(style)) out = [element('strong', out)]
+  if (declares(style, 'text-decoration', /[^;]*\bline-through\b/)) out = [element('del', out)]
+  if (declares(style, 'font-style', /italic\b/)) out = [element('em', out)]
+  if (declares(style, 'font-weight', /(?:bold(?:er)?|[6-9]00)\b/))
+    out = [element('strong', out)]
   return out
 }
 
@@ -222,7 +264,7 @@ function promoteStyledSpan(node: Element, children: RootContent[]): RootContent[
 function isFakeBold(node: Element): boolean {
   const id = node.properties?.['id']
   if (typeof id === 'string' && id.startsWith('docs-internal-guid')) return true
-  return /font-weight\s*:\s*(?:normal|[1-5]00)\b/i.test(styleOf(node))
+  return declares(styleOf(node), 'font-weight', /(?:normal|[1-5]00)\b/)
 }
 
 function cleanNode(node: RootContent): RootContent[] {
@@ -235,18 +277,20 @@ function cleanNode(node: RootContent): RootContent[] {
 
   const name = node.tagName.toLowerCase()
   if (DROPPED.has(name)) return []
-  // Word 用 class 而不是标签标记那些不该出现在正文里的东西
-  if (classesOf(node).some((c) => c.startsWith('mso') || c === 'MsoCommentReference')) return []
+  if (classesOf(node).some((c) => DROPPED_CLASSES.has(c.toLowerCase()))) return []
 
   const children = cleanChildren(node.children)
 
+  // `b` 归一成 `strong`、`i` 归一成 `em`、`s`/`strike` 归一成 `del`：
+  // 下游只认一种写法，`normalizeEmphasis` 才能把相邻的合并起来。
+  // Markdown 里这几对本来也只有一种表示，归一是无损的。
   if (name === 'b' || name === 'strong') {
-    return isFakeBold(node) ? children : [{ ...node, tagName: name, children } as Element]
+    return isFakeBold(node) ? children : [element('strong', children)]
   }
+  if (name === 'i' || name === 'em') return [element('em', children)]
   if (name === 'span' || name === 'font') return promoteStyledSpan(node, children)
   if (UNWRAPPED.has(name)) return children
 
-  // s / strike 统一成 del，让下游只认一种删除线
   if (name === 's' || name === 'strike') return [element('del', children)]
 
   if (name === 'a') {
@@ -256,15 +300,143 @@ function cleanNode(node: RootContent): RootContent[] {
     if (typeof href !== 'string' || !isSafeHref(href)) return children
   }
 
+  // `<caption>` 是表格标题，而 mdast 的表格序列化器**不认识它** ——
+  // 挺过 clean 阶段之后会在转换时被静默丢掉（issue #16c）。
+  // 它在维基百科、Google 文档和各种 CMS 的表格里都很常见，
+  // 而用户看不见自己丢了什么，也找不回来。
+  //
+  // 提到表格**前面**变成一个段落：这是唯一无损的去处。塞在表格里面等于没做，
+  // 塞进第一个单元格会改变表格的形状。`figcaption` 一直是保留的，
+  // 同样的意图对 `caption` 漏了。
+  if (name === 'table') {
+    const caption: RootContent[] = []
+    const rest: RootContent[] = []
+    for (const child of children) {
+      if (isElement(child) && child.tagName === 'caption') caption.push(...child.children)
+      else rest.push(child)
+    }
+    if (isBlank(rest)) return []
+    const table = { ...node, children: rest } as Element
+    return isBlank(caption) ? [table] : [element('p', caption), table]
+  }
+
   if (DROP_IF_BLANK.has(name) && isBlank(children)) return []
 
   return [{ ...node, children } as Element]
 }
 
+/** 会被「挤空白 + 合并相邻」处理的包裹层。 */
+const EMPHASIS = new Set(['strong', 'em', 'del'])
+
+function isElement(node: RootContent | undefined): node is Element {
+  return node?.type === 'element'
+}
+
+/**
+ * 把一串子节点首尾的空白拆出来。
+ *
+ * 只看两端**紧邻的文本节点**，不深入元素内部 —— `<b><i> x</i></b>` 这种
+ * 空白藏在内层的写法，挤出来会改变结构，得不偿失。
+ */
+function splitEdges(children: readonly RootContent[]): {
+  lead: string
+  core: RootContent[]
+  tail: string
+} {
+  const core = [...children]
+  let lead = ''
+  let tail = ''
+
+  while (core.length > 0) {
+    const first = core[0]
+    if (first?.type !== 'text') break
+    const match = /^\s+/.exec(first.value)
+    if (!match) break
+    lead += match[0]
+    const rest = first.value.slice(match[0].length)
+    if (rest === '') core.shift()
+    else {
+      core[0] = { ...first, value: rest }
+      break
+    }
+  }
+
+  while (core.length > 0) {
+    const last = core[core.length - 1]
+    if (last?.type !== 'text') break
+    const match = /\s+$/.exec(last.value)
+    if (!match) break
+    tail = match[0] + tail
+    const rest = last.value.slice(0, last.value.length - match[0].length)
+    if (rest === '') core.pop()
+    else {
+      core[core.length - 1] = { ...last, value: rest }
+      break
+    }
+  }
+
+  return { lead, core, tail }
+}
+
+/**
+ * 强调节点的归一化（issue #16a）。
+ *
+ * 两条规则，缺一条都会产出**字面星号**：
+ *
+ * 1. **首尾空白挤到包裹层外面。** CommonMark 的 flanking 规则不允许标记贴着
+ *    空白，所以 `<b>Hello </b>` 序列化出的 `**Hello **` 在**后面紧跟另一个
+ *    标记**时会失效；
+ * 2. **相邻的同类包裹层合并。** `<b>Hel</b><b>lo</b>` 序列化出
+ *    `**Hel****lo**`，中间那四个星号会被解析成一个空的强调，
+ *    渲染成 `<strong>Hel****lo</strong>`。
+ *
+ * 这两种形状都不是罕见构造：把一句话的一半重新加粗一次，
+ * 富文本编辑器就会切成两个相邻节点。用户粘过来的是一句加粗的话，
+ * 得到的是正文里可见的星号加上一半丢了加粗。
+ *
+ * 顺带丢掉空的（或只剩空白的）包裹层：`<h1>甲<b></b>乙</h1>` 会产出
+ * `# 甲****乙`，那四个星号同样是凭空多出来的。
+ */
+function normalizeEmphasis(children: readonly RootContent[]): RootContent[] {
+  const lifted: RootContent[] = []
+  for (const child of children) {
+    if (!isElement(child) || !EMPHASIS.has(child.tagName)) {
+      lifted.push(child)
+      continue
+    }
+    const { lead, core, tail } = splitEdges(child.children)
+    if (lead !== '') lifted.push({ type: 'text', value: lead })
+    // 挤完之后什么都不剩 —— 这个包裹层本来就没有内容可强调
+    if (core.length > 0 && !isBlank(core)) {
+      lifted.push({ ...child, children: core } as Element)
+    }
+    if (tail !== '') lifted.push({ type: 'text', value: tail })
+  }
+
+  const merged: RootContent[] = []
+  for (const child of lifted) {
+    const prev = merged[merged.length - 1]
+    if (
+      isElement(child) &&
+      isElement(prev) &&
+      EMPHASIS.has(child.tagName) &&
+      prev.tagName === child.tagName
+    ) {
+      merged[merged.length - 1] = {
+        ...prev,
+        children: [...prev.children, ...child.children],
+      } as Element
+      continue
+    }
+    merged.push(child)
+  }
+  return merged
+}
+
 function cleanChildren(children: readonly RootContent[]): RootContent[] {
   const out: RootContent[] = []
   for (const child of children) out.push(...cleanNode(child))
-  return out
+  return normalizeEmphasis(out)
 }
 
 /** 清洗整棵树。返回新树，不改原树。 */

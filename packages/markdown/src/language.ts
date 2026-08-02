@@ -69,6 +69,19 @@ export interface MarkdownLanguageOptions {
 }
 
 /**
+ * 「这段不要高亮」的通行写法。
+ *
+ * 它们必须在**扩展名兜底之前**短路掉（issue #3）。理由是扩展名这条兜底会撞车：
+ * `@codemirror/language-data` 里 sTeX 声明了 `extensions: ['text', 'tex', ...]`，
+ * 于是 ```` ```text ```` 在落到纯文本之前就先命中了它 —— 语言选择器显示
+ * 「sTeX」，而 `\section{}` 被按 TeX 命令着了色。
+ *
+ * 这几个词作为**围栏语言**的含义是明确的，跟「哪个语言用这个文件扩展名」
+ * 不是一回事。分歧出现时，前者说了算。
+ */
+const PLAIN_TEXT_NAMES = new Set(['text', 'plain', 'plaintext', 'txt'])
+
+/**
  * 围栏语言名 → 语言描述。**高亮和语言选择器共用这一个函数。**
  *
  * 在上游的 `matchLanguageName` 之上补了一条**扩展名兜底**：
@@ -84,6 +97,7 @@ function matchCodeLanguage(
   // 围栏信息串里空格之后的部分是附加属性（`js {highlight=1-3}`），不参与匹配
   const name = /\S*/.exec(info.trim())?.[0] ?? ''
   if (!name) return null
+  if (PLAIN_TEXT_NAMES.has(name.toLowerCase())) return null
 
   const byName = LanguageDescription.matchLanguageName([...list], name, true)
   if (byName) return byName

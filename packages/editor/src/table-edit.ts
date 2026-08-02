@@ -52,6 +52,17 @@ export interface TableModel {
   rows: string[][]
   aligns: ColumnAlign[]
   columns: number
+  /**
+   * 表格每一行前面的**块前缀** —— blockquote 的 `> `、列表项的缩进。
+   *
+   * 顶层表格是空串。存它是因为 `[from, to]` 这个区间只跳过了**首行**的前缀
+   * （`table.from` 已经在它之后），却横跨了后续各行的前缀。重新序列化时
+   * 不把它加回去，第二行往后就掉出 blockquote / 列表项了（issue #8）。
+   *
+   * 表现相当刺眼：一张 blockquote 里的表格按一下 Tab，左边的引用竖条消失，
+   * `>` 变成了第一列的内容，三列变四列。
+   */
+  prefix: string
 }
 
 /** 光标所在的格子。`row` 为 `'delimiter'` 表示光标停在分隔行上。 */
@@ -146,10 +157,20 @@ function contentRanges(
 ): Range[] {
   const line = state.doc.lineAt(lineFrom)
   const firstNonSpace = line.from + (line.text.length - line.text.trimStart().length)
+  /**
+   * 单元格内容能从哪儿开始。
+   *
+   * 取**行节点的起点**与首个非空白位置里靠后的那个。只用 `firstNonSpace`
+   * 是错的：blockquote 里 `> | a | b |` 的首个非空白字符是 `>`，首个竖线在
+   * 它右边，于是 `[line.from, pipe0)` 也就是 `"> "` 被当成了第 0 个单元格
+   * （issue #8）。而行节点（`TableHeader` / `TableRow`）的起点由解析器给出，
+   * 本来就已经在 `QuoteMark` 和列表缩进之后了。
+   */
+  const contentStart = Math.max(lineFrom, firstNonSpace)
 
   let start = 0
   let end = pipes.length
-  if (pipes.length > 0 && (pipes[0] as number) <= firstNonSpace) start = 1
+  if (pipes.length > 0 && (pipes[0] as number) <= contentStart) start = 1
 
   const last = pipes[end - 1]
   const hasTrailing =
@@ -157,7 +178,7 @@ function contentRanges(
   if (hasTrailing) end -= 1
 
   const ranges: Range[] = []
-  let cursor = start > 0 ? (pipes[0] as number) + 1 : line.from
+  let cursor = start > 0 ? (pipes[0] as number) + 1 : contentStart
   for (let i = start; i < end; i++) {
     const pipe = pipes[i] as number
     ranges.push({ from: cursor, to: pipe })
@@ -202,7 +223,19 @@ export function parseTable(state: EditorState, table: SyntaxNode): TableModel | 
   const aligns = alignmentsOf(state, table)
   while (aligns.length < columns) aligns.push('none')
 
-  return { from: table.from, to: table.to, rows, aligns: aligns.slice(0, columns), columns }
+  // 首行的行首到表格起点之间就是块前缀：blockquote 的 `> `、列表项的缩进。
+  // 顶层表格这一段是空的。
+  const firstLine = state.doc.lineAt(table.from)
+  const prefix = state.doc.sliceString(firstLine.from, table.from)
+
+  return {
+    from: table.from,
+    to: table.to,
+    rows,
+    aligns: aligns.slice(0, columns),
+    columns,
+    prefix,
+  }
 }
 
 /** 光标落在哪个格子。 */
@@ -261,6 +294,10 @@ export interface SerializedTable {
  * 每列宽度取该列最宽的内容（至少 3，分隔行要放得下 `---`）。
  * 对齐方式只影响分隔行的冒号，不影响单元格内部的填充方向 ——
  * 内容一律左靠，右靠会让中英混排的表格看起来更乱而不是更整齐。
+ *
+ * **块前缀要加回第二行往后的每一行。** 首行不加：`model.from` 已经在它之后。
+ * 少了这一步，blockquote 里的表格重排一次就掉出 blockquote，
+ * 列表里的表格丢掉缩进、当场不再是表格（issue #8）。
  */
 export function serializeTable(model: TableModel): SerializedTable {
   const widths: number[] = []
@@ -272,6 +309,8 @@ export function serializeTable(model: TableModel): SerializedTable {
 
   const cells: Range[][] = []
   const lines: string[] = []
+  // 换行 + 块前缀 —— 每换一行就要跨过这么多字符，单元格偏移得跟着算
+  const gap = 1 + model.prefix.length
   let offset = 0
 
   const emit = (row: string[]): void => {
@@ -285,7 +324,7 @@ export function serializeTable(model: TableModel): SerializedTable {
     }
     lines.push(text)
     cells.push(ranges)
-    offset += text.length + 1 // +1：换行
+    offset += text.length + gap
   }
 
   emit(model.rows[0] ?? [])
@@ -296,11 +335,11 @@ export function serializeTable(model: TableModel): SerializedTable {
     delimiterText += ` ${delimiterCell(widths[column] as number, model.aligns[column] ?? 'none')} |`
   }
   lines.push(delimiterText)
-  offset += delimiterText.length + 1
+  offset += delimiterText.length + gap
 
   for (const row of model.rows.slice(1)) emit(row)
 
-  return { text: lines.join('\n'), cells }
+  return { text: lines.join(`\n${model.prefix}`), cells }
 }
 
 /** 把模型写回文档，并把光标放进指定格子。 */
@@ -438,9 +477,14 @@ export const tableNextRow: Command = (view) =>
     if (location.row !== 'delimiter' && isLast && row > 0 && rowIsEmpty) {
       model.rows.splice(row, 1)
       const { text } = serializeTable(model)
+      // **两个换行，不是一个。** GFM 里表格行之后紧邻的非空行**仍然是表格行**，
+      // 所以只补一个 `\n` 的话，用户刚被送出表格，敲的第一个字又把自己送了
+      // 回去 —— 连刚删掉的那一空行也一并回来（issue #10）。
+      // 中间那个空行才是「这里是一个新段落」的分界。
+      const exit = `${text}\n\n`
       view.dispatch({
-        changes: { from: model.from, to: model.to, insert: `${text}\n` },
-        selection: EditorSelection.cursor(model.from + text.length + 1),
+        changes: { from: model.from, to: model.to, insert: exit },
+        selection: EditorSelection.cursor(model.from + exit.length),
         scrollIntoView: true,
         userEvent: 'input.mosu.table',
       })
@@ -536,23 +580,29 @@ export function tableInsert(rows: number, columns: number): Command {
     const pos = state.selection.main.head
     if (tableAt(state, pos)) return false
 
+    const line = state.doc.lineAt(pos)
+    // 光标所在行的块前缀 —— 在 blockquote 里插表，表格的每一行都得带上 `> `，
+    // 否则第二行就掉出去了（跟 issue #8 是同一件事的另一个入口）。
+    // 只认 `>` 与空白：列表的 `- ` 不算前缀，它是内容的一部分。
+    const prefix = /^[ \t>]*/.exec(line.text)?.[0] ?? ''
+
     const model: TableModel = {
       from: pos,
       to: pos,
       rows: Array.from({ length: Math.max(1, rows) }, () => emptyRow(Math.max(1, columns))),
       aligns: Array.from({ length: Math.max(1, columns) }, () => 'none' as ColumnAlign),
       columns: Math.max(1, columns),
+      prefix,
     }
     const { text, cells } = serializeTable(model)
 
-    const line = state.doc.lineAt(pos)
     // 表格必须自成一块：前面有字就先换行，否则会被当成段落的一部分
-    const prefix = line.text.slice(0, pos - line.from).trim() === '' ? '' : '\n'
+    const lead = line.text.slice(0, pos - line.from).trim() === '' ? '' : `\n${prefix}`
     const suffix = '\n'
-    const at = pos + prefix.length
+    const at = pos + lead.length
 
     view.dispatch({
-      changes: { from: pos, insert: prefix + text + suffix },
+      changes: { from: pos, insert: lead + text + suffix },
       selection: EditorSelection.cursor(at + (cells[0]?.[0]?.from ?? 0)),
       scrollIntoView: true,
       userEvent: 'input.mosu.table',

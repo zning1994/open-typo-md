@@ -133,6 +133,12 @@ const tabs: TabManager = new TabManager({
     outline.schedule()
   },
   onDocChange: () => outline.schedule(),
+  // 换了一篇文档就把命令面板收掉。它是**瞬时**浮层：过滤文字和候选项都是
+  // 冲着刚才那篇文档去的，留在屏幕上只会误导（issue #3）。
+  //
+  // 设置面板刻意不在此列 —— 那是用户明确打开的模态对话框，
+  // 不是「顺手一敲」的东西，切个标签就把它关掉反而莫名其妙。
+  onActivate: () => palette.close(),
   create: (parent, context) => {
     // 编辑器要按「自己这个标签的当前路径」解析资源，而路径是控制器持有的，
     // 控制器又要先有编辑器 —— 用一个可变的取值函数把这个环打开
