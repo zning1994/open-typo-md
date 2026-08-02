@@ -12,6 +12,7 @@
 import { Menu, app, shell, type BrowserWindow, type MenuItemConstructorOptions } from 'electron'
 import { EVENTS, type MenuCommand } from '../shared/channels.js'
 import { DEFAULT_BINDINGS, toAccelerator, type BindingMap } from '../shared/keys.js'
+import { createTranslate, type Translate } from '../shared/i18n.js'
 
 const isMac = process.platform === 'darwin'
 
@@ -22,7 +23,15 @@ export interface MenuActions {
   focusedWindow: () => BrowserWindow | null
 }
 
-export function buildMenu(actions: MenuActions, bindings: BindingMap = DEFAULT_BINDINGS): void {
+export function buildMenu(
+  actions: MenuActions,
+  bindings: BindingMap = DEFAULT_BINDINGS,
+  /**
+   * 文案。默认值让老的两参数调用继续成立（测试里到处都是），
+   * 而**真实调用永远显式传**当前语言的那一份 —— 见 index.ts 的 refreshMenu。
+   */
+  t: Translate = createTranslate('zh-CN'),
+): void {
   const send = (command: MenuCommand) => () => {
     actions.focusedWindow()?.webContents.send(EVENTS.menuCommand, command)
   }
@@ -43,137 +52,143 @@ export function buildMenu(actions: MenuActions, bindings: BindingMap = DEFAULT_B
           {
             label: app.name,
             submenu: [
-              { role: 'about', label: `关于 ${app.name}` },
+              { role: 'about', label: t('menu.app.about', { app: app.name }) },
               { type: 'separator' },
-              { role: 'services', label: '服务' },
+              { role: 'services', label: t('menu.app.services') },
               { type: 'separator' },
-              { role: 'hide', label: `隐藏 ${app.name}` },
-              { role: 'hideOthers', label: '隐藏其他' },
-              { role: 'unhide', label: '全部显示' },
+              { role: 'hide', label: t('menu.app.hide', { app: app.name }) },
+              { role: 'hideOthers', label: t('menu.app.hideOthers') },
+              { role: 'unhide', label: t('menu.app.unhide') },
               { type: 'separator' },
-              { role: 'quit', label: `退出 ${app.name}` },
+              { role: 'quit', label: t('menu.app.quit', { app: app.name }) },
             ],
           },
         ] satisfies MenuItemConstructorOptions[])
       : []),
     {
-      label: '文件',
+      label: t('menu.file'),
       submenu: [
         // 还没有标签页，所以 ⌘N 直接给新窗口 —— 在当前窗口「新建」会把
         // 用户正在写的东西顶掉。M3 加了标签之后 ⌘N 变成新标签、⌘⇧N 变成新窗口
-        { label: '新建窗口', accelerator: 'CmdOrCtrl+N', click: () => actions.newWindow() },
-        item('新建标签页', 'file.newTab'),
-        item('打开…', 'file.open'),
-        item('打开文件夹…', 'file.openFolder'),
-        item('关闭文件夹', 'file.closeFolder'),
-        item('关闭标签页', 'file.closeTab'),
-        item('在新窗口打开…', 'file.openInNewWindow'),
+        {
+          label: t('menu.file.newWindow'),
+          accelerator: 'CmdOrCtrl+N',
+          click: () => actions.newWindow(),
+        },
+        item(t('menu.file.newTab'), 'file.newTab'),
+        item(t('menu.file.open'), 'file.open'),
+        item(t('menu.file.openFolder'), 'file.openFolder'),
+        item(t('menu.file.closeFolder'), 'file.closeFolder'),
+        item(t('menu.file.closeTab'), 'file.closeTab'),
+        item(t('menu.file.openInNewWindow'), 'file.openInNewWindow'),
         { type: 'separator' },
-        item('保存', 'file.save'),
-        item('另存为…', 'file.saveAs'),
+        item(t('menu.file.save'), 'file.save'),
+        item(t('menu.file.saveAs'), 'file.saveAs'),
         { type: 'separator' },
-        item('导出为 HTML…', 'file.exportHtml'),
-        item('导出为 PDF…', 'file.exportPdf'),
+        item(t('menu.file.exportHtml'), 'file.exportHtml'),
+        item(t('menu.file.exportPdf'), 'file.exportPdf'),
         { type: 'separator' },
-        isMac ? { role: 'close', label: '关闭窗口' } : { role: 'quit', label: '退出' },
+        isMac
+          ? { role: 'close', label: t('menu.file.closeWindow') }
+          : { role: 'quit', label: t('menu.file.quit') },
       ],
     },
     {
-      label: '编辑',
+      label: t('menu.edit'),
       submenu: [
-        { role: 'undo', label: '撤销' },
-        { role: 'redo', label: '重做' },
+        { role: 'undo', label: t('menu.edit.undo') },
+        { role: 'redo', label: t('menu.edit.redo') },
         { type: 'separator' },
-        { role: 'cut', label: '剪切' },
-        { role: 'copy', label: '复制' },
-        { role: 'paste', label: '粘贴' },
-        { role: 'pasteAndMatchStyle', label: '粘贴为纯文本' },
-        { role: 'selectAll', label: '全选' },
+        { role: 'cut', label: t('menu.edit.cut') },
+        { role: 'copy', label: t('menu.edit.copy') },
+        { role: 'paste', label: t('menu.edit.paste') },
+        { role: 'pasteAndMatchStyle', label: t('menu.edit.pastePlain') },
+        { role: 'selectAll', label: t('menu.edit.selectAll') },
         { type: 'separator' },
-        item('查找与替换', 'edit.find'),
+        item(t('menu.edit.find'), 'edit.find'),
         { type: 'separator' },
-        item('复制为富文本', 'edit.copyRichText'),
+        item(t('menu.edit.copyRichText'), 'edit.copyRichText'),
       ],
     },
     {
-      label: '格式',
+      label: t('menu.format'),
       submenu: [
-        item('加粗', 'format.bold'),
-        item('斜体', 'format.italic'),
-        item('行内代码', 'format.code'),
+        item(t('menu.format.bold'), 'format.bold'),
+        item(t('menu.format.italic'), 'format.italic'),
+        item(t('menu.format.code'), 'format.code'),
         { type: 'separator' },
         ...([1, 2, 3, 4, 5, 6] as const).map((level) =>
-          item(`${level} 级标题`, `format.heading.${level}`),
+          item(t('menu.format.heading', { level }), `format.heading.${level}`),
         ),
-        item('普通段落', 'format.heading.0'),
+        item(t('menu.format.paragraph'), 'format.heading.0'),
         { type: 'separator' },
         {
-          label: '表格',
+          label: t('menu.table'),
           submenu: [
-            item('插入表格', 'table.insert'),
+            item(t('menu.table.insert'), 'table.insert'),
             { type: 'separator' },
-            item('在上方插入行', 'table.rowAbove'),
-            item('在下方插入行', 'table.rowBelow'),
-            item('删除本行', 'table.deleteRow'),
+            item(t('menu.table.rowAbove'), 'table.rowAbove'),
+            item(t('menu.table.rowBelow'), 'table.rowBelow'),
+            item(t('menu.table.deleteRow'), 'table.deleteRow'),
             { type: 'separator' },
-            item('在左侧插入列', 'table.columnBefore'),
-            item('在右侧插入列', 'table.columnAfter'),
-            item('删除本列', 'table.deleteColumn'),
+            item(t('menu.table.columnBefore'), 'table.columnBefore'),
+            item(t('menu.table.columnAfter'), 'table.columnAfter'),
+            item(t('menu.table.deleteColumn'), 'table.deleteColumn'),
             { type: 'separator' },
-            item('本列左对齐', 'table.align.left'),
-            item('本列居中', 'table.align.center'),
-            item('本列右对齐', 'table.align.right'),
-            item('本列取消对齐', 'table.align.none'),
+            item(t('menu.table.alignLeft'), 'table.align.left'),
+            item(t('menu.table.alignCenter'), 'table.align.center'),
+            item(t('menu.table.alignRight'), 'table.align.right'),
+            item(t('menu.table.alignNone'), 'table.align.none'),
             { type: 'separator' },
-            item('整理表格', 'table.format'),
+            item(t('menu.table.format'), 'table.format'),
           ],
         },
       ],
     },
     {
-      label: '视图',
+      label: t('menu.view'),
       submenu: [
-        item('源码模式', 'view.toggleSource'),
-        item('专注模式', 'view.toggleFocus'),
-        item('打字机模式', 'view.toggleTypewriter'),
-        item('文件树', 'view.toggleFiles'),
-        item('下一个标签页', 'view.nextTab'),
-        item('上一个标签页', 'view.prevTab'),
-        item('大纲', 'view.toggleOutline'),
-        item('设置…', 'view.settings'),
-        item('命令面板', 'view.commandPalette'),
+        item(t('menu.view.source'), 'view.toggleSource'),
+        item(t('menu.view.focus'), 'view.toggleFocus'),
+        item(t('menu.view.typewriter'), 'view.toggleTypewriter'),
+        item(t('menu.view.files'), 'view.toggleFiles'),
+        item(t('menu.view.nextTab'), 'view.nextTab'),
+        item(t('menu.view.prevTab'), 'view.prevTab'),
+        item(t('menu.view.outline'), 'view.toggleOutline'),
+        item(t('menu.view.settings'), 'view.settings'),
+        item(t('menu.view.palette'), 'view.commandPalette'),
         {
-          label: '主题',
+          label: t('menu.theme'),
           submenu: [
-            item('跟随系统', 'view.theme.auto'),
-            item('浅色', 'view.theme.light'),
-            item('深色', 'view.theme.dark'),
-            item('护眼（Sepia）', 'view.theme.sepia'),
-            item('高对比', 'view.theme.high-contrast'),
-            item('GitHub', 'view.theme.github'),
+            item(t('theme.auto'), 'view.theme.auto'),
+            item(t('theme.light'), 'view.theme.light'),
+            item(t('theme.dark'), 'view.theme.dark'),
+            item(t('theme.sepia'), 'view.theme.sepia'),
+            item(t('theme.high-contrast'), 'view.theme.high-contrast'),
+            item(t('theme.github'), 'view.theme.github'),
           ],
         },
         { type: 'separator' },
-        { role: 'resetZoom', label: '实际大小' },
-        { role: 'zoomIn', label: '放大' },
-        { role: 'zoomOut', label: '缩小' },
+        { role: 'resetZoom', label: t('menu.view.actualSize') },
+        { role: 'zoomIn', label: t('menu.view.zoomIn') },
+        { role: 'zoomOut', label: t('menu.view.zoomOut') },
         { type: 'separator' },
-        { role: 'togglefullscreen', label: '全屏' },
+        { role: 'togglefullscreen', label: t('menu.view.fullscreen') },
         ...(app.isPackaged
           ? []
           : ([
               { type: 'separator' },
-              { role: 'reload', label: '重新加载' },
-              { role: 'toggleDevTools', label: '开发者工具' },
+              { role: 'reload', label: t('menu.view.reload') },
+              { role: 'toggleDevTools', label: t('menu.view.devtools') },
             ] satisfies MenuItemConstructorOptions[])),
       ],
     },
     {
       role: 'help',
-      label: '帮助',
+      label: t('menu.help'),
       submenu: [
         {
-          label: '项目主页',
+          label: t('menu.help.homepage'),
           click: () => void shell.openExternal('https://github.com/zning1994/open-typo-md'),
         },
       ],

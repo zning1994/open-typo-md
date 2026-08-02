@@ -23,14 +23,18 @@ import {
   toggleBold,
   toggleInlineCode,
   toggleItalic,
+  type EditorLabels,
+  type EditorStatus,
 } from '@typo/editor'
 import type { MenuCommand } from '../shared/channels.js'
-import { MENU_COMMAND_INFO, type Command } from './commands.js'
+import { menuCommandTitle, type Command } from './commands.js'
 import { DocumentController } from './document.js'
 import { FileTreePanel } from './filetree.js'
 import { OutlinePanel } from './outline.js'
 import { CommandPalette } from './palette.js'
 import { PreferenceStore } from './preferences.js'
+import { applyLanguage, t } from './i18n.js'
+import { LANGUAGE_KEY, isLanguageSetting, type LanguageSetting } from '../shared/i18n.js'
 import { EDITOR_FORMAT_IDS, KeybindingStore } from './keybindings.js'
 import { toCodeMirrorKey } from '../shared/keys.js'
 import { SettingsPanel } from './settings-panel.js'
@@ -77,7 +81,22 @@ const statusTypewriter = require$<HTMLButtonElement>('#status-typewriter')
  * 标签变化时才触发 —— 从偏好读的话，哪怕开关是在设置面板里点的，状态栏也
  * 立刻跟上。
  */
+/** 把编辑器状态投影到状态栏。抽出来是为了换语言时能重放一次。 */
+function applyStatus(status: EditorStatus): void {
+  statusStats.textContent = t('status.stats', {
+    words: status.stats.words,
+    line: status.stats.line,
+    column: status.stats.column,
+  })
+  statusMode.textContent = t(status.sourceMode ? 'status.sourceMode' : 'status.livePreview')
+  statusMode.setAttribute('aria-pressed', String(status.sourceMode))
+  renderModeStatus()
+}
+
 function renderModeStatus(): void {
+  // 文字也在这里写：HTML 里留空，免得启动瞬间闪一下写死的中文
+  statusFocus.textContent = t('status.focus')
+  statusTypewriter.textContent = t('status.typewriter')
   statusFocus.setAttribute('aria-pressed', String(preferences.get('focusMode')))
   statusTypewriter.setAttribute('aria-pressed', String(preferences.get('typewriterMode')))
 }
@@ -110,10 +129,7 @@ const tabs: TabManager = new TabManager({
     scheduleSessionReport()
   },
   onStatus: (status) => {
-    statusStats.textContent = `${status.stats.words} 字 · ${status.stats.line}:${status.stats.column}`
-    statusMode.textContent = status.sourceMode ? '源码模式' : '实时预览'
-    statusMode.setAttribute('aria-pressed', String(status.sourceMode))
-    renderModeStatus()
+    applyStatus(status)
     outline.schedule()
   },
   onDocChange: () => outline.schedule(),
@@ -132,6 +148,7 @@ const tabs: TabManager = new TabManager({
       focusMode: preferences.get('focusMode'),
       typewriterMode: preferences.get('typewriterMode'),
       renderInlineHtml: preferences.get('renderInlineHtml'),
+      labels: editorLabels(),
       formatKeys: editorFormatKeys(),
       assetResolver: createAssetResolver(() => {
         const path = pathOf()
@@ -145,12 +162,12 @@ const tabs: TabManager = new TabManager({
         // 未保存的新文档没有落脚点，这里**明确报错**而不是找个临时目录糊过去：
         // 图片进了临时目录、Markdown 里却写着相对路径，用户一保存就得到一个
         // 永远加载不出来的引用
-        if (!path) throw new Error('请先保存文档，图片才知道该放在哪个目录旁边')
+        if (!path) throw new Error(t('error.imageNeedsPath'))
         return host.fs.saveAttachment(dirnameOf(path), image)
       },
       onImageError: (error, name) => {
         void host.dialog.message({
-          message: `图片「${name}」没能插入`,
+          message: t('error.imageInsert', { name }),
           detail: error.message,
         })
       },
@@ -195,12 +212,12 @@ function currentPath(): string | null {
 function render(): void {
   const state = activeController().state()
   statusName.textContent = `${state.dirty ? '● ' : ''}${state.name}`
-  statusName.title = state.path ?? '尚未保存'
+  statusName.title = state.path ?? t('status.unsaved')
 
   const bits = [state.meta.encoding.toUpperCase(), state.meta.eol.toUpperCase()]
-  if (state.meta.mixedEol) bits.push('混合换行')
-  if (state.readOnly) bits.push('只读')
-  if (state.deleted) bits.push('文件已删除')
+  if (state.meta.mixedEol) bits.push(t('status.mixedEol'))
+  if (state.readOnly) bits.push(t('status.readonly'))
+  if (state.deleted) bits.push(t('status.deleted'))
   statusMeta.textContent = bits.join(' · ')
 
   document.title = `${state.dirty ? '● ' : ''}${state.name} — Brainforge Typo`
@@ -261,7 +278,10 @@ async function openFileFlow(forceNewWindow: boolean): Promise<void> {
 }
 
 async function openFolderFlow(): Promise<void> {
-  const picked = await host.dialog.openFile({ title: '打开文件夹', directories: true })
+  const picked = await host.dialog.openFile({
+    title: t('dialog.openFolder.title'),
+    directories: true,
+  })
   const dir = picked?.[0]
   if (!dir) return
   await files.openFolder(dir)
@@ -307,7 +327,7 @@ function defaultExportPath(extension: string): string {
 
 async function exportHtmlFlow(): Promise<void> {
   const target = await host.dialog.saveFile({
-    title: '导出为 HTML',
+    title: t('export.html.title'),
     defaultPath: defaultExportPath('.html'),
     filters: [{ name: 'HTML', extensions: ['html', 'htm'] }],
   })
@@ -317,7 +337,7 @@ async function exportHtmlFlow(): Promise<void> {
     await api.fs.writeText(target, await exportHtmlDocument(exportContext()))
   } catch (error) {
     await host.dialog.message({
-      message: '导出失败',
+      message: t('export.failed'),
       detail: error instanceof Error ? error.message : String(error),
     })
   }
@@ -331,7 +351,7 @@ async function exportHtmlFlow(): Promise<void> {
  */
 async function exportPdfFlow(): Promise<void> {
   const target = await host.dialog.saveFile({
-    title: '导出为 PDF',
+    title: t('export.pdf.title'),
     defaultPath: defaultExportPath('.pdf'),
     filters: [{ name: 'PDF', extensions: ['pdf'] }],
   })
@@ -345,7 +365,7 @@ async function exportPdfFlow(): Promise<void> {
     })
   } catch (error) {
     await host.dialog.message({
-      message: '导出失败',
+      message: t('export.failed'),
       detail: error instanceof Error ? error.message : String(error),
     })
   }
@@ -358,7 +378,7 @@ async function copyRichTextFlow(): Promise<void> {
     await api.clipboard.writeHtml(html, activeEditor().getDoc())
   } catch (error) {
     await host.dialog.message({
-      message: '复制失败',
+      message: t('export.copyFailed'),
       detail: error instanceof Error ? error.message : String(error),
     })
   }
@@ -450,7 +470,7 @@ function allCommands(): Command[] {
     const binding = keys.get(id)
     return {
       id,
-      title: MENU_COMMAND_INFO[id].title,
+      title: menuCommandTitle(id),
       keywords: id,
       ...(binding ? { binding } : {}),
       run: () => MENU_ACTIONS[id](),
@@ -471,6 +491,8 @@ const settings = new SettingsPanel({
   mac: () => api.platform.os === 'mac',
   theme: () => themes.theme,
   selectTheme: (theme) => themes.select(theme),
+  language: () => language,
+  selectLanguage: (value) => selectLanguage(value),
   restoreFocus: () => activeEditor().focus(),
 })
 
@@ -515,11 +537,11 @@ async function offerDraftRecovery(): Promise<void> {
   const drafts = await api.drafts.claim()
   if (drafts.length === 0) return
 
-  const names = drafts.map((d) => d.path ?? '未命名文档').join('\n')
+  const names = drafts.map((d) => d.path ?? t('doc.untitledDocument')).join('\n')
   const choice = await host.dialog.confirm({
-    message: '上次未正常退出，有未保存的修改',
-    detail: `${names}\n\n恢复之后仍然需要你手动保存。`,
-    buttons: ['恢复', '丢弃', '暂不处理'],
+    message: t('recover.title'),
+    detail: t('recover.detail', { names }),
+    buttons: [t('recover.restore'), t('recover.discard'), t('recover.later')],
     defaultId: 0,
     cancelId: 2,
   })
@@ -583,13 +605,82 @@ keys.onChange(() => {
   for (const tab of tabs.all()) tab.editor.setFormatKeys(formatKeys)
 })
 
+/**
+ * 界面语言。
+ *
+ * 不走 `PreferenceStore`：那份偏好是纯渲染进程的东西，而语言**两个进程都要看**
+ * （原生菜单在 main 侧）。所以它直接落在 settings.json 的 `ui.language` 上，
+ * main 在 `settingsSet` 里看见这个键就重建菜单 —— 一次写入，两边都对。
+ */
+let language: LanguageSetting = 'auto'
+
+async function selectLanguage(value: LanguageSetting): Promise<void> {
+  if (value === language) return
+  language = value
+  await host.settings.set(LANGUAGE_KEY, value)
+  refreshLanguage()
+}
+
+/**
+ * 把新语言铺到界面上。
+ *
+ * `applyLanguage` 返回 false 表示解出来还是同一种语言（比如从 `auto` 显式选到
+ * 系统本来就是的那种），此时整轮重绘可以省掉。
+ *
+ * 这个列表就是「换语言时哪些东西要动」的**唯一清单**。漏一处的表现是界面上
+ * 有一小块留在旧语言里 —— 而那种半吊子状态比完全没翻译更让人怀疑。
+ */
+function refreshLanguage(): void {
+  if (!applyLanguage(language, api.platform.locale)) return
+  retranslateAll()
+}
+
+/**
+ * 把当前语言铺到所有「只在构造时写过一次」的地方。
+ *
+ * **启动时也必须调一次**：面板都在模块顶层构造，那时语言还没从磁盘读回来，
+ * 它们身上带的是兜底语言（英文）的文案。漏掉这一步的表现是「系统是中文、
+ * 菜单也是中文，唯独面板标题是英文」—— 而且只在启动那一次出现，
+ * 用户点一下换语言再换回来就好了，正是最难复现的那种。
+ */
+function retranslateAll(): void {
+  outline.retranslate()
+  palette.retranslate()
+  files.retranslate()
+  settings.retranslate()
+  for (const tab of tabs.all()) tab.editor.setLabels(editorLabels())
+  tabs.retranslate()
+  applyStatus(activeEditor().status())
+  render()
+}
+
+/** 注入给编辑器内核的那几条文案（内核不认识我们的文案表，见 P3）。 */
+function editorLabels(): EditorLabels {
+  return {
+    editor: t('editor.label'),
+    codeLanguage: t('editor.codeLanguage'),
+    plainText: t('editor.codeLanguage.plain'),
+    taskDone: t('editor.task.done'),
+    taskTodo: t('editor.task.todo'),
+    imageFailed: (src) => t('editor.image.failed', { src }),
+  }
+}
+
 void (async () => {
+  // 语言要在**别的什么都还没画之前**定下来：晚一步的话第一帧是英文兜底，
+  // 用户会看见界面闪一下语言
+  const stored = await host.settings.get<unknown>(LANGUAGE_KEY)
+  if (isLanguageSetting(stored)) language = stored
+  applyLanguage(language, api.platform.locale)
+
   await Promise.all([themes.init(), preferences.init(), keys.init(COMMAND_IDS)])
+
   // 读设置是异步的，而「外部要求打开文件」的事件可能在这期间就到了 ——
   // 那时 openPath 已经建过一个标签。无条件再开一个空白标签会把它顶掉，
   // 表现是「从 Finder 双击打开的新窗口里是一篇空文档」
   if (tabs.all().length === 0) tabs.open()
-  render()
+  // 放在建完第一个标签之后：retranslateAll 要重放活动编辑器的状态
+  retranslateAll()
   await restoreSession()
   await offerDraftRecovery()
 })()

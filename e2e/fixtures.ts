@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -22,6 +22,17 @@ export const test = base.extend<TypoFixtures>({
   // eslint-disable-next-line no-empty-pattern
   userDataDir: async ({}, use) => {
     const dir = await mkdtemp(path.join(tmpdir(), 'typo-e2e-'))
+
+    // 把界面语言**钉死**在简体中文。
+    //
+    // 不钉的话菜单标签取决于 `app.getLocale()`，也就是取决于**跑测试的那台
+    // 机器的系统区域** —— 三个平台的 CI runner 各给各的，本地开发机又是另一个。
+    // 用例里那五十来处 `clickMenu(app, ['视图', …])` 会在某些机器上莫名找不到
+    // 菜单项，而失败信息只会说「菜单里找不到」，看不出是区域的问题。
+    //
+    // 换语言本身由 writing-modes 之外的一条专门用例覆盖（i18n.spec.ts）。
+    await writeFile(path.join(dir, 'settings.json'), JSON.stringify({ 'ui.language': 'zh-CN' }))
+
     await use(dir)
 
     // Electron 退出时还在往 userData 目录里写东西，紧接着删就会撞上

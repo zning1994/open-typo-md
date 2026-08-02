@@ -1,8 +1,10 @@
 export { TypoEditor } from './editor.js'
 export type { EditorStats, EditorStatus, TypoEditorOptions } from './editor.js'
 export {
+  DEFAULT_LABELS,
   livePreviewConfig,
   type AssetResolver,
+  type EditorLabels,
   type ImageSink,
   type LivePreviewConfig,
   type PastedImage,

@@ -29,6 +29,18 @@ import {
 import { decodeText, encodeText } from '@typo/markdown/text'
 import { assertAllowed } from './path-guard.js'
 import { noteSelfWrite } from './watcher.js'
+import { FALLBACK_LOCALE, createTranslate, type Translate } from '../shared/i18n.js'
+
+/**
+ * 出错文案的默认值。
+ *
+ * 这一层**不去问当前语言**：它是纯文件操作，问语言就要认识 `electron`
+ * （`app.getLocale`）和设置存储，于是「在临时目录上跑真实 fs」的那批防灾测试
+ * 就得先把整个 Electron 桩起来 —— 为一句错误消息付这个代价不值当。
+ *
+ * 真实调用由 IPC 那一侧把当前语言的翻译器传进来（见 index.ts）。
+ */
+const DEFAULT_T = createTranslate(FALLBACK_LOCALE)
 
 /** 超过这个体积拒绝以编辑器打开（docs/design/04 §8）。 */
 export const MAX_FILE_BYTES = 50 * 1024 * 1024
@@ -46,14 +58,20 @@ async function isWritable(target: string): Promise<boolean> {
   }
 }
 
-export async function readTextFile(target: string): Promise<ReadResult> {
+export async function readTextFile(
+  target: string,
+  t: Translate = DEFAULT_T,
+): Promise<ReadResult> {
   const real = await assertAllowed(target)
   const info = await stat(real)
 
-  if (!info.isFile()) throw new Error(`不是一个文件：${target}`)
+  if (!info.isFile()) throw new Error(t('error.notAFile', { path: target }))
   if (info.size > MAX_FILE_BYTES) {
     throw new Error(
-      `文件过大（${(info.size / 1024 / 1024).toFixed(1)} MB），超过 ${MAX_FILE_BYTES / 1024 / 1024} MB 上限`,
+      t('error.fileTooLarge', {
+        size: (info.size / 1024 / 1024).toFixed(1),
+        limit: MAX_FILE_BYTES / 1024 / 1024,
+      }),
     )
   }
 
@@ -184,13 +202,17 @@ export async function saveAttachment(
   baseDir: string,
   mime: string,
   bytes: Uint8Array,
+  t: Translate = DEFAULT_T,
 ): Promise<string> {
   const extension = IMAGE_EXTENSIONS[mime.toLowerCase()]
-  if (!extension) throw new Error(`不支持的图片类型：${mime}`)
-  if (bytes.byteLength === 0) throw new Error('图片内容为空')
+  if (!extension) throw new Error(t('error.imageType', { mime }))
+  if (bytes.byteLength === 0) throw new Error(t('error.imageEmpty'))
   if (bytes.byteLength > MAX_ATTACHMENT_BYTES) {
     throw new Error(
-      `图片过大（${(bytes.byteLength / 1024 / 1024).toFixed(1)} MB），超过 ${MAX_ATTACHMENT_BYTES / 1024 / 1024} MB 上限`,
+      t('error.imageTooLarge', {
+        size: (bytes.byteLength / 1024 / 1024).toFixed(1),
+        limit: MAX_ATTACHMENT_BYTES / 1024 / 1024,
+      }),
     )
   }
 

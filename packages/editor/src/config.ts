@@ -32,8 +32,43 @@ export interface PastedImage {
  */
 export type ImageSink = (image: PastedImage) => Promise<string>
 
+/**
+ * 编辑区里那几条**给人看的**文字。
+ *
+ * 内核不认识宿主的文案表（原则 P3：内核不依赖 Electron，也不该依赖某个特定的
+ * i18n 方案），所以走注入。默认值是英文而不是中文 —— 一个直接拿这个包去嵌
+ * 网页的人，拿到英文比拿到中文更可能看得懂。
+ *
+ * 只有六条，用不着上一整套消息机制。真到了插件也要贡献界面文案那一天
+ * （M5），这里会换成一个 `translate` 函数，但那时才有东西可通用。
+ */
+export interface EditorLabels {
+  /** 编辑区本身的 aria-label。 */
+  editor: string
+  /** 代码块右上角语言选择器的提示。 */
+  codeLanguage: string
+  /** 语言选择器里「不指定语言」那一项。 */
+  plainText: string
+  /** 任务列表复选框的 aria-label。 */
+  taskDone: string
+  taskTodo: string
+  /** 图片加载失败时的 title。 */
+  imageFailed: (src: string) => string
+}
+
+export const DEFAULT_LABELS: EditorLabels = {
+  editor: 'Markdown editor',
+  codeLanguage: 'Code language',
+  plainText: 'Plain text',
+  taskDone: 'Done',
+  taskTodo: 'Not done',
+  imageFailed: (src) => `Could not load image: ${src}`,
+}
+
 export interface LivePreviewConfig {
   assetResolver: AssetResolver
+  /** 编辑区里的可见文字，见 `EditorLabels`。 */
+  labels: EditorLabels
   /** 关掉图片渲染（大文档降级策略，见 docs/design/02 §9）。 */
   renderImages: boolean
   /**
@@ -66,6 +101,7 @@ export const livePreviewConfig = Facet.define<Partial<LivePreviewConfig>, LivePr
   combine(values) {
     return combineConfig(values, {
       assetResolver: (src: string) => src,
+      labels: DEFAULT_LABELS,
       renderImages: true,
       renderInlineHtml: true,
       onOpenLink: null,

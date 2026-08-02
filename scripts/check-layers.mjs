@@ -16,6 +16,8 @@ const root = fileURLToPath(new URL('..', import.meta.url))
 /** 每个包**允许**依赖的工作区包。未列出的一律视为违规。 */
 const ALLOWED = {
   '@typo/plugin-api': [],
+  // 文案层是纯字符串处理，谁也不认识 —— 它跟 plugin-api 一样是叶子
+  '@typo/i18n': [],
   '@typo/markdown': ['@typo/plugin-api'],
   // 导出层认识语义解析，但**不认识编辑器** —— 导出不该依赖「界面上现在是什么样」
   '@typo/export': ['@typo/plugin-api', '@typo/markdown'],
@@ -24,6 +26,7 @@ const ALLOWED = {
   '@typo/editor': ['@typo/plugin-api', '@typo/markdown', '@typo/import'],
   '@typo/desktop': [
     '@typo/plugin-api',
+    '@typo/i18n',
     '@typo/markdown',
     '@typo/export',
     '@typo/import',
@@ -34,6 +37,7 @@ const ALLOWED = {
 /** 这些包的源码里不允许出现的 import —— 内核必须与宿主无关（原则 P3）。 */
 const FORBIDDEN_IMPORTS = {
   '@typo/plugin-api': [/^electron$/, /^node:/],
+  '@typo/i18n': [/^electron$/, /^node:/],
   '@typo/markdown': [/^electron$/, /^node:/],
   '@typo/export': [/^electron$/, /^node:/],
   '@typo/import': [/^electron$/, /^node:/],

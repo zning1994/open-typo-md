@@ -16,10 +16,12 @@
  */
 import { THEMES, type ThemeId } from './theme.js'
 import { PAGE_SIZES, type PageSize, type PreferenceStore } from './preferences.js'
-import { MENU_COMMAND_INFO } from './commands.js'
+import { menuCommandTitle } from './commands.js'
 import type { KeybindingStore } from './keybindings.js'
 import type { MenuCommand } from '../shared/channels.js'
 import { formatBinding, normalizeBinding } from '../shared/keys.js'
+import { LOCALES, type LanguageSetting } from '../shared/i18n.js'
+import { t } from './i18n.js'
 
 export interface SettingsPanelOptions {
   preferences: PreferenceStore
@@ -38,6 +40,9 @@ export interface SettingsPanelOptions {
   /** 当前主题 / 切换主题。主题的归属仍在 ThemeManager，这里只是借个入口。 */
   theme: () => ThemeId
   selectTheme: (theme: ThemeId) => Promise<void>
+  /** 当前界面语言设置 / 换一种。跟主题一样，归属在别处，这里只是借个入口。 */
+  language: () => LanguageSetting
+  selectLanguage: (language: LanguageSetting) => Promise<void>
   /** 关掉之后把焦点还回去。 */
   restoreFocus: () => void
 }
@@ -81,17 +86,21 @@ function comboFrom(event: KeyboardEvent, mac: boolean): string | null {
   return normalizeBinding(parts.join('+'))
 }
 
-const PAGE_SIZE_LABELS: Record<PageSize, string> = {
-  A4: 'A4',
-  Letter: 'Letter（美制信纸）',
-  Legal: 'Legal',
-  A3: 'A3',
-  Tabloid: 'Tabloid',
+/**
+ * 纸张名。**只有 Letter 需要翻译** —— 其余是国际通用的规格代号，
+ * 翻成本地词反而对不上打印机驱动里的写法。
+ */
+function pageSizeLabel(size: PageSize): string {
+  return size === 'Letter' ? t('settings.pdf.letter') : size
 }
 
 export class SettingsPanel {
   private readonly root: HTMLElement
   private readonly body: HTMLElement
+  private readonly titleEl: HTMLElement
+  private readonly closeEl: HTMLButtonElement
+  private readonly resetEl: HTMLButtonElement
+  private readonly hintEl: HTMLElement
 
   constructor(private readonly options: SettingsPanelOptions) {
     this.root = document.createElement('div')
@@ -100,23 +109,24 @@ export class SettingsPanel {
     // 浮层对读屏软件应当是一个对话框，否则焦点跑进去之后毫无上下文
     this.root.setAttribute('role', 'dialog')
     this.root.setAttribute('aria-modal', 'true')
-    this.root.setAttribute('aria-label', '设置')
+    this.root.setAttribute('aria-label', t('settings.title'))
 
     const box = document.createElement('div')
     box.className = 'typo-settings__box'
 
     const header = document.createElement('div')
     header.className = 'typo-settings__header'
-    const title = document.createElement('h2')
-    title.className = 'typo-settings__title'
-    title.textContent = '设置'
-    header.appendChild(title)
+    this.titleEl = document.createElement('h2')
+    this.titleEl.className = 'typo-settings__title'
+    this.titleEl.textContent = t('settings.title')
+    header.appendChild(this.titleEl)
 
     const close = document.createElement('button')
     close.type = 'button'
     close.className = 'typo-settings__close'
     close.textContent = '×'
-    close.setAttribute('aria-label', '关闭设置')
+    this.closeEl = close
+    close.setAttribute('aria-label', t('settings.close'))
     close.addEventListener('click', () => this.hide())
     header.appendChild(close)
     box.appendChild(header)
@@ -130,7 +140,8 @@ export class SettingsPanel {
     const reset = document.createElement('button')
     reset.type = 'button'
     reset.className = 'typo-settings__reset'
-    reset.textContent = '恢复默认值'
+    this.resetEl = reset
+    reset.textContent = t('settings.reset')
     reset.addEventListener('click', () => {
       void this.options.preferences.reset().then(() => this.render())
     })
@@ -138,7 +149,8 @@ export class SettingsPanel {
 
     const hint = document.createElement('span')
     hint.className = 'typo-settings__hint'
-    hint.textContent = '改动立即生效'
+    this.hintEl = hint
+    hint.textContent = t('settings.hint')
     footer.appendChild(hint)
     box.appendChild(footer)
 
@@ -180,6 +192,22 @@ export class SettingsPanel {
   }
 
   /**
+   * 换语言后补上外框的文案。
+   *
+   * 内容区不用管 —— `render()` 每次打开都重画一遍。但这个方法**必须也调
+   * `render()`**：用户是在这个面板里换的语言，面板正开着，不重画的话他会看到
+   * 一个「标题变了、内容没变」的半吊子状态，然后合理地怀疑设置没生效。
+   */
+  retranslate(): void {
+    this.root.setAttribute('aria-label', t('settings.title'))
+    this.titleEl.textContent = t('settings.title')
+    this.closeEl.setAttribute('aria-label', t('settings.close'))
+    this.resetEl.textContent = t('settings.reset')
+    this.hintEl.textContent = t('settings.hint')
+    if (this.isOpen()) this.render()
+  }
+
+  /**
    * 重画。
    *
    * `focusCommand` 是给录制流程用的：录完一个键之后整块表被重建，
@@ -189,52 +217,64 @@ export class SettingsPanel {
   private render(focusCommand?: MenuCommand): void {
     const prefs = this.options.preferences.all()
     this.body.replaceChildren(
-      this.section('外观', [
+      this.section(t('settings.section.appearance'), [
         this.selectRow(
-          '主题',
-          THEMES.map((t) => [t.id, t.label] as const),
+          t('settings.theme'),
+          THEMES.map((theme) => [theme.id, t(`theme.${theme.id}`)] as const),
           this.options.theme(),
           (value) => this.options.selectTheme(value as ThemeId),
         ),
+        this.selectRow(
+          t('settings.language'),
+          [
+            ['auto', t('settings.language.auto')] as const,
+            // 每种语言用**它自己的名字**列出来，不翻译：看不懂当前界面语言的人
+            // 正是最需要找到这一行的人，「日本語」他认得，「Japanese」未必
+            ...LOCALES.map((locale) => [locale.id, locale.label] as const),
+          ],
+          this.options.language(),
+          (value) => this.options.selectLanguage(value as LanguageSetting),
+          t('settings.language.hint'),
+        ),
       ]),
-      this.section('编辑器', [
+      this.section(t('settings.section.editor'), [
         this.checkRow(
-          '新标签页默认进源码模式',
+          t('settings.sourceModeByDefault'),
           prefs.sourceModeByDefault,
-          '只影响新打开的标签，不动已经开着的那些',
+          t('settings.sourceModeByDefault.hint'),
           (value) => this.options.preferences.set('sourceModeByDefault', value),
         ),
         this.checkRow(
-          '专注模式',
+          t('settings.focusMode'),
           prefs.focusMode,
-          '光标所在的段落之外全部变暗；跟源码模式互不冲突',
+          t('settings.focusMode.hint'),
           (value) => this.options.preferences.set('focusMode', value),
         ),
         this.checkRow(
-          '打字机模式',
+          t('settings.typewriterMode'),
           prefs.typewriterMode,
-          '当前行常驻视口中央。拖选时不跟随，免得跟鼠标抢滚动条',
+          t('settings.typewriterMode.hint'),
           (value) => this.options.preferences.set('typewriterMode', value),
         ),
         this.checkRow(
-          '渲染行内 HTML',
+          t('settings.renderInlineHtml'),
           prefs.renderInlineHtml,
-          '只认不带属性的 <b> <em> <u> <s> <sub> <sup> <kbd> <mark> <br>，其余按原文显示',
+          t('settings.renderInlineHtml.hint'),
           (value) => this.options.preferences.set('renderInlineHtml', value),
         ),
       ]),
-      this.section('快捷键', [this.keysTable()]),
-      this.section('导出 PDF', [
+      this.section(t('settings.section.keys'), [this.keysTable()]),
+      this.section(t('settings.section.pdf'), [
         this.selectRow(
-          '纸张',
-          PAGE_SIZES.map((size) => [size, PAGE_SIZE_LABELS[size]] as const),
+          t('settings.pdf.pageSize'),
+          PAGE_SIZES.map((size) => [size, pageSizeLabel(size)] as const),
           prefs.pdfPageSize,
           (value) => this.options.preferences.set('pdfPageSize', value as PageSize),
         ),
-        this.checkRow('横向', prefs.pdfLandscape, '', (value) =>
+        this.checkRow(t('settings.pdf.landscape'), prefs.pdfLandscape, '', (value) =>
           this.options.preferences.set('pdfLandscape', value),
         ),
-        this.numberRow('页边距（英寸）', prefs.pdfMarginInch, (value) =>
+        this.numberRow(t('settings.pdf.margin'), prefs.pdfMarginInch, (value) =>
           this.options.preferences.set('pdfMarginInch', value),
         ),
       ]),
@@ -267,7 +307,7 @@ export class SettingsPanel {
 
       const label = document.createElement('span')
       label.className = 'typo-keys__label'
-      label.textContent = MENU_COMMAND_INFO[command].title
+      label.textContent = menuCommandTitle(command)
       row.appendChild(label)
 
       // 撞车只警告不阻止：两个命令共用一个键在别的应用里也常见（上下文不同时
@@ -275,9 +315,9 @@ export class SettingsPanel {
       if (binding && (conflicts.get(binding)?.length ?? 0) > 1) {
         const warn = document.createElement('span')
         warn.className = 'typo-keys__conflict'
-        warn.textContent = '冲突'
+        warn.textContent = t('settings.keys.conflict')
         warn.title = (conflicts.get(binding) ?? [])
-          .map((id) => MENU_COMMAND_INFO[id].title)
+          .map((id) => menuCommandTitle(id))
           .join(' / ')
         row.appendChild(warn)
       }
@@ -288,7 +328,7 @@ export class SettingsPanel {
       clear.type = 'button'
       clear.className = 'typo-keys__clear'
       clear.textContent = '×'
-      clear.title = '取消这个快捷键'
+      clear.title = t('settings.keys.clear')
       clear.addEventListener('click', () => {
         void this.options.keys.set(command, '').then(() => this.render())
       })
@@ -300,7 +340,7 @@ export class SettingsPanel {
     const reset = document.createElement('button')
     reset.type = 'button'
     reset.className = 'typo-keys__reset'
-    reset.textContent = '快捷键全部恢复默认'
+    reset.textContent = t('settings.keys.reset')
     reset.addEventListener('click', () => {
       void this.options.keys.reset(this.options.commands).then(() => this.render())
     })
@@ -321,20 +361,24 @@ export class SettingsPanel {
     button.type = 'button'
     button.className = 'typo-keys__binding'
     button.dataset['command'] = command
-    button.textContent = binding ? formatBinding(binding, this.options.mac()) : '未设置'
+    button.textContent = binding
+      ? formatBinding(binding, this.options.mac())
+      : t('settings.keys.unset')
     if (!binding) button.classList.add('typo-keys__binding--empty')
 
     let capturing = false
     const stop = (): void => {
       capturing = false
       button.classList.remove('typo-keys__binding--capturing')
-      button.textContent = binding ? formatBinding(binding, this.options.mac()) : '未设置'
+      button.textContent = binding
+        ? formatBinding(binding, this.options.mac())
+        : t('settings.keys.unset')
     }
 
     button.addEventListener('click', () => {
       capturing = true
       button.classList.add('typo-keys__binding--capturing')
-      button.textContent = '按下组合键…'
+      button.textContent = t('settings.keys.recording')
       button.focus()
     })
     button.addEventListener('blur', stop)
@@ -355,7 +399,7 @@ export class SettingsPanel {
 
       void this.options.keys.set(command, captured).then((ok) => {
         if (!ok) {
-          button.textContent = '这个组合不能用'
+          button.textContent = t('settings.keys.rejected')
           return
         }
         this.render(command)
@@ -398,6 +442,7 @@ export class SettingsPanel {
     options: readonly (readonly [string, string])[],
     current: string,
     onChange: (value: string) => Promise<void>,
+    note = '',
   ): HTMLElement {
     const select = document.createElement('select')
     select.className = 'typo-settings__control'
@@ -409,7 +454,7 @@ export class SettingsPanel {
     }
     select.value = current
     select.addEventListener('change', () => void onChange(select.value))
-    return this.row(label, select)
+    return this.row(label, select, note)
   }
 
   private checkRow(

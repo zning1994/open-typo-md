@@ -90,6 +90,8 @@ On Linux the end-to-end tests need a display: `xvfb-run -a pnpm test:e2e`.
 - One-key switch to source mode
 - **Focus mode** (F8) dims everything outside the current block; **typewriter mode** (F9)
   keeps the current line at the vertical centre of the viewport
+- **Interface language**: Simplified Chinese, English or Japanese, switchable in Settings
+  without a restart
 - **Multiple windows**, **tabs** (⌘T / ⌘W) with independent undo stacks and dirty flags,
   and **session restore**
 - **Code blocks**: per-language highlighting, no wrapping with prose, block-level horizontal

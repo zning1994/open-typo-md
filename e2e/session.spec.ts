@@ -32,6 +32,12 @@ let workDir: string
 test.beforeEach(async () => {
   userDataDir = await mkdtemp(path.join(tmpdir(), 'typo-session-ud-'))
   workDir = await mkdtemp(path.join(tmpdir(), 'typo-session-'))
+  // 这个文件自己管 userData，所以要自己钉住界面语言 —— 理由见 fixtures.ts。
+  // 下面那几处 `label === '打开文件夹…'` 否则会随跑测试的机器的系统区域而变
+  await writeFile(
+    path.join(userDataDir, 'settings.json'),
+    JSON.stringify({ 'ui.language': 'zh-CN' }),
+  )
 })
 
 test.afterEach(async () => {

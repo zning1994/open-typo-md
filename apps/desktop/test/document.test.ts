@@ -7,6 +7,11 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createMemoryHost, type MemoryHost } from '@typo/plugin-api/testing'
 import { DocumentController, type EditorHandle } from '../src/renderer/document.js'
+// 断言用**文案表里的那一条**，不写死字面量。这不是同义反复：真正要验的是
+// 「这个条件触发的是这一条消息」，而写死字面量的话任何一次改文案（哪怕只是
+// 把句号换成问号）都会让测试变红，而那不是 bug。
+// 默认语言是英文，见 shared/i18n.ts 的兜底选择。
+import { en } from '../src/shared/messages/en.js'
 
 /** 极简的编辑器替身：只实现控制器需要的三个方法。 */
 class FakeEditor implements EditorHandle {
@@ -57,12 +62,14 @@ describe('打开', () => {
   it('混合换行必须当面提示用户，而不是等保存后才发现', async () => {
     host.seed('/w/mixed.md', 'a\nb\n', { mixedEol: true, eol: 'crlf' })
     await controller.openPath('/w/mixed.md')
-    expect(host.dialogLog.some((entry) => entry.includes('混合换行符'))).toBe(true)
+    expect(host.dialogLog.some((entry) => entry.includes(en['doc.mixedEol.title']))).toBe(true)
   })
 
   it('打开失败时报错，不留下半截状态', async () => {
     await controller.openPath('/w/missing.md')
-    expect(host.dialogLog.some((entry) => entry.startsWith('message:无法打开文件'))).toBe(true)
+    expect(
+      host.dialogLog.some((entry) => entry.startsWith(`message:${en['doc.openFailed.title']}`)),
+    ).toBe(true)
     expect(controller.state().path).toBe(null)
   })
 })
@@ -131,7 +138,7 @@ describe('保存冲突', () => {
     host.externalEdit('/w/a.md', '别人的修改')
     host.answerConfirmWith(2)
     await controller.save()
-    expect(host.dialogLog.some((e) => e.includes('文件已被其他程序修改'))).toBe(true)
+    expect(host.dialogLog.some((e) => e.includes(en['doc.conflict.title']))).toBe(true)
   })
 
   it('没有外部修改时直接写入，不打扰用户', async () => {
@@ -149,7 +156,7 @@ describe('只读文件', () => {
 
     await controller.openPath('/w/ro.md')
     expect(controller.state().readOnly).toBe(true)
-    expect(host.dialogLog.some((e) => e.includes('只读'))).toBe(true)
+    expect(host.dialogLog.some((e) => e.includes(en['doc.readonly.title']))).toBe(true)
   })
 
   it('只读文件保存被拒绝，不产生写入', async () => {
@@ -247,7 +254,7 @@ describe('外部修改（docs/design/04 §3）', () => {
     await controller.handleExternalChange((await host.fs.read('/a.md')).hash, false)
 
     expect(editor.getDoc()).toContain('我正在写的东西')
-    expect(host.dialogLog.some((d) => d.includes('已被其他程序修改'))).toBe(true)
+    expect(host.dialogLog.some((d) => d.includes('was changed by another program'))).toBe(true)
   })
 
   it('选「用磁盘上的内容」才覆盖本地', async () => {

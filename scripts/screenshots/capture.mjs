@@ -40,16 +40,20 @@ const appRoot = path.join(repoRoot, 'apps/desktop')
 const outDir = path.join(repoRoot, 'docs/public/shots')
 
 /**
- * 要拍哪几种语言。
+ * 要拍哪几种语言，一种一行。
  *
- * `reveal` 是「光标进入即显源码」那组对比图，得指定**在哪一段、点哪个词**上演示 ——
- * 每种语言的措辞不同，所以这两个定位串跟着语言走。写成整句里的一小截，
- * 而不是整句：整句里任何一个标点改了都会找不到。
+ * `ui` 是**应用界面语言**的设置值，跟目录名分开列：它们碰巧一一对应，但那是巧合
+ * 不是规律 —— 目录名用短代码（`zh`），设置里存的是完整标签（`zh-CN`）。合成一个
+ * 值的话，加一种语言时会得到「文档是那个语言、状态栏还是英文」的截图。
+ *
+ * `paragraph` 与 `section` 是「光标进入即显源码」那组对比图的定位串：得指定
+ * **在哪一段、点哪个词**上演示，而每种语言的措辞不同。写成整句里的一小截，
+ * 而不是整句 —— 整句里任何一个标点改了都会找不到。
  */
 const LANGS = [
-  { id: 'zh', paragraph: '编辑器缓冲区里存的就是', section: '管线' },
-  { id: 'en', paragraph: 'the editor buffer holds exactly', section: 'Pipeline' },
-  { id: 'ja', paragraph: 'エディタのバッファには', section: 'パイプライン' },
+  { id: 'zh', ui: 'zh-CN', paragraph: '编辑器缓冲区里存的就是', section: '管线' },
+  { id: 'en', ui: 'en', paragraph: 'the editor buffer holds exactly', section: 'Pipeline' },
+  { id: 'ja', ui: 'ja', paragraph: 'エディタのバッファには', section: 'パイプライン' },
 ]
 
 /** 窗口内容区尺寸（CSS 像素）。截出来的 PNG 是它的两倍，见 SCALE。 */
@@ -88,23 +92,27 @@ async function toTop(page) {
   await page.waitForTimeout(300)
 }
 
-/** 点一个真实的原生菜单项。 */
-async function clickMenu(app, labels) {
-  await app.evaluate(({ Menu }, target) => {
-    let items = Menu.getApplicationMenu()?.items ?? []
-    let found
-    for (const label of target) {
-      found = items.find((item) => item.label === label)
-      if (!found) throw new Error(`菜单里找不到「${label}」`)
-      items = found.submenu?.items ?? []
-    }
-    found?.click()
-  }, labels)
+/**
+ * 发一条菜单命令。
+ *
+ * 走命令名而不是**点菜单标签**：界面语言现在跟着 `LANGS` 变，按标签找的话
+ * 英文那一轮就会在「菜单里找不到『视图』」上挂掉。命令名是稳定的内部标识，
+ * 而这条 IPC 正是原生菜单自己用的那条 —— 绕开的只有「找到那一项」这一步。
+ *
+ * 频道名在 `apps/desktop/src/shared/channels.ts`（`EVENTS.menuCommand`）。
+ * 这里抄了一份字面量：脚本是 .mjs，读不了那边的 TS。
+ */
+async function sendCommand(app, command) {
+  await app.evaluate(({ BrowserWindow }, name) => {
+    const win = BrowserWindow.getAllWindows()[0]
+    if (!win) throw new Error('没有窗口')
+    win.webContents.send('event:menu-command', name)
+  }, command)
 }
 
 /** 切主题并等它真的生效 —— 主题是异步落盘的，切完立刻拍会拍到旧的。 */
-async function setTheme(app, page, id, label) {
-  await clickMenu(app, ['视图', '主题', label])
+async function setTheme(app, page, id) {
+  await sendCommand(app, `view.theme.${id}`)
   await page.waitForFunction(
     (expected) => document.documentElement.dataset['typoTheme'] === expected,
     id,
@@ -133,17 +141,17 @@ async function shootLang(app, page, lang) {
   await waitFor(page, '.cm-typo-math .katex', 'KaTeX 公式')
   await toTop(page)
 
-  await setTheme(app, page, 'light', '浅色')
+  await setTheme(app, page, 'light')
   await shoot(page, lang.id, 'hero-light')
 
-  await setTheme(app, page, 'dark', '深色')
+  await setTheme(app, page, 'dark')
   await shoot(page, lang.id, 'hero-dark')
 
   // —— 第二屏：代码高亮与 mermaid ——
   //
   // **必须先滚过去再等**：CodeMirror 只渲染视口内的行，装饰引擎也只对可见区
   // 算装饰 —— 图表在视口外时那个 SVG 根本不存在，干等只会超时。
-  await setTheme(app, page, 'light', '浅色')
+  await setTheme(app, page, 'light')
   await page.keyboard.press('ControlOrMeta+End')
   await waitFor(page, '.cm-typo-mermaid svg', 'Mermaid 图表')
 
@@ -209,7 +217,16 @@ async function shootAll() {
 
   for (const lang of LANGS) {
     const userDataDir = path.join(tmpdir(), `typo-shots-${lang.id}-${Date.now()}`)
+    await mkdir(userDataDir, { recursive: true })
     await mkdir(path.join(outDir, lang.id), { recursive: true })
+
+    // 界面语言钉死，不看跑脚本这台机器的系统区域 —— 否则英文截图里的状态栏
+    // 会随开发机的设置变，而那种漂移只有对比新旧图时才看得出来
+    await writeFile(
+      path.join(userDataDir, 'settings.json'),
+      JSON.stringify({ 'ui.language': lang.ui }),
+      'utf8',
+    )
 
     // 样例文档拷进临时目录再打开：直接开仓库里那份的话，应用会把它记进
     // 「最近打开」与会话，还可能因为截图期间的误操作改到它

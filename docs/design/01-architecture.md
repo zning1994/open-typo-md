@@ -38,6 +38,7 @@ open-typo-md/
 ├── packages/
 │   ├── markdown/           # 见 03
 │   ├── editor/             # 见 02
+│   ├── i18n/               # ICU 子集与翻译器，见 07 §4
 │   ├── ui/
 │   ├── themes/             # 见 05
 │   ├── export/             # 见 06
@@ -51,6 +52,10 @@ open-typo-md/
 
 `@typo/plugin-api` 单独成包的原因：插件作者只需要装这一个包（纯类型，零运行时），
 不必把整个编辑器拉进依赖树；同时它的 semver 就是插件 API 的 semver。
+
+`@typo/i18n` 是跟 `plugin-api` 并列的**叶子**：它只做字符串处理，谁也不认识。
+文案表本身不在这个包里 —— 它在 `apps/desktop/src/shared/messages/`，因为那是应用的
+内容而不是机制。编辑器内核的那 6 条可见文字走注入，不经过这个包（07 §4.5）。
 
 ## 3. 进程模型（Electron）
 

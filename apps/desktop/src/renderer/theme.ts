@@ -15,13 +15,19 @@
  */
 import type { KeyValueStore } from '@typo/plugin-api'
 
+/**
+ * 内置主题。**只有 id，没有标签** —— 标签在文案表里（`theme.*`）。
+ *
+ * 之前 label 写在这儿，切语言时主题下拉框会留在旧语言里。这类「常量表顺手带一个
+ * 中文名」是 i18n 最容易漏的地方，因为它看起来完全不像文案。
+ */
 export const THEMES = [
-  { id: 'auto', label: '跟随系统' },
-  { id: 'light', label: '浅色' },
-  { id: 'dark', label: '深色' },
-  { id: 'sepia', label: '护眼（Sepia）' },
-  { id: 'high-contrast', label: '高对比' },
-  { id: 'github', label: 'GitHub' },
+  { id: 'auto' },
+  { id: 'light' },
+  { id: 'dark' },
+  { id: 'sepia' },
+  { id: 'high-contrast' },
+  { id: 'github' },
 ] as const
 
 export type ThemeId = (typeof THEMES)[number]['id']

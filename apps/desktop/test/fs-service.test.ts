@@ -23,6 +23,9 @@ import {
   grantFile,
   resetGrantsForTest,
 } from '../src/main/path-guard.js'
+// 这一层的出错文案默认用兜底语言（英文）—— 它不问当前语言，理由见
+// fs-service.ts 里 DEFAULT_T 那段注释
+import { en } from '../src/shared/messages/en.js'
 
 const META: TextFileMeta = { encoding: 'utf8', eol: 'lf', mixedEol: false }
 
@@ -65,7 +68,7 @@ describe('读取', () => {
   it('目录不能被当作文件打开', async () => {
     const { mkdir } = await import('node:fs/promises')
     await mkdir(file('subdir'))
-    await expect(readTextFile(file('subdir'))).rejects.toThrow(/不是一个文件/)
+    await expect(readTextFile(file('subdir'))).rejects.toThrow(/Not a file/)
   })
 
   it('已授权目录本身也不能被当作文件读取（纵深防御）', async () => {
@@ -215,7 +218,7 @@ describe('附件落盘', () => {
 
   it('非图片类型一律拒绝', async () => {
     for (const mime of ['text/html', 'application/x-sh', 'application/octet-stream', '']) {
-      await expect(saveAttachment(dir, mime, PNG)).rejects.toThrow('不支持的图片类型')
+      await expect(saveAttachment(dir, mime, PNG)).rejects.toThrow('Unsupported image type')
     }
   })
 
@@ -234,12 +237,14 @@ describe('附件落盘', () => {
   })
 
   it('空内容拒绝', async () => {
-    await expect(saveAttachment(dir, 'image/png', new Uint8Array())).rejects.toThrow('为空')
+    await expect(saveAttachment(dir, 'image/png', new Uint8Array())).rejects.toThrow(
+      en['error.imageEmpty'],
+    )
   })
 
   it('超过体积上限拒绝', async () => {
     const huge = new Uint8Array(MAX_ATTACHMENT_BYTES + 1)
-    await expect(saveAttachment(dir, 'image/png', huge)).rejects.toThrow('过大')
+    await expect(saveAttachment(dir, 'image/png', huge)).rejects.toThrow(/too large/)
   })
 
   it('未授权目录一律拒绝 —— 白名单是 main 侧唯一可信的门', async () => {

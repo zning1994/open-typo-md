@@ -24,6 +24,7 @@
  */
 import type { EditorStatus, TypoEditor } from '@typo/editor'
 import type { DocumentController } from './document.js'
+import { t } from './i18n.js'
 
 export interface Tab {
   readonly id: string
@@ -126,6 +127,11 @@ export class TabManager {
     const found = this.tabs.find((tab) => tab.id === this.activeId)
     if (found) return found
     return this.open()
+  }
+
+  /** 换语言后重画标签条 —— 未保存标记的提示文字和关闭按钮的 aria-label 在里面。 */
+  retranslate(): void {
+    this.render()
   }
 
   all(): readonly Tab[] {
@@ -274,9 +280,9 @@ export class TabManager {
 
     const names = dirty.map((tab) => tab.controller.state().name).join('\n')
     const choice = await this.options.confirm({
-      message: `有 ${dirty.length} 个文档尚未保存`,
-      detail: `${names}\n\n不保存的话，这些修改会丢失。`,
-      buttons: ['全部保存', '全部不保存', '取消'],
+      message: t('tabs.closeAll.title', { count: dirty.length }),
+      detail: t('tabs.closeAll.detail', { names }),
+      buttons: [t('tabs.closeAll.saveAll'), t('tabs.closeAll.discardAll'), t('dialog.cancel')],
       defaultId: 0,
       cancelId: 2,
     })
@@ -326,7 +332,7 @@ export class TabManager {
         button.type = 'button'
         button.className = `tab${view.active ? ' is-active' : ''}${view.dirty ? ' is-dirty' : ''}`
         button.dataset['tab'] = view.id
-        button.title = view.path ?? '尚未保存'
+        button.title = view.path ?? t('tabs.dirty')
         button.setAttribute('aria-selected', String(view.active))
 
         const label = document.createElement('span')
@@ -338,7 +344,7 @@ export class TabManager {
         close.className = 'tab__close'
         close.dataset['close'] = view.id
         close.setAttribute('role', 'button')
-        close.setAttribute('aria-label', `关闭 ${view.name}`)
+        close.setAttribute('aria-label', t('tabs.close', { name: view.name }))
         close.textContent = '×'
         button.appendChild(close)
 

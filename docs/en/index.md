@@ -68,7 +68,8 @@ document that uses none of these pays no startup cost for them.
 GFM (tables, task lists, strikethrough, footnotes), math, Mermaid diagrams, an outline panel,
 a command palette, crash recovery, six themes, HTML and PDF export, copy-as-rich-text,
 paste-HTML-as-Markdown, table editing, a file tree, tabs, session restore, a settings panel,
-inline HTML rendering, customisable shortcuts, focus mode and typewriter mode are all working.
+inline HTML rendering, customisable shortcuts, focus mode, typewriter mode and a
+Chinese/English/Japanese interface are all working.
 
 **Not there yet:** the plugin system, user theme directories with hot reload, block-level HTML
 rendering, drag-to-resize table columns, PDF headers/footers and TOC page numbers, and

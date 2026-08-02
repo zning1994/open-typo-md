@@ -13,6 +13,7 @@
  * - **上下键在列表里循环，Enter 执行。** 面板的价值就是不碰鼠标。
  */
 import { formatBinding, searchCommands, type Command } from './commands.js'
+import { t } from './i18n.js'
 
 export interface PaletteOptions {
   /** 每次打开时现取命令表 —— 命令的可用性会随文档状态变化。 */
@@ -37,7 +38,7 @@ export class CommandPalette {
     // 浮层对读屏软件应当是一个对话框，否则焦点跑进去之后毫无上下文
     this.root.setAttribute('role', 'dialog')
     this.root.setAttribute('aria-modal', 'true')
-    this.root.setAttribute('aria-label', '命令面板')
+    this.root.setAttribute('aria-label', t('panel.palette.label'))
 
     const box = document.createElement('div')
     box.className = 'typo-palette__box'
@@ -45,7 +46,7 @@ export class CommandPalette {
     this.input = document.createElement('input')
     this.input.className = 'typo-palette__input'
     this.input.type = 'text'
-    this.input.placeholder = '输入命令名…'
+    this.input.placeholder = t('panel.palette.placeholder')
     this.input.setAttribute('aria-controls', 'typo-palette-list')
 
     this.list = document.createElement('ul')
@@ -63,6 +64,12 @@ export class CommandPalette {
     this.root.addEventListener('mousedown', (event) => {
       if (event.target === this.root) this.close()
     })
+  }
+
+  /** 换语言后补上只写过一次的文案。列表每次打开都重画，不用管。 */
+  retranslate(): void {
+    this.root.setAttribute('aria-label', t('panel.palette.label'))
+    this.input.placeholder = t('panel.palette.placeholder')
   }
 
   get isOpen(): boolean {
@@ -100,7 +107,7 @@ export class CommandPalette {
     if (found.length === 0) {
       const empty = document.createElement('li')
       empty.className = 'typo-palette__empty'
-      empty.textContent = '没有匹配的命令'
+      empty.textContent = t('panel.palette.empty')
       this.list.append(empty)
     }
     this.syncActive()

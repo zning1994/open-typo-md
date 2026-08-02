@@ -7,6 +7,18 @@
  * - 渲染失败必须降级为「显示源码」，不能吞内容（原则 P2）。
  */
 import { EditorView, WidgetType } from '@codemirror/view'
+import { livePreviewConfig } from '../config.js'
+
+/**
+ * 取当前的可见文案。
+ *
+ * 每次 `toDOM` 都现取而不是构造时存下来：widget 会被 CodeMirror 缓存和复用
+ * （`eq` 说相等就不重建），存下来的话换语言之后，视口里没被改动过的那些
+ * 代码块角标会留在旧语言里。
+ */
+function labelsOf(view: EditorView) {
+  return view.state.facet(livePreviewConfig).labels
+}
 
 /** 无序列表的项目符号。把 `-` / `*` / `+` 统一显示成 `•`，源码里仍是原字符。 */
 export class BulletWidget extends WidgetType {
@@ -130,13 +142,14 @@ export class CodeLanguageWidget extends WidgetType {
   toDOM(view: EditorView): HTMLElement {
     const select = document.createElement('select')
     select.className = 'cm-typo-code-lang'
-    select.title = '代码语言'
-    select.setAttribute('aria-label', '代码语言')
+    const labels = labelsOf(view)
+    select.title = labels.codeLanguage
+    select.setAttribute('aria-label', labels.codeLanguage)
     select.setAttribute('contenteditable', 'false')
 
     const blank = document.createElement('option')
     blank.value = ''
-    blank.textContent = '纯文本'
+    blank.textContent = labels.plainText
     select.appendChild(blank)
 
     // 文档里写的语言若不在清单里（拼错、或是我们不认识的语言），
@@ -223,7 +236,8 @@ export class TaskCheckboxWidget extends WidgetType {
     box.checked = this.checked
     // contenteditable 里的表单控件必须显式声明不可编辑，否则光标能走进去
     box.setAttribute('contenteditable', 'false')
-    box.setAttribute('aria-label', this.checked ? '已完成' : '未完成')
+    const labels = labelsOf(view)
+    box.setAttribute('aria-label', this.checked ? labels.taskDone : labels.taskTodo)
 
     box.addEventListener('mousedown', (event) => {
       // 阻止默认行为，免得点击顺带把光标挪进标记内部导致标记显形、
@@ -315,7 +329,7 @@ export class ImageWidget extends WidgetType {
     return other.src === this.src && other.alt === this.alt && other.source === this.source
   }
 
-  toDOM(): HTMLElement {
+  toDOM(view: EditorView): HTMLElement {
     const wrap = document.createElement('span')
     wrap.className = 'cm-typo-image'
 
@@ -326,7 +340,7 @@ export class ImageWidget extends WidgetType {
     img.addEventListener('error', () => {
       wrap.classList.add('cm-typo-image--broken')
       wrap.textContent = this.source
-      wrap.title = `图片无法加载：${this.src}`
+      wrap.title = labelsOf(view).imageFailed(this.src)
     })
     wrap.appendChild(img)
     return wrap

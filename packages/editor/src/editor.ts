@@ -24,8 +24,10 @@ import {
 import { codeBlockScrollSync } from './code-block.js'
 import { DEFAULT_FORMAT_KEYS, currentHeadingLevel, typoCommands } from './commands.js'
 import {
+  DEFAULT_LABELS,
   livePreviewConfig,
   type AssetResolver,
+  type EditorLabels,
   type ImageSink,
   type LivePreviewConfig,
 } from './config.js'
@@ -73,6 +75,8 @@ export interface TypoEditorOptions {
   typewriterMode?: boolean
   /** 渲染文档里的行内 HTML。默认开，见 config.ts 的 `renderInlineHtml`。 */
   renderInlineHtml?: boolean
+  /** 编辑区里那几条给人看的文字。不传就用英文默认值，见 `EditorLabels`。 */
+  labels?: EditorLabels
   /**
    * 格式命令的键位（`{ bold: 'Mod-b', … }`）。不传就用出厂键位。
    *
@@ -96,6 +100,7 @@ export class TypoEditor {
   private readonly configCompartment = new Compartment()
   private readonly readOnlyCompartment = new Compartment()
   private readonly keymapCompartment = new Compartment()
+  private readonly labelCompartment = new Compartment()
   private sourceModeOn: boolean
   private statusTimer: ReturnType<typeof setTimeout> | null = null
   /**
@@ -108,6 +113,7 @@ export class TypoEditor {
   private resolverOverride: AssetResolver | null = null
   private renderInlineHtmlOn: boolean
   private formatKeys: Record<string, string>
+  private labels: EditorLabels
   /**
    * 书写模式（专注 / 打字机）。
    *
@@ -121,6 +127,7 @@ export class TypoEditor {
     this.sourceModeOn = options.sourceMode ?? false
     this.renderInlineHtmlOn = options.renderInlineHtml ?? true
     this.formatKeys = options.formatKeys ?? DEFAULT_FORMAT_KEYS
+    this.labels = options.labels ?? DEFAULT_LABELS
     this.modes = new WritingModes(options.focusMode ?? false, options.typewriterMode ?? false)
 
     this.view = new EditorView({
@@ -163,7 +170,9 @@ export class TypoEditor {
         if (update.docChanged) options.onDocChange?.(update.state.doc.toString())
         if (update.docChanged || update.selectionSet) this.scheduleStatus()
       }),
-      EditorView.contentAttributes.of({ spellcheck: 'true', 'aria-label': 'Markdown 编辑区' }),
+      // aria-label 走 compartment：它是**唯一**一条不在配置面里、却要随语言变的
+      // 文案。放进配置面也不行 —— contentAttributes 只在扩展重配时才重新读
+      this.labelCompartment.of(this.contentAttributes()),
     ]
   }
 
@@ -180,6 +189,7 @@ export class TypoEditor {
       assetResolver: this.resolverOverride ?? options.assetResolver ?? ((src) => src),
       renderImages: true,
       renderInlineHtml: this.renderInlineHtmlOn,
+      labels: this.labels,
       onOpenLink: options.onOpenLink ?? null,
       imageSink: options.imageSink ?? null,
       onImageError: options.onImageError ?? null,
@@ -255,6 +265,24 @@ export class TypoEditor {
   setAssetResolver(resolver: AssetResolver): void {
     this.resolverOverride = resolver
     this.reconfigure()
+  }
+
+  private contentAttributes(): Extension {
+    return EditorView.contentAttributes.of({
+      spellcheck: 'true',
+      'aria-label': this.labels.editor,
+    })
+  }
+
+  /** 换掉编辑区里那几条可见文字（宿主换界面语言时调用）。整份替换。 */
+  setLabels(labels: EditorLabels): void {
+    this.labels = labels
+    this.view.dispatch({
+      effects: [
+        this.configCompartment.reconfigure(livePreviewConfig.of(this.previewConfig())),
+        this.labelCompartment.reconfigure(this.contentAttributes()),
+      ],
+    })
   }
 
   /** 换掉格式命令的键位。整份替换，见 `TypoEditorOptions.formatKeys`。 */

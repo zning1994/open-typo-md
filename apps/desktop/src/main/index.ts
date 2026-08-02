@@ -35,6 +35,8 @@ import {
 } from './path-guard.js'
 import { allSettings, getSetting, setSetting } from './settings.js'
 import { BINDING_KEY_PREFIX, resolveBindings } from '../shared/keys.js'
+import { LANGUAGE_KEY } from '../shared/i18n.js'
+import { translator } from './i18n.js'
 import {
   allWindows,
   beginQuit,
@@ -138,11 +140,14 @@ async function refreshMenu(): Promise<void> {
   buildMenu(
     { newWindow: () => void createWindow(), focusedWindow },
     resolveBindings(await allSettings()),
+    await translator(),
   )
 }
 
 function registerIpc(): void {
-  handle(CHANNELS.fsRead, async (_sender, target: string) => readTextFile(target))
+  handle(CHANNELS.fsRead, async (_sender, target: string) =>
+    readTextFile(target, await translator()),
+  )
   handle(CHANNELS.fsWrite, async (_sender, target: string, text: string, options) =>
     // 「这是我们自己写的」由 fs-service 在**动手写之前**登记 —— 放在这里
     // （写完之后）会输给文件系统事件的去抖窗口，见 watcher.ts 文件头第 2 条
@@ -167,7 +172,7 @@ function registerIpc(): void {
   handle(
     CHANNELS.fsSaveAttachment,
     async (_sender, baseDir: string, mime: string, bytes: Uint8Array) =>
-      saveAttachment(baseDir, mime, bytes),
+      saveAttachment(baseDir, mime, bytes, await translator()),
   )
   /**
    * 写导出产物。
@@ -233,9 +238,12 @@ function registerIpc(): void {
       options: { title?: string; multiple?: boolean; directories?: boolean } = {},
     ) => {
       if (!sender) return null
+      const t = await translator()
       const pickDirectory = options.directories === true
       const result = await dialog.showOpenDialog(sender, {
-        title: options.title ?? (pickDirectory ? '打开文件夹' : '打开 Markdown 文件'),
+        title:
+          options.title ??
+          (pickDirectory ? t('dialog.openFolder.title') : t('dialog.open.title')),
         properties: pickDirectory
           ? ['openDirectory']
           : options.multiple
@@ -245,8 +253,11 @@ function registerIpc(): void {
           ? {}
           : {
               filters: [
-                { name: 'Markdown', extensions: ['md', 'markdown', 'mdown', 'mkd', 'txt'] },
-                { name: '全部文件', extensions: ['*'] },
+                {
+                  name: t('dialog.filter.markdown'),
+                  extensions: ['md', 'markdown', 'mdown', 'mkd', 'txt'],
+                },
+                { name: t('dialog.filter.all'), extensions: ['*'] },
               ],
             }),
       })
@@ -271,10 +282,13 @@ function registerIpc(): void {
       } = {},
     ) => {
       if (!sender) return null
+      const t = await translator()
       const result = await dialog.showSaveDialog(sender, {
-        title: options.title ?? '另存为',
-        defaultPath: options.defaultPath ?? '未命名.md',
-        filters: options.filters ?? [{ name: 'Markdown', extensions: ['md', 'markdown'] }],
+        title: options.title ?? t('dialog.saveAs.title'),
+        defaultPath: options.defaultPath ?? t('doc.untitled'),
+        filters: options.filters ?? [
+          { name: t('dialog.filter.markdown'), extensions: ['md', 'markdown'] },
+        ],
       })
       if (result.canceled || !result.filePath) return null
       await grantFile(result.filePath)
@@ -317,14 +331,16 @@ function registerIpc(): void {
         type: 'info',
         message: options.message,
         detail: options.detail,
-        buttons: ['好'],
+        buttons: [(await translator())('dialog.ok')],
       })
     },
   )
 
   handle(CHANNELS.shellOpenExternal, async (_sender, url: string) => {
     // 只放行 http(s) 与 mailto —— file:// 和自定义协议可以被用来执行本地程序
-    if (!/^(https?|mailto):/i.test(url)) throw new Error(`不允许打开该链接：${url}`)
+    if (!/^(https?|mailto):/i.test(url)) {
+      throw new Error((await translator())('error.linkBlocked', { url }))
+    }
     await shell.openExternal(url)
   })
 
@@ -333,7 +349,9 @@ function registerIpc(): void {
     await setSetting(key, value)
     // 快捷键写进设置之后，菜单上的加速键要跟着变 —— 否则用户改了绑定，
     // 命令面板显示新的、菜单还挂着旧的，而**真正生效的是菜单那份**
-    if (key.startsWith(BINDING_KEY_PREFIX)) await refreshMenu()
+    // 语言变了菜单也要重建 —— 否则用户在设置里换了语言，面板立刻变了、
+    // 菜单还挂着旧语言，看着像只翻译了一半
+    if (key.startsWith(BINDING_KEY_PREFIX) || key === LANGUAGE_KEY) await refreshMenu()
   })
   // 平台信息走**同步** IPC：preload 要在暴露 API 之前就把它填进去。
   // 走 invoke 的话渲染进程会先读到一个默认值，而 contextBridge 是按值拷贝的，

@@ -20,6 +20,7 @@
  * （见 main/watcher.ts 的说明）。
  */
 import type { DirEntry } from '@typo/plugin-api'
+import { currentLocale, t } from './i18n.js'
 
 export interface FileTreeOptions {
   list: (dir: string) => Promise<DirEntry[]>
@@ -41,10 +42,15 @@ function isHidden(entry: DirEntry): boolean {
   return entry.name.startsWith('.') || HIDDEN_DIRS.has(entry.name)
 }
 
-/** 目录在前，同类按名字排。用 zh 排序规则 —— 中文文件名按拼音才符合直觉。 */
+/**
+ * 目录在前，同类按名字排，**按界面语言的排序规则**。
+ *
+ * 之前写死 `'zh'`（中文文件名按拼音才符合直觉）。现在跟着界面语言走：
+ * 日文界面下假名要按五十音排，写死 zh 排出来的顺序对日文用户毫无规律。
+ */
 function compare(a: DirEntry, b: DirEntry): number {
   if (a.kind !== b.kind) return a.kind === 'directory' ? -1 : 1
-  return a.name.localeCompare(b.name, 'zh')
+  return a.name.localeCompare(b.name, currentLocale())
 }
 
 function basename(filePath: string): string {
@@ -55,6 +61,7 @@ function basename(filePath: string): string {
 export class FileTreePanel {
   private readonly root: HTMLElement
   private readonly title: HTMLElement
+  private readonly refreshButton: HTMLButtonElement
   private readonly list: HTMLElement
   private folderPath: string | null = null
   /** 已经展开的目录。刷新时靠它把树恢复成原来的形状。 */
@@ -80,8 +87,9 @@ export class FileTreePanel {
     refresh.type = 'button'
     refresh.className = 'typo-files__refresh'
     refresh.textContent = '↻'
-    refresh.title = '刷新'
-    refresh.setAttribute('aria-label', '刷新文件树')
+    this.refreshButton = refresh
+    refresh.title = t('panel.files.refresh')
+    refresh.setAttribute('aria-label', t('panel.files.refreshLabel'))
     refresh.addEventListener('click', () => void this.refresh())
     header.appendChild(refresh)
 
@@ -147,6 +155,13 @@ export class FileTreePanel {
     }
   }
 
+  /** 换语言后补上按钮的提示，并重画一遍树（「空目录」这类占位文案在里面）。 */
+  retranslate(): void {
+    this.refreshButton.title = t('panel.files.refresh')
+    this.refreshButton.setAttribute('aria-label', t('panel.files.refreshLabel'))
+    void this.refresh()
+  }
+
   async refresh(): Promise<void> {
     if (!this.folderPath) return
     const children = await this.renderLevel(this.folderPath, 0)
@@ -171,7 +186,7 @@ export class FileTreePanel {
     try {
       entries = (await this.options.list(dir)).filter((entry) => !isHidden(entry))
     } catch {
-      return [this.makeMessage('读不出这个目录', depth)]
+      return [this.makeMessage(t('panel.files.unreadable'), depth)]
     }
     entries.sort(compare)
 
@@ -182,7 +197,7 @@ export class FileTreePanel {
         nodes.push(...(await this.renderLevel(entry.path, depth + 1)))
       }
     }
-    if (nodes.length === 0) nodes.push(this.makeMessage('空目录', depth))
+    if (nodes.length === 0) nodes.push(this.makeMessage(t('panel.files.empty'), depth))
     return nodes
   }
 

@@ -6,6 +6,7 @@
  * 不需要启动 Electron。
  */
 import type { HostBridge, TextFileMeta } from '@typo/plugin-api'
+import { t } from './i18n.js'
 
 /** 控制器需要编辑器提供的最小能力。 */
 export interface EditorHandle {
@@ -54,8 +55,32 @@ export interface DocumentState {
   meta: TextFileMeta
 }
 
-const UNTITLED = '未命名.md'
+/**
+ * 未命名文档的名字。
+ *
+ * **必须是函数**，不能是模块级常量：模块求值发生在语言从磁盘读回来之前，
+ * 存成常量的话未命名标签会永远停在启动时那一份文案上。
+ */
+const untitled = (): string => t('doc.untitled')
+
 const DEFAULT_META: TextFileMeta = { encoding: 'utf8', eol: 'lf', mixedEol: false }
+
+/**
+ * 打不开文件时给用户看的原因。
+ *
+ * `UnsupportedEncodingError` 的消息是 `@typo/plugin-api` 里写死的中文 ——
+ * 那一层是 i18n 够不着的（它比文案层还低，也不该认识文案层）。所以在这里按
+ * **错误类型**换成本地化的说法，而不是把 IPC 传过来的 message 直接贴出去。
+ *
+ * 其余错误仍然原样显示：它们是文件系统给的（权限、路径太长），
+ * 系统自己的措辞比我们转述一遍更准。
+ */
+function openFailureDetail(error: unknown, path: string): string {
+  if (error instanceof Error && error.name === 'UnsupportedEncodingError') {
+    return t('error.unsupportedEncoding', { path })
+  }
+  return error instanceof Error ? error.message : String(error)
+}
 
 function basename(filePath: string): string {
   const index = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'))
@@ -90,7 +115,7 @@ export class DocumentController {
   state(): DocumentState {
     return {
       path: this.filePath,
-      name: this.filePath ? basename(this.filePath) : UNTITLED,
+      name: this.filePath ? basename(this.filePath) : untitled(),
       dirty: this.isDirty(),
       readOnly: this.readOnly,
       deleted: this.externallyDeleted,
@@ -190,20 +215,20 @@ export class DocumentController {
       // 已知损耗必须当面告知，不能等用户保存完才发现文件被改了
       if (result.meta.mixedEol) {
         await this.host.dialog.message({
-          message: '该文件包含混合换行符',
-          detail: `保存时会统一为 ${result.meta.eol === 'crlf' ? 'CRLF' : 'LF'}。如果不希望这样，请先用其他工具统一换行符。`,
+          message: t('doc.mixedEol.title'),
+          detail: t('doc.mixedEol.detail', { eol: result.meta.eol === 'crlf' ? 'CRLF' : 'LF' }),
         })
       }
       if (result.readOnly) {
         await this.host.dialog.message({
-          message: '文件为只读',
-          detail: '编辑器已进入只读模式。若要修改，请先调整文件权限或使用「另存为」。',
+          message: t('doc.readonly.title'),
+          detail: t('doc.readonly.detail'),
         })
       }
     } catch (error) {
       await this.host.dialog.message({
-        message: '无法打开文件',
-        detail: error instanceof Error ? error.message : String(error),
+        message: t('doc.openFailed.title'),
+        detail: openFailureDetail(error, target),
       })
     }
   }
@@ -213,8 +238,8 @@ export class DocumentController {
     if (!this.filePath) return this.saveAs()
     if (this.readOnly) {
       await this.host.dialog.message({
-        message: '文件为只读，无法保存',
-        detail: '请使用「另存为」保存到别处。',
+        message: t('doc.saveReadonly.title'),
+        detail: t('doc.saveReadonly.detail'),
       })
       return false
     }
@@ -223,7 +248,7 @@ export class DocumentController {
 
   async saveAs(): Promise<boolean> {
     const target = await this.host.dialog.saveFile({
-      defaultPath: this.filePath ?? UNTITLED,
+      defaultPath: this.filePath ?? untitled(),
     })
     if (!target) return false
     // 另存为的目标可能是一个已存在的文件，此时没有基线可比 —— 传 null 表示
@@ -259,7 +284,7 @@ export class DocumentController {
         return this.resolveConflict(target, text)
       }
       await this.host.dialog.message({
-        message: '保存失败',
+        message: t('doc.saveFailed.title'),
         detail: error instanceof Error ? error.message : String(error),
       })
       return false
@@ -273,10 +298,9 @@ export class DocumentController {
    */
   private async resolveConflict(target: string, text: string): Promise<boolean> {
     const choice = await this.host.dialog.confirm({
-      message: '文件已被其他程序修改',
-      detail:
-        '磁盘上的内容与你打开时不同。要用当前编辑器里的内容覆盖它，还是放弃本地修改重新载入？',
-      buttons: ['覆盖磁盘上的内容', '重新载入磁盘内容', '取消'],
+      message: t('doc.conflict.title'),
+      detail: t('doc.conflict.detail'),
+      buttons: [t('doc.conflict.overwrite'), t('doc.conflict.reload'), t('dialog.cancel')],
       defaultId: 2,
       cancelId: 2,
     })
@@ -336,8 +360,8 @@ export class DocumentController {
       this.externallyDeleted = true
       this.emit()
       await this.host.dialog.message({
-        message: '文件已被删除或移动',
-        detail: '编辑器里的内容还在。下次保存会重新创建这个文件。',
+        message: t('doc.deleted.title'),
+        detail: t('doc.deleted.detail'),
       })
       return
     }
@@ -348,9 +372,9 @@ export class DocumentController {
     }
 
     const choice = await this.host.dialog.confirm({
-      message: `「${this.state().name}」已被其他程序修改`,
-      detail: '你这边也有未保存的修改。要保留哪一份？',
-      buttons: ['保留我的修改', '用磁盘上的内容'],
+      message: t('doc.externalChange.title', { name: this.state().name }),
+      detail: t('doc.externalChange.detail'),
+      buttons: [t('doc.externalChange.keepMine'), t('doc.externalChange.useDisk')],
       defaultId: 0,
       cancelId: 0,
     })
@@ -398,7 +422,7 @@ export class DocumentController {
       this.emit()
     } catch (error) {
       await this.host.dialog.message({
-        message: '重新载入失败',
+        message: t('doc.reloadFailed.title'),
         detail: error instanceof Error ? error.message : String(error),
       })
     }
@@ -408,9 +432,9 @@ export class DocumentController {
   private async confirmDiscard(): Promise<boolean> {
     if (!this.isDirty()) return true
     const choice = await this.host.dialog.confirm({
-      message: `是否保存对「${this.state().name}」的修改？`,
-      detail: '不保存的话，这些修改会丢失。',
-      buttons: ['保存', '不保存', '取消'],
+      message: t('doc.close.title', { name: this.state().name }),
+      detail: t('doc.close.detail'),
+      buttons: [t('doc.close.save'), t('doc.close.discard'), t('dialog.cancel')],
       defaultId: 0,
       cancelId: 2,
     })
