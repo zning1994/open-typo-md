@@ -21,7 +21,7 @@ import { syntaxTree } from '@codemirror/language'
 import { searchKeymap } from '@codemirror/search'
 import { EditorSelection, type Extension, type StateCommand } from '@codemirror/state'
 import { keymap, type Command, type KeyBinding } from '@codemirror/view'
-import { BLOCK_NODES, headingLevel } from '@typo/markdown'
+import { BLOCK_NODES, headingLevel } from '@mosu/markdown'
 import { tableNextCell, tableNextRow, tablePrevCell } from './table-edit.js'
 
 /**
@@ -56,7 +56,7 @@ export function toggleWrap(marker: string): StateCommand {
           : EditorSelection.range(range.from + len, range.to + len),
       }
     })
-    dispatch(state.update(tr, { scrollIntoView: true, userEvent: 'input.typo.wrap' }))
+    dispatch(state.update(tr, { scrollIntoView: true, userEvent: 'input.mosu.wrap' }))
     return true
   }
 }
@@ -96,7 +96,7 @@ export function setHeading(level: number): StateCommand {
     }
 
     if (changes.length === 0) return false
-    dispatch(state.update({ changes, userEvent: 'input.typo.heading' }))
+    dispatch(state.update({ changes, userEvent: 'input.mosu.heading' }))
     return true
   }
 }
@@ -176,7 +176,7 @@ export const FORMAT_COMMANDS: Record<string, Command> = {
   ),
 }
 
-/** 出厂键位。宿主可以整份换掉，见 `typoCommands`。 */
+/** 出厂键位。宿主可以整份换掉，见 `mosuCommands`。 */
 export const DEFAULT_FORMAT_KEYS: Record<string, string> = {
   bold: 'Mod-b',
   italic: 'Mod-i',
@@ -217,7 +217,7 @@ export function formatKeymap(keys: Record<string, string>): KeyBinding[] {
   return bindings
 }
 
-export const typoKeymap: KeyBinding[] = [
+export const mosuKeymap: KeyBinding[] = [
   ...formatKeymap(DEFAULT_FORMAT_KEYS),
   ...structuralKeymap,
 ]
@@ -228,7 +228,7 @@ export const typoKeymap: KeyBinding[] = [
  * 顺序有讲究：格式与结构键位在前，defaultKeymap 在后 —— 前者要能覆盖后者的
  * Enter / Backspace / Tab 默认行为。
  */
-export function typoCommands(
+export function mosuCommands(
   formatKeys: Record<string, string> = DEFAULT_FORMAT_KEYS,
 ): Extension {
   return [

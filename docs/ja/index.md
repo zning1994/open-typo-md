@@ -2,7 +2,10 @@
 layout: home
 
 hero:
-  name: "Brainforge Typo"
+  name: "Mosu"
+  image:
+    src: /logo.png
+    alt: Mosu
   text: "書いたものが、そのまま見える"
   tagline: "オープンソースの WYSIWYG Markdown エディタ。分割ビューもプレビューペインもなく、編集領域はひとつだけです。"
   actions:
@@ -27,8 +30,8 @@ features:
     details: "エディタのコアは Node や Electron の API を一切 import しない純粋な Web ライブラリで、ホストの機能はすべて注入で渡します。ブラウザでも他のシェルでもそのまま再利用できます。"
 ---
 
-<div class="shot shot-light"><img src="/shots/ja/hero-light.png" alt="表・タスクリスト・数式を含む文書を編集している Brainforge Typo" /></div>
-<div class="shot shot-dark"><img src="/shots/ja/hero-dark.png" alt="Brainforge Typo のダークテーマ" /></div>
+<div class="shot shot-light"><img src="/shots/ja/hero-light.png" alt="表・タスクリスト・数式を含む文書を編集している Mosu" /></div>
+<div class="shot shot-dark"><img src="/shots/ja/hero-dark.png" alt="Mosu のダークテーマ" /></div>
 
 <p class="shot-caption">これらのスクリーンショットはモックではなく、スクリプトが実際のアプリを
 起動して撮ったものです（<code>pnpm screenshots</code>）。表の列幅も数式の組版も、下にある図も、

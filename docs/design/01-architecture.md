@@ -9,19 +9,19 @@
 └───────────────────────────┬──────────────────────────────────┘
                             │  HostBridge（注入式接口）
 ┌───────────────────────────┴──────────────────────────────────┐
-│  @typo/ui            侧边栏、大纲、命令面板、设置、状态栏        │
+│  @mosu/ui            侧边栏、大纲、命令面板、设置、状态栏        │
 ├──────────────────────────────────────────────────────────────┤
-│  @typo/editor        实时预览编辑器内核（CodeMirror 6）         │
+│  @mosu/editor        实时预览编辑器内核（CodeMirror 6）         │
 ├──────────────────────────────────────────────────────────────┤
-│  @typo/markdown      语法定义、增量解析、AST、序列化            │
+│  @mosu/markdown      语法定义、增量解析、AST、序列化            │
 ├──────────────────────────────────────────────────────────────┤
-│  @typo/plugin-api    插件与主题的公开类型契约（仅类型 + 常量）   │
+│  @mosu/plugin-api    插件与主题的公开类型契约（仅类型 + 常量）   │
 └──────────────────────────────────────────────────────────────┘
-   @typo/export   @typo/themes    ← 依赖 markdown / plugin-api
+   @mosu/export   @mosu/themes    ← 依赖 markdown / plugin-api
 ```
 
-**依赖方向严格单向向下。** `@typo/markdown` 不认识编辑器，`@typo/editor` 不认识 UI，
-`@typo/ui` 不认识 Electron。CI 用 `dependency-cruiser` 强制这条规则，违反即失败。
+**依赖方向严格单向向下。** `@mosu/markdown` 不认识编辑器，`@mosu/editor` 不认识 UI，
+`@mosu/ui` 不认识 Electron。CI 用 `dependency-cruiser` 强制这条规则，违反即失败。
 
 ## 2. 仓库结构
 
@@ -33,7 +33,7 @@ open-typo-md/
 │   ├── desktop/            # Electron：main / preload / renderer 入口
 │   │   ├── src/main/       #   窗口、菜单、IPC 处理、文件服务
 │   │   ├── src/preload/    #   contextBridge 暴露的受控 API
-│   │   └── src/renderer/   #   组装 @typo/ui + @typo/editor
+│   │   └── src/renderer/   #   组装 @mosu/ui + @mosu/editor
 │   └── web/                # 浏览器演示版
 ├── packages/
 │   ├── markdown/           # 见 03
@@ -50,10 +50,10 @@ open-typo-md/
 └── benchmarks/             # 性能基准（CI 跑，见 07）
 ```
 
-`@typo/plugin-api` 单独成包的原因：插件作者只需要装这一个包（纯类型，零运行时），
+`@mosu/plugin-api` 单独成包的原因：插件作者只需要装这一个包（纯类型，零运行时），
 不必把整个编辑器拉进依赖树；同时它的 semver 就是插件 API 的 semver。
 
-`@typo/i18n` 是跟 `plugin-api` 并列的**叶子**：它只做字符串处理，谁也不认识。
+`@mosu/i18n` 是跟 `plugin-api` 并列的**叶子**：它只做字符串处理，谁也不认识。
 文案表本身不在这个包里 —— 它在 `apps/desktop/src/shared/messages/`，因为那是应用的
 内容而不是机制。编辑器内核的那 6 条可见文字走注入，不经过这个包（07 §4.5）。
 
@@ -87,7 +87,7 @@ new BrowserWindow({
 File System Access API 实现，测试用内存实现。
 
 ```ts
-// @typo/plugin-api/src/host.ts
+// @mosu/plugin-api/src/host.ts
 export interface HostBridge {
   fs: {
     read(path: string): Promise<{ text: string; encoding: Encoding; eol: Eol; mtimeMs: number }>
@@ -157,7 +157,7 @@ const api = { platform: { os: 'linux', locale: 'zh-CN' } }   // 先给个默认�
 void invoke(CHANNELS.platformInfo).then((info) => {
   api.platform.os = info.os                                   // 再异步写回
 })
-contextBridge.exposeInMainWorld('typo', api)
+contextBridge.exposeInMainWorld('mosu', api)
 ```
 
 那次写回根本传不过去，于是**渲染进程读到的 `platform.os` 永远是 `'linux'`**。
@@ -183,8 +183,8 @@ Markdown 编辑器的特殊风险：文档内容来自外部（别人发来的 `
 | 面 | 措施 |
 | --- | --- |
 | 原始 HTML | Markdown 内嵌 HTML 渲染前经 DOMPurify 消毒；默认剥离 `<script>`、事件属性、`javascript:`；用户可在设置里选择「完全不渲染原始 HTML，按代码显示」 |
-| CSP | `default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src typo-asset: data: blob:; connect-src 'self'` —— 注意**不允许远程图片默认加载**，避免文档变成追踪信标；用户可对当前文档一次性放行 |
-| 本地资源 | 注册自定义协议 `typo-asset://`，处理器把 URL 映射回真实路径并校验必须位于工作区内；不使用 `file://` |
+| CSP | `default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src mosu-asset: data: blob:; connect-src 'self'` —— 注意**不允许远程图片默认加载**，避免文档变成追踪信标；用户可对当前文档一次性放行 |
+| 本地资源 | 注册自定义协议 `mosu-asset://`，处理器把 URL 映射回真实路径并校验必须位于工作区内；不使用 `file://` |
 | 外链 | `setWindowOpenHandler` 一律 deny 并转交系统浏览器；点击链接前对非 `http(s)`/`mailto` 协议弹确认 |
 | 图表渲染 | Mermaid 等渲染出的 SVG 同样经消毒；渲染在 Worker/隔离上下文中进行，避免第三方库直接接触 DOM |
 | 插件 | 见 [ADR-0004](../adr/0004-plugin-isolation.md)：清单声明权限，敏感能力经 main 代理并二次校验 |

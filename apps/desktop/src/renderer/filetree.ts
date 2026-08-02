@@ -19,7 +19,7 @@
  * 「别人在别处新建了文件、树里自动多一行」。所以给了刷新按钮，没给监听
  * （见 main/watcher.ts 的说明）。
  */
-import type { DirEntry } from '@typo/plugin-api'
+import type { DirEntry } from '@mosu/plugin-api'
 import { currentLocale, t } from './i18n.js'
 
 export interface FileTreeOptions {
@@ -73,19 +73,19 @@ export class FileTreePanel {
     private readonly options: FileTreeOptions,
   ) {
     this.root = document.createElement('aside')
-    this.root.className = 'typo-files'
+    this.root.className = 'mosu-files'
     this.root.hidden = true
 
     const header = document.createElement('div')
-    header.className = 'typo-files__header'
+    header.className = 'mosu-files__header'
 
     this.title = document.createElement('span')
-    this.title.className = 'typo-files__title'
+    this.title.className = 'mosu-files__title'
     header.appendChild(this.title)
 
     const refresh = document.createElement('button')
     refresh.type = 'button'
-    refresh.className = 'typo-files__refresh'
+    refresh.className = 'mosu-files__refresh'
     refresh.textContent = '↻'
     this.refreshButton = refresh
     refresh.title = t('panel.files.refresh')
@@ -96,7 +96,7 @@ export class FileTreePanel {
     this.root.appendChild(header)
 
     this.list = document.createElement('div')
-    this.list.className = 'typo-files__list'
+    this.list.className = 'mosu-files__list'
     this.list.setAttribute('role', 'tree')
     this.root.appendChild(this.list)
 
@@ -204,7 +204,7 @@ export class FileTreePanel {
   private makeNode(entry: DirEntry, depth: number): HTMLElement {
     const node = document.createElement('div')
     const isDir = entry.kind === 'directory'
-    node.className = `typo-files__item typo-files__item--${entry.kind}`
+    node.className = `mosu-files__item mosu-files__item--${entry.kind}`
     node.dataset['path'] = entry.path
     node.dataset['kind'] = entry.kind
     node.setAttribute('role', 'treeitem')
@@ -212,12 +212,12 @@ export class FileTreePanel {
     if (isDir) node.setAttribute('aria-expanded', String(this.expanded.has(entry.path)))
 
     const arrow = document.createElement('span')
-    arrow.className = 'typo-files__arrow'
+    arrow.className = 'mosu-files__arrow'
     arrow.textContent = isDir ? (this.expanded.has(entry.path) ? '▾' : '▸') : ''
     node.appendChild(arrow)
 
     const label = document.createElement('span')
-    label.className = 'typo-files__name'
+    label.className = 'mosu-files__name'
     label.textContent = entry.name
     node.appendChild(label)
 
@@ -226,7 +226,7 @@ export class FileTreePanel {
 
   private makeMessage(text: string, depth: number): HTMLElement {
     const node = document.createElement('div')
-    node.className = 'typo-files__empty'
+    node.className = 'mosu-files__empty'
     node.style.paddingLeft = `${8 + depth * 14}px`
     node.textContent = text
     return node

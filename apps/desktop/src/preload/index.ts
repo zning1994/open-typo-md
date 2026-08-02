@@ -8,12 +8,12 @@
  * 那么这里所有的收窄都白做了。
  */
 import { contextBridge, ipcRenderer } from 'electron'
-import { CHANNELS, EVENTS, type MenuCommand, type TypoBridgeApi } from '../shared/channels.js'
+import { CHANNELS, EVENTS, type MenuCommand, type MosuBridgeApi } from '../shared/channels.js'
 
 /** IPC 返回值里若是被包装过的错误，就在渲染进程侧还原成异常抛出。 */
 async function invoke<T>(channel: string, ...args: unknown[]): Promise<T> {
   const result: unknown = await ipcRenderer.invoke(channel, ...args)
-  if (typeof result === 'object' && result !== null && '__typoError' in result) {
+  if (typeof result === 'object' && result !== null && '__mosuError' in result) {
     const failure = result as unknown as {
       name: string
       message: string
@@ -52,7 +52,7 @@ const platform = ipcRenderer.sendSync(CHANNELS.platformInfo) as {
   locale: string
 }
 
-const api: TypoBridgeApi = {
+const api: MosuBridgeApi = {
   fs: {
     read: (path) => invoke(CHANNELS.fsRead, path),
     write: (path, text, options) => invoke(CHANNELS.fsWrite, path, text, options),
@@ -106,6 +106,6 @@ const api: TypoBridgeApi = {
   respondClose: (canClose) => ipcRenderer.send('respond-close', canClose),
 }
 
-contextBridge.exposeInMainWorld('typo', api)
+contextBridge.exposeInMainWorld('mosu', api)
 
 export type { MenuCommand }

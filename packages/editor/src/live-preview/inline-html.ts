@@ -22,7 +22,7 @@
  * 4. **认不出来的一律原样显示**（原则 P2）。`<div>`、`<script>`、`<span style=…>`、
  *    没闭合的 `<b>`，全部按今天的样子显示成字面文本，不藏不猜。
  *
- * 剩下的攻击面是「类名可控吗」—— 不可控，它是 `cm-typo-html-` 加上一个来自
+ * 剩下的攻击面是「类名可控吗」—— 不可控，它是 `cm-mosu-html-` 加上一个来自
  * 封闭集合的标签名。
  *
  * ## 块级 HTML（`HTMLBlock`）不在这一档里
@@ -33,7 +33,7 @@
  */
 import type { EditorState } from '@codemirror/state'
 import type { SyntaxNode } from '@lezer/common'
-import { INLINE_NODES } from '@typo/markdown'
+import { INLINE_NODES } from '@mosu/markdown'
 
 /**
  * 会被渲染的标签，以及它们对应的类名后缀。

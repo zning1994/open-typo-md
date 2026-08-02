@@ -6,7 +6,7 @@
  * 才定位到（见 06 §3.3）。而且我们本来也不知道用户这篇文档是什么语言。
  */
 import { describe, expect, it } from 'vitest'
-import { buildDocument } from '@typo/export'
+import { buildDocument } from '@mosu/export'
 
 describe('外壳', () => {
   it('默认不写 lang —— 我们并不知道用户这篇文档是什么语言', () => {

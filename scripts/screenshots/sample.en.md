@@ -1,6 +1,6 @@
 # Decorations Are the Rendering
 
-This is the core model of Brainforge Typo: **the editor buffer holds exactly the Markdown that is on disk**, and the rendering is just a projection laid over it. Move the cursor into an element and its markers reappear in place — move away and they fold back.
+This is the core model of Mosu: **the editor buffer holds exactly the Markdown that is on disk**, and the rendering is just a projection laid over it. Move the cursor into an element and its markers reappear in place — move away and they fold back.
 
 | Invariant             | What it means                              |
 | --------------------- | ------------------------------------------ |

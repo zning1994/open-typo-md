@@ -114,6 +114,6 @@ test.describe('组合输入与实时预览的交互', () => {
 
     expect(await docText(page)).toBe('**粗**\n\n第二段')
     // 光标已移出，加粗标记应当重新隐藏
-    await expect(page.locator('.cm-typo-strong')).toHaveText('粗')
+    await expect(page.locator('.cm-mosu-strong')).toHaveText('粗')
   })
 })

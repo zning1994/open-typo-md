@@ -11,7 +11,7 @@
 import { syntaxTree } from '@codemirror/language'
 import type { EditorState, Extension } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
-import { BLOCK_NODES, INLINE_NODES } from '@typo/markdown'
+import { BLOCK_NODES, INLINE_NODES } from '@mosu/markdown'
 import { livePreviewConfig } from './config.js'
 
 /**
@@ -85,6 +85,6 @@ export function linkInteraction(): Extension {
       },
     }),
     // 按住修饰键时把链接显示成可点击的样子，给用户一个「这里能点」的反馈
-    EditorView.contentAttributes.of({ 'data-typo-links': 'modifier-click' }),
+    EditorView.contentAttributes.of({ 'data-mosu-links': 'modifier-click' }),
   ]
 }

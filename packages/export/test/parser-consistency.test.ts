@@ -22,10 +22,10 @@
  * **不比文本内容。** 这条测试问的是「结构判定是否一致」，不是「内容是否相同」——
  * 后者由 `fidelity.test.ts` 的字节保真覆盖。
  *
- * ## 为什么放在 `@typo/export` 下面
+ * ## 为什么放在 `@mosu/export` 下面
  *
- * 分层规则（01 §1）里，`@typo/export` 是**唯一同时看得见两个解析器**的包：
- * remark 是它自己的依赖，`@typo/markdown` 是它允许依赖的下层。放在 `@typo/editor`
+ * 分层规则（01 §1）里，`@mosu/export` 是**唯一同时看得见两个解析器**的包：
+ * remark 是它自己的依赖，`@mosu/markdown` 是它允许依赖的下层。放在 `@mosu/editor`
  * 里会反过来违反「导出不依赖编辑器」。
  */
 import { describe, expect, it } from 'vitest'
@@ -33,7 +33,7 @@ import spec from 'commonmark-spec'
 import { unified } from 'unified'
 import remarkParse from 'remark-parse'
 import remarkGfm from 'remark-gfm'
-import { markdownLanguageSupport } from '@typo/markdown'
+import { markdownLanguageSupport } from '@mosu/markdown'
 
 interface SpecExample {
   markdown: string
@@ -315,7 +315,7 @@ describe('GFM 扩展', () => {
       number: 1003,
       markdown: '前面一段\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n\n后面一段\n',
     },
-    // 单元格数量不一致：解析器不补齐（见 @typo/markdown 的 TABLE_NODES 注释）
+    // 单元格数量不一致：解析器不补齐（见 @mosu/markdown 的 TABLE_NODES 注释）
     { section: 'table', number: 1004, markdown: '| a | b |\n| --- | --- |\n| 1 |\n' },
     { section: 'task-list', number: 1010, markdown: '- [ ] 待办\n- [x] 完成\n' },
     { section: 'task-list', number: 1011, markdown: '- [ ] 待办\n  - [x] 子项\n' },

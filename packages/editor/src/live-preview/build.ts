@@ -23,7 +23,7 @@ import {
   TASK_NODES,
   decodeEntity,
   headingLevel,
-} from '@typo/markdown'
+} from '@mosu/markdown'
 import { livePreviewConfig } from '../config.js'
 import { activeState, revealsLine, revealsRange, type ActiveState } from './active.js'
 import { htmlLayoutOf } from './inline-html.js'
@@ -74,7 +74,7 @@ function lineDeco(cls: string): Decoration {
 }
 
 /** 显形时给标记本身加的类 —— 让它以弱化的颜色出现，不喧宾夺主。 */
-const MARK_CLASS = 'cm-typo-mark'
+const MARK_CLASS = 'cm-mosu-mark'
 
 const BULLET_CHARS = new Set(['-', '*', '+'])
 
@@ -199,18 +199,18 @@ function handleNode(b: Builder, node: SyntaxNodeRef, clip: { from: number; to: n
 
   const level = headingLevel(name)
   if (level > 0) {
-    b.lines(node.from, node.to, `cm-typo-heading cm-typo-h${level}`, clip)
+    b.lines(node.from, node.to, `cm-mosu-heading cm-mosu-h${level}`, clip)
     return
   }
 
   switch (name) {
     case BLOCK_NODES.blockquote:
-      b.lines(node.from, node.to, 'cm-typo-quote', clip)
+      b.lines(node.from, node.to, 'cm-mosu-quote', clip)
       return
 
     case BLOCK_NODES.fencedCode:
     case BLOCK_NODES.codeBlock:
-      b.lines(node.from, node.to, 'cm-typo-code-block', clip)
+      b.lines(node.from, node.to, 'cm-mosu-code-block', clip)
       return
 
     case BLOCK_NODES.horizontalRule:
@@ -227,7 +227,7 @@ function handleNode(b: Builder, node: SyntaxNodeRef, clip: { from: number; to: n
     case FRONTMATTER_NODES.block:
       // 整块弱化成「元数据」的样子。里面的 YAML 高亮由混合解析器产出的
       // token 接管，不需要我们再加装饰
-      b.lines(node.from, node.to, 'cm-typo-frontmatter', clip)
+      b.lines(node.from, node.to, 'cm-mosu-frontmatter', clip)
       return
     case FRONTMATTER_NODES.mark:
       b.mark(node.from, node.to, MARK_CLASS)
@@ -271,20 +271,20 @@ function handleNode(b: Builder, node: SyntaxNodeRef, clip: { from: number; to: n
       handleFootnoteRef(b, node)
       return
     case FOOTNOTE_NODES.definition:
-      b.lines(node.from, node.to, 'cm-typo-footnote-def', clip)
+      b.lines(node.from, node.to, 'cm-mosu-footnote-def', clip)
       return
 
     case INLINE_NODES.emphasis:
-      b.mark(node.from, node.to, 'cm-typo-em')
+      b.mark(node.from, node.to, 'cm-mosu-em')
       return
     case INLINE_NODES.strongEmphasis:
-      b.mark(node.from, node.to, 'cm-typo-strong')
+      b.mark(node.from, node.to, 'cm-mosu-strong')
       return
     case INLINE_NODES.strikethrough:
-      b.mark(node.from, node.to, 'cm-typo-strike')
+      b.mark(node.from, node.to, 'cm-mosu-strike')
       return
     case INLINE_NODES.inlineCode:
-      b.mark(node.from, node.to, 'cm-typo-code-inline')
+      b.mark(node.from, node.to, 'cm-mosu-code-inline')
       return
 
     case INLINE_NODES.link:
@@ -335,7 +335,7 @@ function handleTableRow(b: Builder, node: SyntaxNodeRef): void {
   if (!table) return
 
   const isHeader = node.name === TABLE_NODES.header
-  b.line(node.from, isHeader ? 'cm-typo-tr cm-typo-tr-head' : 'cm-typo-tr')
+  b.line(node.from, isHeader ? 'cm-mosu-tr cm-mosu-tr-head' : 'cm-mosu-tr')
 
   const { spans } = rowLayout(b.state, node.node)
   const aligns = alignmentsOf(b.state, table)
@@ -345,7 +345,7 @@ function handleTableRow(b: Builder, node: SyntaxNodeRef): void {
     b.mark(
       span.from,
       span.to,
-      align === 'none' ? 'cm-typo-td' : `cm-typo-td cm-typo-td-${align}`,
+      align === 'none' ? 'cm-mosu-td' : `cm-mosu-td cm-mosu-td-${align}`,
     )
   }
 }
@@ -374,9 +374,9 @@ function handlePipe(b: Builder, node: SyntaxNodeRef, row: SyntaxNode): void {
  * 隐藏它是块级装饰的事（见 blocks.ts），这里只管它露出来的时候。
  */
 function handleDelimiterRow(b: Builder, node: SyntaxNodeRef): void {
-  b.line(node.from, 'cm-typo-tr cm-typo-tr-delim')
+  b.line(node.from, 'cm-mosu-tr cm-mosu-tr-delim')
   const { spans, pipes } = delimiterRowLayout(b.state, node.node)
-  for (const span of spans) b.mark(span.from, span.to, 'cm-typo-td')
+  for (const span of spans) b.mark(span.from, span.to, 'cm-mosu-td')
   for (const at of pipes) b.mark(at, at + 1, MARK_CLASS)
 }
 
@@ -431,7 +431,7 @@ function handleBareUrl(b: Builder, node: SyntaxNodeRef): void {
   // 真正需要跳过的只有「URL 是别人的目标部分」这几种。
   const parent = node.node.parent
   if (parent && URL_CONTAINERS.has(parent.name)) return
-  b.mark(node.from, node.to, 'cm-typo-link cm-typo-autolink')
+  b.mark(node.from, node.to, 'cm-mosu-link cm-mosu-autolink')
 }
 
 /**
@@ -456,7 +456,7 @@ function handleHtmlTag(b: Builder, node: SyntaxNodeRef): void {
 
   for (const { open, close } of pairs) {
     // 样式一直挂着（跟强调一致）：显形时露出来的是标签本身，不是排版效果
-    b.mark(open.from, close.to, `cm-typo-html cm-typo-html-${open.cls}`)
+    b.mark(open.from, close.to, `cm-mosu-html cm-mosu-html-${open.cls}`)
     if (revealsRange(b.active, open.from, close.to)) {
       b.mark(open.from, open.to, MARK_CLASS)
       b.mark(close.from, close.to, MARK_CLASS)
@@ -491,7 +491,7 @@ const URL_CONTAINERS = new Set<string>([
  */
 function handleInlineMath(b: Builder, node: SyntaxNodeRef, markLength: number): void {
   if (revealsRange(b.active, node.from, node.to)) {
-    b.mark(node.from, node.to, 'cm-typo-math-source')
+    b.mark(node.from, node.to, 'cm-mosu-math-source')
     return
   }
   const tex = b.slice(node.from + markLength, node.to - markLength)
@@ -503,7 +503,7 @@ function handleInlineMath(b: Builder, node: SyntaxNodeRef, markLength: number): 
 
 /** 脚注引用 `[^1]`：藏掉 `[^` 和 `]`，标签留着做上标。 */
 function handleFootnoteRef(b: Builder, node: SyntaxNodeRef): void {
-  b.mark(node.from, node.to, 'cm-typo-footnote-ref')
+  b.mark(node.from, node.to, 'cm-mosu-footnote-ref')
   if (revealsRange(b.active, node.from, node.to)) return
   // `[^` 两个字符 + 收尾的 `]`
   b.hide(node.from, node.from + 2)
@@ -512,7 +512,7 @@ function handleFootnoteRef(b: Builder, node: SyntaxNodeRef): void {
 
 function handleRule(b: Builder, node: SyntaxNodeRef): void {
   const line = b.state.doc.lineAt(node.from)
-  b.line(line.from, 'cm-typo-hr-line')
+  b.line(line.from, 'cm-mosu-hr-line')
   if (revealsLine(b.active, line.number)) {
     b.mark(line.from, line.to, MARK_CLASS)
     return
@@ -571,7 +571,7 @@ function handleListMark(b: Builder, node: SyntaxNodeRef): void {
     b.hide(node.from, node.to, Decoration.replace({ widget: new BulletWidget() }))
   } else {
     // 有序列表：编号本身就是内容的一部分，保留可见，只弱化
-    b.mark(node.from, node.to, 'cm-typo-list-number')
+    b.mark(node.from, node.to, 'cm-mosu-list-number')
   }
 }
 
@@ -616,7 +616,7 @@ function handleLinkMark(b: Builder, node: SyntaxNodeRef): void {
 }
 
 function handleLink(b: Builder, node: SyntaxNodeRef): void {
-  b.mark(node.from, node.to, 'cm-typo-link')
+  b.mark(node.from, node.to, 'cm-mosu-link')
   if (revealsRange(b.active, node.from, node.to)) return
 
   // 只折叠「确实有跳转目标」的链接：行内链接有 URL 子节点，引用式链接有 LinkLabel。
@@ -644,7 +644,7 @@ function handleLink(b: Builder, node: SyntaxNodeRef): void {
 
 function handleImage(b: Builder, node: SyntaxNodeRef): void {
   if (!b.renderImages || revealsRange(b.active, node.from, node.to)) {
-    b.mark(node.from, node.to, 'cm-typo-image-source')
+    b.mark(node.from, node.to, 'cm-mosu-image-source')
     return
   }
 
@@ -661,7 +661,7 @@ function handleImage(b: Builder, node: SyntaxNodeRef): void {
 
   // 拿不到 URL（引用式图片、语法不完整）就退回显示源码 —— 原则 P2
   if (!open || !close || url === null) {
-    b.mark(node.from, node.to, 'cm-typo-image-source')
+    b.mark(node.from, node.to, 'cm-mosu-image-source')
     return
   }
 

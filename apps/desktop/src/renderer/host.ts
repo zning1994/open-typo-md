@@ -1,21 +1,21 @@
 /**
  * 把 preload 暴露的 API 适配成内核认识的 HostBridge。
  *
- * 这一层看起来是重复劳动，其实是原则 P3 的落地：@typo/editor 只认识
- * HostBridge，不认识 `window.typo`。换个宿主（Web 版、VS Code 插件）时，
+ * 这一层看起来是重复劳动，其实是原则 P3 的落地：@mosu/editor 只认识
+ * HostBridge，不认识 `window.mosu`。换个宿主（Web 版、VS Code 插件）时，
  * 要改的只有这个文件。
  */
-import type { HostBridge } from '@typo/plugin-api'
-import type { TypoBridgeApi } from '../shared/channels.js'
+import type { HostBridge } from '@mosu/plugin-api'
+import type { MosuBridgeApi } from '../shared/channels.js'
 
 declare global {
   interface Window {
-    typo: TypoBridgeApi
+    mosu: MosuBridgeApi
   }
 }
 
-export function getBridgeApi(): TypoBridgeApi {
-  const api = window.typo
+export function getBridgeApi(): MosuBridgeApi {
+  const api = window.mosu
   if (!api) throw new Error('preload 未注入 —— 这通常意味着窗口配置被改坏了')
   return api
 }
@@ -50,14 +50,14 @@ export function createHostBridge(): HostBridge {
 }
 
 /**
- * 构造 `typo-asset://` URL。
+ * 构造 `mosu-asset://` URL。
  *
  * 只做字符串拼接，不做路径解析 —— `../` 的规范化与白名单校验一律在 main 侧
  * 完成（见 main/asset-protocol.ts 的说明）。
  */
 export function buildAssetUrl(baseDir: string, src: string): string {
   const params = new URLSearchParams({ base: baseDir, src })
-  return `typo-asset://local/?${params.toString()}`
+  return `mosu-asset://local/?${params.toString()}`
 }
 
 /** 取路径的目录部分。渲染进程没有 node:path，只能自己切。 */
@@ -80,7 +80,7 @@ export function basenameOf(filePath: string): string {
  */
 export function createAssetResolver(getBaseDir: () => string | null) {
   return (src: string): string => {
-    if (/^(https?:|data:|blob:|typo-asset:)/i.test(src)) return src
+    if (/^(https?:|data:|blob:|mosu-asset:)/i.test(src)) return src
     const baseDir = getBaseDir()
     if (!baseDir) return src
     return buildAssetUrl(baseDir, src)

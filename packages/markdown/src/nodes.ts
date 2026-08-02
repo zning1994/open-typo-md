@@ -1,7 +1,7 @@
 /**
  * Lezer Markdown 的节点名常量与分类。
  *
- * 单独抽出来的原因：装饰规则（@typo/editor）需要按节点名分发，
+ * 单独抽出来的原因：装饰规则（@mosu/editor）需要按节点名分发，
  * 把字符串散落在各处会在解析器升级改名时炸得到处都是。
  */
 
@@ -35,7 +35,7 @@ export const INLINE_NODES = {
    * 行内 HTML 的**单个标签**。
    *
    * 注意它不是配对结构：`<b>粗</b>` 出来的是两个平级的 `HTMLTag`，
-   * 中间的文字跟它们是兄弟。要配对得自己扫（见 @typo/editor 的 inline-html.ts）。
+   * 中间的文字跟它们是兄弟。要配对得自己扫（见 @mosu/editor 的 inline-html.ts）。
    */
   htmlTag: 'HTMLTag',
 } as const

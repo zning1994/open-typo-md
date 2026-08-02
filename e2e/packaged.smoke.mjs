@@ -7,7 +7,7 @@
 import { _electron as electron } from '@playwright/test'
 
 const app = await electron.launch({
-  executablePath: 'release/linux-unpacked/brainforge-typo',
+  executablePath: 'release/linux-unpacked/mosu',
   args: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage'],
 })
 const page = await app.firstWindow()
@@ -22,9 +22,9 @@ await page.keyboard.type('# 标题\n\n**粗体** 与 $E=mc^2$ 的说明\n\n结�
 await page.waitForTimeout(3000)
 
 const checks = {
-  标题: await page.locator('.cm-typo-h1').count(),
-  粗体: await page.locator('.cm-typo-strong').count(),
-  公式: await page.locator('.cm-typo-math .katex').count(),
+  标题: await page.locator('.cm-mosu-h1').count(),
+  粗体: await page.locator('.cm-mosu-strong').count(),
+  公式: await page.locator('.cm-mosu-math .katex').count(),
 }
 console.log('SMOKE', JSON.stringify(checks))
 await app.evaluate(({ app }) => app.exit(0)).catch(() => undefined)

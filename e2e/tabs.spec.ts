@@ -22,7 +22,7 @@ import type { ElectronApplication, Page } from '@playwright/test'
 let dir: string
 
 test.beforeEach(async () => {
-  dir = await mkdtemp(path.join(tmpdir(), 'typo-tabs-'))
+  dir = await mkdtemp(path.join(tmpdir(), 'mosu-tabs-'))
 })
 
 test.afterEach(async () => {
@@ -145,7 +145,7 @@ test('多个未保存标签关窗口时只弹一次对话框，且列出全部�
       seen.push({ message: o.message, detail: o.detail ?? '' })
       return { response: 2, checkboxChecked: false } // 取消
     }) as never
-    ;(globalThis as Record<string, unknown>)['__typoDialogCalls'] = seen
+    ;(globalThis as Record<string, unknown>)['__mosuDialogCalls'] = seen
   })
 
   // 从 main 侧关窗口 —— 那才是点窗口 X 时走的路。渲染进程里调 window.close()
@@ -153,12 +153,12 @@ test('多个未保存标签关窗口时只弹一次对话框，且列出全部�
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.close())
   await expect
     .poll(() =>
-      app.evaluate(() => (globalThis as Record<string, unknown>)['__typoDialogCalls']),
+      app.evaluate(() => (globalThis as Record<string, unknown>)['__mosuDialogCalls']),
     )
     .toHaveLength(1)
 
   const [only] = (await app.evaluate(
-    () => (globalThis as Record<string, unknown>)['__typoDialogCalls'],
+    () => (globalThis as Record<string, unknown>)['__mosuDialogCalls'],
   )) as { message: string; detail: string }[]
   expect(only!.message).toContain('2 个文档尚未保存')
   expect(only!.detail).toContain('a.md')

@@ -22,8 +22,8 @@ async function tagNames(page: Page): Promise<string[]> {
 test('认得的标签渲染成类名，源码里的尖括号不再显示', async ({ page }) => {
   await pasteText(page, '按 <kbd>Esc</kbd> 退出，H<sub>2</sub>O 是水')
 
-  await expect(page.locator(`${ACTIVE_CONTENT} .cm-typo-html-kbd`)).toHaveText('Esc')
-  await expect(page.locator(`${ACTIVE_CONTENT} .cm-typo-html-sub`)).toHaveText('2')
+  await expect(page.locator(`${ACTIVE_CONTENT} .cm-mosu-html-kbd`)).toHaveText('Esc')
+  await expect(page.locator(`${ACTIVE_CONTENT} .cm-mosu-html-sub`)).toHaveText('2')
   expect(await visibleText(page)).toBe('按 Esc 退出，H2O 是水')
 })
 
@@ -54,7 +54,7 @@ test('光标进去露出标签，出来又收起来', async ({ page }) => {
   await pasteText(page, '正文 <b>粗体</b> 收尾')
   expect(await visibleText(page)).toBe('正文 粗体 收尾')
 
-  await page.locator(`${ACTIVE_CONTENT} .cm-typo-html-b`).click()
+  await page.locator(`${ACTIVE_CONTENT} .cm-mosu-html-b`).click()
   await expect.poll(() => visibleText(page)).toBe('正文 <b>粗体</b> 收尾')
 })
 
@@ -87,14 +87,14 @@ async function setRenderInlineHtml(
   on: boolean,
 ): Promise<void> {
   await clickMenu(app, ['视图', '设置…'])
-  await expect(page.locator('.typo-settings')).toBeVisible()
+  await expect(page.locator('.mosu-settings')).toBeVisible()
   const box = page
-    .locator('.typo-settings__row')
+    .locator('.mosu-settings__row')
     .filter({ hasText: '渲染行内 HTML' })
     .locator('input')
   await box.setChecked(on)
   await page.keyboard.press('Escape')
-  await expect(page.locator('.typo-settings')).toBeHidden()
+  await expect(page.locator('.mosu-settings')).toBeHidden()
 }
 
 test('设置里关掉之后，已经开着的标签立刻退回原文显示', async ({ app, page }) => {

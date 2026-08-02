@@ -37,8 +37,8 @@ import {
  */
 const CONTAINERS = new Set(['Document', 'Blockquote', 'BulletList', 'OrderedList'])
 
-/** 变暗的行的类名。宿主主题通过 `--typo-focus-dim` 调不透明度。 */
-export const DIM_CLASS = 'cm-typo-dim'
+/** 变暗的行的类名。宿主主题通过 `--mosu-focus-dim` 调不透明度。 */
+export const DIM_CLASS = 'cm-mosu-dim'
 
 const dimLine = Decoration.line({ class: DIM_CLASS })
 
@@ -186,7 +186,7 @@ function lineOf(state: EditorState): number {
 }
 
 /** 打字机模式给编辑器根元素挂的类名。主题也可以拿它做别的区分。 */
-export const TYPEWRITER_CLASS = 'cm-typo-typewriter'
+export const TYPEWRITER_CLASS = 'cm-mosu-typewriter'
 
 /**
  * 打字机模式要的上下留白。

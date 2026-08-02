@@ -253,7 +253,7 @@ export const zhCN = {
   'recover.discard': '丢弃',
   'recover.later': '暂不处理',
 
-  // —— 编辑区内的可见文案（注入 @typo/editor）——
+  // —— 编辑区内的可见文案（注入 @mosu/editor）——
   'editor.label': 'Markdown 编辑区',
   'editor.codeLanguage': '代码语言',
   'editor.codeLanguage.plain': '纯文本',

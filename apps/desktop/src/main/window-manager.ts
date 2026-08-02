@@ -6,6 +6,7 @@
  * 文档状态都在渲染进程那一侧**，所以这里刻意不存任何文档信息 ——
  * 存了就会和渲染进程的状态打架。
  */
+import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { BrowserWindow, app, screen, shell } from 'electron'
 import { EVENTS } from '../shared/channels.js'
@@ -96,6 +97,21 @@ export interface CreateWindowOptions {
   session?: WindowSession
 }
 
+/**
+ * Linux 的窗口图标路径。
+ *
+ * 打包后 `build/` 不在 asar 里（它是 buildResources，只在构建期用），
+ * 所以从 `process.resourcesPath` 找；开发期回落到仓库里那份。
+ * 两处都取不到时返回 undefined —— 图标缺失不该让窗口开不出来。
+ */
+function linuxIcon(): string | undefined {
+  const candidates = [
+    path.join(process.resourcesPath, 'icons', '512x512.png'),
+    path.join(__dirname, '../../build/icons/512x512.png'),
+  ]
+  return candidates.find((candidate) => existsSync(candidate))
+}
+
 export async function createWindow(options: CreateWindowOptions = {}): Promise<BrowserWindow> {
   const bounds = await nextBounds()
 
@@ -103,9 +119,13 @@ export async function createWindow(options: CreateWindowOptions = {}): Promise<B
     ...bounds,
     minWidth: MIN_BOUNDS.width,
     minHeight: MIN_BOUNDS.height,
-    title: 'Brainforge Typo',
+    title: 'Mosu',
     backgroundColor: '#ffffff',
     show: false,
+    // 只有 Linux 需要显式给窗口图标：macOS 从 .app 的 Info.plist 取，
+    // Windows 从 .exe 的资源段取，都不看这个字段。Linux 没有等价机制，
+    // 不给的话任务栏会显示 Electron 自带的默认图标
+    ...(process.platform === 'linux' ? { icon: linuxIcon() } : {}),
     webPreferences: {
       // 这三项是安全底线（架构 01 §3），任何改动都必须走 ADR
       contextIsolation: true,
@@ -161,7 +181,7 @@ export async function createWindow(options: CreateWindowOptions = {}): Promise<B
   if (DEV_SERVER_URL) {
     void window.loadURL(DEV_SERVER_URL)
   } else {
-    // 走 typo-app:// 而不是 loadFile —— 见 app-protocol.ts 里的原因
+    // 走 mosu-app:// 而不是 loadFile —— 见 app-protocol.ts 里的原因
     void window.loadURL(`${APP_ORIGIN}/index.html`)
   }
 

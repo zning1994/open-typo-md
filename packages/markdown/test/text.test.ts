@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { UnsupportedEncodingError, type TextFileMeta } from '@typo/plugin-api'
-import { applyEol, decodeText, detectEol, encodeText, normalizeEol } from '@typo/markdown'
+import { UnsupportedEncodingError, type TextFileMeta } from '@mosu/plugin-api'
+import { applyEol, decodeText, detectEol, encodeText, normalizeEol } from '@mosu/markdown'
 
 const utf8 = (s: string) => new TextEncoder().encode(s)
 

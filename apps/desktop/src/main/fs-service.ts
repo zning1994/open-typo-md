@@ -25,8 +25,8 @@ import {
   type ReadResult,
   type WriteOptions,
   type WriteResult,
-} from '@typo/plugin-api'
-import { decodeText, encodeText } from '@typo/markdown/text'
+} from '@mosu/plugin-api'
+import { decodeText, encodeText } from '@mosu/markdown/text'
 import { assertAllowed } from './path-guard.js'
 import { noteSelfWrite } from './watcher.js'
 import { FALLBACK_LOCALE, createTranslate, type Translate } from '../shared/i18n.js'

@@ -14,7 +14,7 @@ export interface DocumentOptions {
   title: string
   /** 已经内联好的 CSS。多份按顺序拼接。 */
   css?: readonly string[]
-  /** 正文宽度，跟编辑器里的 `--typo-content-width` 对应。 */
+  /** 正文宽度，跟编辑器里的 `--mosu-content-width` 对应。 */
   contentWidth?: string
   /**
    * 是否带 `<meta name="viewport">`。默认带。
@@ -76,10 +76,10 @@ export interface DocumentOptions {
  * 字体渲染才是对的，而浏览器显示 PingFang 没有任何问题。
  */
 export const PRINT_FONT_CSS = `:root {
-  --typo-font-body:
+  --mosu-font-body:
     system-ui, -apple-system, 'Segoe UI', 'Hiragino Sans GB', 'Songti SC',
     'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif;
-  --typo-font-mono:
+  --mosu-font-mono:
     'JetBrains Mono', ui-monospace, Menlo, Consolas, 'Hiragino Sans GB', 'Songti SC',
     'Microsoft YaHei', monospace;
 }`
@@ -107,20 +107,20 @@ function escapeText(value: string): string {
  */
 const BASE_CSS = `
 :root {
-  --typo-content-width: 42em;
+  --mosu-content-width: 42em;
   color-scheme: light dark;
 }
 body {
   margin: 0;
   padding: 2.5rem 1.5rem 6rem;
-  font-family: var(--typo-font-body, system-ui, -apple-system, 'PingFang SC', sans-serif);
-  font-size: var(--typo-font-size, 16px);
-  line-height: var(--typo-line-height, 1.7);
-  color: var(--typo-fg, #24292f);
-  background: var(--typo-bg, #fff);
+  font-family: var(--mosu-font-body, system-ui, -apple-system, 'PingFang SC', sans-serif);
+  font-size: var(--mosu-font-size, 16px);
+  line-height: var(--mosu-line-height, 1.7);
+  color: var(--mosu-fg, #24292f);
+  background: var(--mosu-bg, #fff);
 }
 main {
-  max-width: var(--typo-content-width);
+  max-width: var(--mosu-content-width);
   margin: 0 auto;
 }
 img { max-width: 100%; height: auto; }
@@ -128,29 +128,29 @@ pre {
   overflow-x: auto;
   padding: 0.8em 1em;
   border-radius: 6px;
-  background: var(--typo-code-bg, #f0f2f4);
+  background: var(--mosu-code-bg, #f0f2f4);
 }
-code { font-family: var(--typo-font-mono, ui-monospace, Menlo, Consolas, monospace); }
+code { font-family: var(--mosu-font-mono, ui-monospace, Menlo, Consolas, monospace); }
 pre code { background: none; padding: 0; }
 :not(pre) > code {
   padding: 0.1em 0.32em;
   border-radius: 4px;
-  background: var(--typo-code-bg, #f0f2f4);
+  background: var(--mosu-code-bg, #f0f2f4);
 }
 blockquote {
   margin: 1em 0;
   padding-left: 1em;
-  border-left: 3px solid var(--typo-border, #d0d7de);
-  color: var(--typo-fg-muted, #6e7781);
+  border-left: 3px solid var(--mosu-border, #d0d7de);
+  color: var(--mosu-fg-muted, #6e7781);
 }
 table { border-collapse: collapse; }
-th, td { border: 1px solid var(--typo-border, #d0d7de); padding: 0.35em 0.7em; }
-hr { border: 0; border-top: 1px solid var(--typo-border, #d0d7de); }
-.typo-diagram { margin: 1em 0; text-align: center; }
-.typo-frontmatter {
+th, td { border: 1px solid var(--mosu-border, #d0d7de); padding: 0.35em 0.7em; }
+hr { border: 0; border-top: 1px solid var(--mosu-border, #d0d7de); }
+.mosu-diagram { margin: 1em 0; text-align: center; }
+.mosu-frontmatter {
   font-size: 0.85em;
-  color: var(--typo-fg-muted, #6e7781);
-  border-left: 3px solid var(--typo-border, #d0d7de);
+  color: var(--mosu-fg-muted, #6e7781);
+  border-left: 3px solid var(--mosu-border, #d0d7de);
 }
 `.trim()
 
@@ -158,7 +158,7 @@ hr { border: 0; border-top: 1px solid var(--typo-border, #d0d7de); }
 export function buildDocument(fragment: string, options: DocumentOptions): string {
   const styles = [BASE_CSS, ...(options.css ?? [])].join('\n\n')
   const width = options.contentWidth
-    ? `\n<style>:root { --typo-content-width: ${escapeText(options.contentWidth)}; }</style>`
+    ? `\n<style>:root { --mosu-content-width: ${escapeText(options.contentWidth)}; }</style>`
     : ''
 
   const viewport =
@@ -171,7 +171,7 @@ export function buildDocument(fragment: string, options: DocumentOptions): strin
 <html${lang}>
 <head>
 <meta charset="utf-8">${viewport}
-<meta name="generator" content="Brainforge Typo">
+<meta name="generator" content="Mosu">
 <title>${escapeText(options.title)}</title>
 <style>
 ${styles}

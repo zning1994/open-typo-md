@@ -16,7 +16,7 @@ import type {
   SaveDialogOptions,
   WriteOptions,
   WriteResult,
-} from '@typo/plugin-api'
+} from '@mosu/plugin-api'
 
 export const CHANNELS = {
   fsRead: 'fs:read',
@@ -49,7 +49,7 @@ export const CHANNELS = {
 export const EVENTS = {
   /** 菜单项被点击。renderer 决定具体做什么。 */
   menuCommand: 'event:menu-command',
-  /** 用户通过「用 Brainforge Typo 打开」等方式要求打开某个文件。 */
+  /** 用户通过「用 Mosu 打开」等方式要求打开某个文件。 */
   openFile: 'event:open-file',
   /** 窗口即将关闭，renderer 需要回应能否关闭（有未保存内容时要拦下）。 */
   requestClose: 'event:request-close',
@@ -102,7 +102,7 @@ export type MenuCommand =
  * 刻意收窄：这里没有 `ipcRenderer`、没有 `require`、没有任意通道调用。
  * 渲染进程被 XSS 时，攻击面就是这张表 —— 所以这张表必须小到能一眼看完。
  */
-export interface TypoBridgeApi {
+export interface MosuBridgeApi {
   fs: {
     read(path: string): Promise<ReadResult>
     write(path: string, text: string, options: WriteOptions): Promise<WriteResult>
@@ -200,12 +200,12 @@ export interface TypoBridgeApi {
  * 错误就没法被 renderer 认出来。所以 main 侧统一包成这个结构。
  */
 export interface IpcFailure {
-  __typoError: true
+  __mosuError: true
   name: string
   message: string
   data?: Record<string, unknown>
 }
 
 export function isIpcFailure(value: unknown): value is IpcFailure {
-  return typeof value === 'object' && value !== null && '__typoError' in value
+  return typeof value === 'object' && value !== null && '__mosuError' in value
 }

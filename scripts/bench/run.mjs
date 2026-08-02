@@ -87,7 +87,7 @@ async function launch(userDataDir, extraArgs = []) {
 
 /** 一个干净的 userData 目录，界面语言钉死（免得跟机器区域有关）。 */
 async function freshUserData() {
-  const dir = await mkdtemp(path.join(tmpdir(), 'typo-bench-'))
+  const dir = await mkdtemp(path.join(tmpdir(), 'mosu-bench-'))
   await writeFile(path.join(dir, 'settings.json'), JSON.stringify({ 'ui.language': 'zh-CN' }))
   return dir
 }

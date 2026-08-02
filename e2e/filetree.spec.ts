@@ -13,7 +13,7 @@ import type { ElectronApplication, Page } from '@playwright/test'
 let dir: string
 
 test.beforeEach(async () => {
-  dir = await mkdtemp(path.join(tmpdir(), 'typo-tree-'))
+  dir = await mkdtemp(path.join(tmpdir(), 'mosu-tree-'))
   await writeFile(path.join(dir, '甲.md'), '甲的内容', 'utf8')
   await writeFile(path.join(dir, '乙.md'), '乙的内容', 'utf8')
   await mkdir(path.join(dir, '子目录'))
@@ -31,17 +31,17 @@ test.afterEach(async () => {
 async function openFolder(app: ElectronApplication, page: Page): Promise<void> {
   await stubOpenDialog(app, [dir])
   await clickMenu(app, ['文件', '打开文件夹…'])
-  await expect(page.locator('.typo-files')).toBeVisible()
+  await expect(page.locator('.mosu-files')).toBeVisible()
 }
 
-const items = (page: Page) => page.locator('.typo-files__item')
+const items = (page: Page) => page.locator('.mosu-files__item')
 
 test('打开文件夹后列出内容，目录在前', async ({ app, page }) => {
   await openFolder(app, page)
 
   await expect(items(page)).toHaveCount(3)
   await expect(items(page).first()).toHaveText('▸子目录')
-  await expect(page.locator('.typo-files__title')).toHaveText(path.basename(dir))
+  await expect(page.locator('.mosu-files__title')).toHaveText(path.basename(dir))
 })
 
 test('点文件与 node_modules 不进树 —— 前者是工具的东西，后者是量级问题', async ({
@@ -81,14 +81,14 @@ test('刷新能看见新加的文件（目录不监听，所以给了刷新）',
   await writeFile(path.join(dir, '丁.md'), '丁的内容', 'utf8')
 
   await expect(items(page).filter({ hasText: '丁.md' })).toHaveCount(0)
-  await page.locator('.typo-files__refresh').click()
+  await page.locator('.mosu-files__refresh').click()
   await expect(items(page).filter({ hasText: '丁.md' })).toHaveCount(1)
 })
 
 test('关闭文件夹，树收起来', async ({ app, page }) => {
   await openFolder(app, page)
   await clickMenu(app, ['文件', '关闭文件夹'])
-  await expect(page.locator('.typo-files')).toBeHidden()
+  await expect(page.locator('.mosu-files')).toBeHidden()
 
   await resetDoc(page)
 })

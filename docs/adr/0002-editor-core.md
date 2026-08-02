@@ -86,7 +86,7 @@ ProseMirror 会为整篇文档构建 DOM，长文档下压力明显。
 ## 反悔成本
 
 高。整个 02、03 号文档都是这个决策的推论。若要改到方案 A，
-`@typo/editor` 与 `@typo/markdown` 基本要重写，`@typo/ui` 和 `@typo/export` 可保留。
+`@mosu/editor` 与 `@mosu/markdown` 基本要重写，`@mosu/ui` 和 `@mosu/export` 可保留。
 
 因此建议在 M1 结束时做一次**明确的验证复盘**：如果那时实时预览的手感被判定为
 「达不到可日常使用」，就是重新评估这个决策的最后窗口期。

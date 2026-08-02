@@ -8,13 +8,13 @@
  *
  * ## 变量契约
  *
- * 下面 `[data-typo-theme='light']` 那一份是**完整清单**，也是契约本身：
- * 编辑器内核里所有 `var(--typo-x, 兜底值)` 用到的名字都在这儿。
+ * 下面 `[data-mosu-theme='light']` 那一份是**完整清单**，也是契约本身：
+ * 编辑器内核里所有 `var(--mosu-x, 兜底值)` 用到的名字都在这儿。
  * 兜底值的存在意味着少写几个变量不会让界面崩掉，只是那几处退回默认外观。
  *
  * ## 亮/暗与「跟随系统」
  *
- * 三种状态，靠 `<html>` 上的 `data-typo-theme` 区分：
+ * 三种状态，靠 `<html>` 上的 `data-mosu-theme` 区分：
  *
  * - 具体主题名（`light` / `dark` / `sepia` / …）：用户明确选定，不随系统变；
  * - `auto`：跟随系统 —— 用 `@media (prefers-color-scheme)` 实现。
@@ -24,26 +24,26 @@
  */
 
 /* —— Light（默认，也是变量契约的完整清单）—— */
-[data-typo-theme='light'],
-[data-typo-theme='auto'] {
+[data-mosu-theme='light'],
+[data-mosu-theme='auto'] {
   /* 排版 */
-  --typo-font-body:
+  --mosu-font-body:
     system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
-  --typo-font-mono: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
-  --typo-font-size: 16px;
-  --typo-line-height: 1.7;
-  --typo-content-width: 42em;
+  --mosu-font-mono: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+  --mosu-font-size: 16px;
+  --mosu-line-height: 1.7;
+  --mosu-content-width: 42em;
 
   /* 颜色：语义化命名，不用 blue-500 那种 —— 主题作者要能看懂它是干嘛的 */
-  --typo-bg: #ffffff;
-  --typo-fg: #24292f;
-  --typo-fg-muted: #69717b;
-  --typo-accent: #0969da;
-  --typo-border: #d0d7de;
-  --typo-border-strong: #afb8c1;
-  --typo-code-bg: #f0f2f4;
-  --typo-selection: #b4d5fe;
-  --typo-danger: #cf222e;
+  --mosu-bg: #ffffff;
+  --mosu-fg: #24292f;
+  --mosu-fg-muted: #69717b;
+  --mosu-accent: #0969da;
+  --mosu-border: #d0d7de;
+  --mosu-border-strong: #afb8c1;
+  --mosu-code-bg: #f0f2f4;
+  --mosu-selection: #b4d5fe;
+  --mosu-danger: #cf222e;
 
   /* 编辑器专属 */
   /* 显形中的 Markdown 标记。
@@ -51,128 +51,128 @@
      但它是可选中可编辑的正文字符，WCAG 就该按正文算，2.04 是明确的违规。
      现在压到刚过 4.5:1：跟正文（14.65:1）之间仍有巨大落差，「轻」还在，
      只是不再轻到低视力用户看不见。六套主题都按这条改过，见 scripts/contrast.mjs */
-  --typo-marker-fg: #717479;
-  --typo-cursor: #24292f;
-  --typo-status-bg: #f6f8fa;
+  --mosu-marker-fg: #717479;
+  --mosu-cursor: #24292f;
+  --mosu-status-bg: #f6f8fa;
   /* 专注模式下非当前块的不透明度。
      0.35 下变暗的正文只有 2.1:1，**明确达不到 WCAG AA 的 4.5:1** ——
      而算下来要达标得调到 0.64（sepia 要 0.76），那时基本看不出变暗了，
      功能等于没有。取舍是：默认保留 0.35（这个模式默认关着，且是用户主动开的），
      但**尊重系统的「增强对比度」信号**，见文件末尾的 prefers-contrast。
      详见 docs/design/07 §3.1。 */
-  --typo-focus-dim: 0.35;
+  --mosu-focus-dim: 0.35;
 
   /* 代码高亮 token */
-  --typo-string-fg: #0a3069;
-  --typo-number-fg: #0550ae;
-  --typo-type-fg: #953800;
+  --mosu-string-fg: #0a3069;
+  --mosu-number-fg: #0550ae;
+  --mosu-type-fg: #953800;
 }
 
 /* —— Dark —— */
-[data-typo-theme='dark'] {
-  --typo-bg: #0d1117;
-  --typo-fg: #e6edf3;
-  --typo-fg-muted: #8b949e;
-  --typo-accent: #4493f8;
-  --typo-border: #30363d;
-  --typo-border-strong: #484f58;
-  --typo-code-bg: #161b22;
-  --typo-selection: #1f4b7f;
-  --typo-danger: #f85149;
-  --typo-marker-fg: #777e89;
-  --typo-cursor: #e6edf3;
-  --typo-status-bg: #161b22;
-  --typo-string-fg: #a5d6ff;
-  --typo-number-fg: #79c0ff;
-  --typo-type-fg: #ffa657;
+[data-mosu-theme='dark'] {
+  --mosu-bg: #0d1117;
+  --mosu-fg: #e6edf3;
+  --mosu-fg-muted: #8b949e;
+  --mosu-accent: #4493f8;
+  --mosu-border: #30363d;
+  --mosu-border-strong: #484f58;
+  --mosu-code-bg: #161b22;
+  --mosu-selection: #1f4b7f;
+  --mosu-danger: #f85149;
+  --mosu-marker-fg: #777e89;
+  --mosu-cursor: #e6edf3;
+  --mosu-status-bg: #161b22;
+  --mosu-string-fg: #a5d6ff;
+  --mosu-number-fg: #79c0ff;
+  --mosu-type-fg: #ffa657;
 }
 
 /* 跟随系统：同一份深色值，由媒体查询触发 */
 @media (prefers-color-scheme: dark) {
-  [data-typo-theme='auto'] {
-    --typo-bg: #0d1117;
-    --typo-fg: #e6edf3;
-    --typo-fg-muted: #8b949e;
-    --typo-accent: #4493f8;
-    --typo-border: #30363d;
-    --typo-border-strong: #484f58;
-    --typo-code-bg: #161b22;
-    --typo-selection: #1f4b7f;
-    --typo-danger: #f85149;
-    --typo-marker-fg: #777e89;
-    --typo-cursor: #e6edf3;
-    --typo-status-bg: #161b22;
-    --typo-string-fg: #a5d6ff;
-    --typo-number-fg: #79c0ff;
-    --typo-type-fg: #ffa657;
+  [data-mosu-theme='auto'] {
+    --mosu-bg: #0d1117;
+    --mosu-fg: #e6edf3;
+    --mosu-fg-muted: #8b949e;
+    --mosu-accent: #4493f8;
+    --mosu-border: #30363d;
+    --mosu-border-strong: #484f58;
+    --mosu-code-bg: #161b22;
+    --mosu-selection: #1f4b7f;
+    --mosu-danger: #f85149;
+    --mosu-marker-fg: #777e89;
+    --mosu-cursor: #e6edf3;
+    --mosu-status-bg: #161b22;
+    --mosu-string-fg: #a5d6ff;
+    --mosu-number-fg: #79c0ff;
+    --mosu-type-fg: #ffa657;
   }
 }
 
 /* —— Sepia：长时间阅读用的低对比暖色 —— */
-[data-typo-theme='sepia'] {
-  --typo-font-body: Georgia, 'Songti SC', 'SimSun', serif;
-  --typo-bg: #f4ecd8;
-  --typo-fg: #4a3f35;
-  --typo-fg-muted: #706354;
-  --typo-accent: #9a5b2c;
-  --typo-border: #d9caae;
-  --typo-border-strong: #c0ac8c;
-  --typo-code-bg: #eae0c8;
-  --typo-selection: #dfc9a3;
-  --typo-danger: #a33a2a;
-  --typo-marker-fg: #726757;
-  --typo-cursor: #4a3f35;
-  --typo-status-bg: #eee4cd;
-  --typo-string-fg: #556635;
-  --typo-number-fg: #845629;
-  --typo-type-fg: #7a4b2a;
+[data-mosu-theme='sepia'] {
+  --mosu-font-body: Georgia, 'Songti SC', 'SimSun', serif;
+  --mosu-bg: #f4ecd8;
+  --mosu-fg: #4a3f35;
+  --mosu-fg-muted: #706354;
+  --mosu-accent: #9a5b2c;
+  --mosu-border: #d9caae;
+  --mosu-border-strong: #c0ac8c;
+  --mosu-code-bg: #eae0c8;
+  --mosu-selection: #dfc9a3;
+  --mosu-danger: #a33a2a;
+  --mosu-marker-fg: #726757;
+  --mosu-cursor: #4a3f35;
+  --mosu-status-bg: #eee4cd;
+  --mosu-string-fg: #556635;
+  --mosu-number-fg: #845629;
+  --mosu-type-fg: #7a4b2a;
 }
 
 /* —— High Contrast：满足 WCAG AAA 的对比度，给低视力用户 —— */
-[data-typo-theme='high-contrast'] {
-  --typo-bg: #000000;
-  --typo-fg: #ffffff;
+[data-mosu-theme='high-contrast'] {
+  --mosu-bg: #000000;
+  --mosu-fg: #ffffff;
   /* 「次要文字」在高对比主题里不能真的变淡，否则等于把无障碍又拿掉了 */
-  --typo-fg-muted: #d0d0d0;
-  --typo-accent: #4ff0ff;
-  --typo-border: #ffffff;
-  --typo-border-strong: #ffffff;
-  --typo-code-bg: #1a1a1a;
-  --typo-selection: #0060c0;
-  --typo-danger: #ff8080;
-  --typo-marker-fg: #a0a0a0;
-  --typo-cursor: #ffffff;
-  --typo-status-bg: #101010;
+  --mosu-fg-muted: #d0d0d0;
+  --mosu-accent: #4ff0ff;
+  --mosu-border: #ffffff;
+  --mosu-border-strong: #ffffff;
+  --mosu-code-bg: #1a1a1a;
+  --mosu-selection: #0060c0;
+  --mosu-danger: #ff8080;
+  --mosu-marker-fg: #a0a0a0;
+  --mosu-cursor: #ffffff;
+  --mosu-status-bg: #101010;
   /* 高对比主题下不能真的把文字压到 0.35 —— 那等于把刚保证的对比度又拿掉。
      0.7 仍然看得出「哪一块是当前块」，同时非当前块依然可读 */
-  --typo-focus-dim: 0.7;
-  --typo-string-fg: #9cffb0;
-  --typo-number-fg: #9fd0ff;
-  --typo-type-fg: #ffd479;
+  --mosu-focus-dim: 0.7;
+  --mosu-string-fg: #9cffb0;
+  --mosu-number-fg: #9fd0ff;
+  --mosu-type-fg: #ffd479;
 }
 
 /* —— GitHub：对齐 GitHub 网页版的正文观感 —— */
-[data-typo-theme='github'] {
-  --typo-font-body:
+[data-mosu-theme='github'] {
+  --mosu-font-body:
     -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
-  --typo-font-size: 16px;
-  --typo-line-height: 1.5;
-  --typo-content-width: 45em;
-  --typo-bg: #ffffff;
-  --typo-fg: #1f2328;
-  --typo-fg-muted: #59636e;
-  --typo-accent: #0969da;
-  --typo-border: #d1d9e0;
-  --typo-border-strong: #b7bec7;
-  --typo-code-bg: #f6f8fa;
-  --typo-selection: #ddf4ff;
-  --typo-danger: #d1242f;
-  --typo-marker-fg: #6f7479;
-  --typo-cursor: #1f2328;
-  --typo-status-bg: #f6f8fa;
-  --typo-string-fg: #0a3069;
-  --typo-number-fg: #0550ae;
-  --typo-type-fg: #953800;
+  --mosu-font-size: 16px;
+  --mosu-line-height: 1.5;
+  --mosu-content-width: 45em;
+  --mosu-bg: #ffffff;
+  --mosu-fg: #1f2328;
+  --mosu-fg-muted: #59636e;
+  --mosu-accent: #0969da;
+  --mosu-border: #d1d9e0;
+  --mosu-border-strong: #b7bec7;
+  --mosu-code-bg: #f6f8fa;
+  --mosu-selection: #ddf4ff;
+  --mosu-danger: #d1242f;
+  --mosu-marker-fg: #6f7479;
+  --mosu-cursor: #1f2328;
+  --mosu-status-bg: #f6f8fa;
+  --mosu-string-fg: #0a3069;
+  --mosu-number-fg: #0550ae;
+  --mosu-type-fg: #953800;
 }
 
 /*
@@ -183,23 +183,23 @@
  */
 @media print {
   :root {
-    --typo-bg: #ffffff;
-    --typo-fg: #000000;
-    --typo-fg-muted: #444444;
-    --typo-border: #999999;
-    --typo-border-strong: #666666;
-    --typo-code-bg: #f5f5f5;
-    --typo-status-bg: transparent;
+    --mosu-bg: #ffffff;
+    --mosu-fg: #000000;
+    --mosu-fg-muted: #444444;
+    --mosu-border: #999999;
+    --mosu-border-strong: #666666;
+    --mosu-code-bg: #f5f5f5;
+    --mosu-status-bg: transparent;
   }
 
   /* 界面元素不上纸：状态栏、侧边面板、标签条、浮层都是屏幕上的东西 */
   .status-bar,
-  .typo-outline,
-  .typo-files,
+  .mosu-outline,
+  .mosu-files,
   .tab-bar,
-  .typo-palette,
-  .typo-settings,
-  .cm-typo-code-lang {
+  .mosu-palette,
+  .mosu-settings,
+  .cm-mosu-code-lang {
     display: none !important;
   }
 
@@ -218,15 +218,15 @@
   }
 
   /* 标题不要孤零零落在页尾；代码块、表格、图片尽量不被切断 */
-  .cm-typo-heading {
+  .cm-mosu-heading {
     break-after: avoid;
   }
 
-  .cm-typo-code-block,
-  .cm-typo-tr,
-  .cm-typo-image,
-  .cm-typo-math--block,
-  .cm-typo-mermaid {
+  .cm-mosu-code-block,
+  .cm-mosu-tr,
+  .cm-mosu-image,
+  .cm-mosu-math--block,
+  .cm-mosu-mermaid {
     break-inside: avoid;
   }
 }
@@ -241,6 +241,6 @@
  */
 @media (prefers-contrast: more) {
   :root {
-    --typo-focus-dim: 1;
+    --mosu-focus-dim: 1;
   }
 }

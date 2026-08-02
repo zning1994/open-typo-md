@@ -7,7 +7,7 @@
  * > 窗口只负责承载与聚焦。**
  *
  * 所以这里不是「一个编辑器 + 一份文本数组」，而是**每个标签一整套**
- * `TypoEditor` + `DocumentController`。撤销栈、脏标记、保真元数据、只读状态、
+ * `MosuEditor` + `DocumentController`。撤销栈、脏标记、保真元数据、只读状态、
  * 冲突基线 —— 这些全在控制器里，共用一个编辑器的话它们必然串味：
  * 在 A 标签按撤销会倒出 B 标签的内容。
  *
@@ -22,14 +22,14 @@
  * 代价是 CodeMirror 在隐藏容器里量不到尺寸，切回来时行高与滚动会是错的 ——
  * 所以显示之后必须显式 `requestMeasure()`。
  */
-import type { EditorStatus, TypoEditor } from '@typo/editor'
+import type { EditorStatus, MosuEditor } from '@mosu/editor'
 import type { DocumentController } from './document.js'
 import { t } from './i18n.js'
 
 export interface Tab {
   readonly id: string
   readonly page: HTMLElement
-  readonly editor: TypoEditor
+  readonly editor: MosuEditor
   readonly controller: DocumentController
 }
 
@@ -50,7 +50,7 @@ export interface TabFactory {
     parent: HTMLElement,
     context: TabContext,
   ): {
-    editor: TypoEditor
+    editor: MosuEditor
     controller: DocumentController
   }
 }

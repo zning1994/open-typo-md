@@ -5,7 +5,7 @@
  * 行内装饰由 ViewPlugin 提供，会改变行结构的块级装饰必须由 StateField 提供。
  */
 import { describe, expect, it } from 'vitest'
-import { computeBlockDecorations } from '@typo/editor'
+import { computeBlockDecorations } from '@mosu/editor'
 import { mkState } from './helpers.js'
 
 /** 被块级装饰盖住的区间及其原文。 */

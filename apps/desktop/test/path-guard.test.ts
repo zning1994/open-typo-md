@@ -20,7 +20,7 @@ let root: string
 
 beforeEach(async () => {
   resetGrantsForTest()
-  root = await mkdtemp(path.join(tmpdir(), 'typo-guard-'))
+  root = await mkdtemp(path.join(tmpdir(), 'mosu-guard-'))
 })
 
 afterEach(async () => {
@@ -55,7 +55,7 @@ describe('读文件的许可', () => {
   })
 
   it('已授权目录里指向外面的符号链接挡得住 —— 校验的是解析之后的真实路径', async () => {
-    const outside = await mkdtemp(path.join(tmpdir(), 'typo-outside-'))
+    const outside = await mkdtemp(path.join(tmpdir(), 'mosu-outside-'))
     try {
       await writeFile(path.join(outside, 'secret'), 'x', 'utf8')
       await grantDirectory(root)
@@ -100,7 +100,7 @@ describe('列目录的许可', () => {
   })
 
   it('工作区里指向外面的符号链接目录挡得住', async () => {
-    const outside = await mkdtemp(path.join(tmpdir(), 'typo-outside-'))
+    const outside = await mkdtemp(path.join(tmpdir(), 'mosu-outside-'))
     try {
       await grantDirectory(root)
       await symlink(outside, at('link'), 'dir')

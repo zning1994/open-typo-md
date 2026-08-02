@@ -1,5 +1,5 @@
 /**
- * `typo-app://` 协议 —— 打包版本用它加载渲染进程的页面，而不是 `file://`。
+ * `mosu-app://` 协议 —— 打包版本用它加载渲染进程的页面，而不是 `file://`。
  *
  * 为什么不用 file://（这不是洁癖，是实打实的 bug 来源）：
  * 1. CSP 的 `'self'` 在 file:// 源下不匹配任何东西，于是 `script-src 'self'`
@@ -13,7 +13,7 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { protocol } from 'electron'
 
-export const APP_SCHEME = 'typo-app'
+export const APP_SCHEME = 'mosu-app'
 export const APP_ORIGIN = `${APP_SCHEME}://bundle`
 
 const MIME: Record<string, string> = {

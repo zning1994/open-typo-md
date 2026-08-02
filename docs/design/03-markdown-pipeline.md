@@ -276,7 +276,7 @@ Brainfuck —— 行为不是我们定的，但两边一致，且有测试钉住
 ## 8. 粘贴 HTML → Markdown
 
 跟导出正好是反方向的一条路：导出是 mdast → hast → HTML，粘贴是
-HTML → hast → mdast。同一套 unified 生态，概念只有一份，落在 `@typo/import`。
+HTML → hast → mdast。同一套 unified 生态，概念只有一份，落在 `@mosu/import`。
 
 ### 8.1 为什么它值得单独做
 

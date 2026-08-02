@@ -1,4 +1,6 @@
-# Brainforge Typo
+<img src="docs/public/logo.png" alt="Mosu" width="88" />
+
+# Mosu
 
 [简体中文](README.md) · [English](README.en.md) · **日本語**
 
@@ -12,14 +14,14 @@
 > **範囲を絞った版・作り方を変えた版**であり、何を削ったかはロードマップに書いてあります。
 > 次はプラグイン機構（M5）です。
 >
-> リポジトリ名 `open-typo-md` と内部パッケージ名 `@typo/*` はそのままです。
+> リポジトリ名 `open-typo-md` と内部パッケージ名 `@mosu/*` はそのままです。
 > どちらもユーザーから見える部分ではありません。
 
 ---
 
 ## これは何か
 
-多くの Markdown エディタは「左にソース、右にプレビュー」です。Brainforge Typo は別の道を
+多くの Markdown エディタは「左にソース、右にプレビュー」です。Mosu は別の道を
 選びました。編集領域はひとつだけで、見出し・太字・リンク・画像は最初から完成した見た目で
 表示されます。カーソルがその要素に入ったときにだけ、Markdown の記法がその場に現れて
 編集できるようになります。
@@ -30,7 +32,7 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/public/shots/ja/hero-dark.png">
-  <img src="docs/public/shots/ja/hero-light.png" alt="表・タスクリスト・数式を含む文書を編集している Brainforge Typo">
+  <img src="docs/public/shots/ja/hero-light.png" alt="表・タスクリスト・数式を含む文書を編集している Mosu">
 </picture>
 
 このスクリーンショットはモックではなく、**スクリプトが実際のアプリを起動して撮ったもの**です
@@ -69,7 +71,7 @@ pnpm test         # ユニットテスト（CommonMark 全コーパスでの忠�
 pnpm test:e2e     # E2E（実際の Electron + Chromium、IME のケースを含む）
 pnpm verify       # CI と同じ一式：レイヤ検査 + 型 + lint + フォーマット + ユニットテスト
 pnpm build        # main / preload / renderer をビルド
-pnpm --filter @typo/desktop package     # 現在のプラットフォーム向けインストーラを作成
+pnpm --filter @mosu/desktop package     # 現在のプラットフォーム向けインストーラを作成
 ```
 
 Linux で E2E を動かすにはディスプレイが必要です：`xvfb-run -a pnpm test:e2e`。
@@ -132,18 +134,18 @@ Linux で E2E を動かすにはディスプレイが必要です：`xvfb-run -a
 
 `main` へのプッシュごとに 3 プラットフォーム分のインストーラが
 [Actions](https://github.com/zning1994/open-typo-md/actions) に生成されます。そこに表示される
-`typo-macos-arm64-dmg` などは**成果物バンドル**の名前であってファイル名ではありません。
+`mosu-macos-arm64-dmg` などは**成果物バンドル**の名前であってファイル名ではありません。
 GitHub は成果物を必ず zip にするため、展開してから使ってください。
 
 **これらのビルドは署名されていません。** 証明書をまだ用意していないためです。
 
-**macOS** —— 「"Brainforge Typo" は Apple によって検証できません」と表示されます。アプリに
+**macOS** —— 「"Mosu" は Apple によって検証できません」と表示されます。アプリに
 問題があるのではなく、公証を通していないだけです。通す方法は 2 つ：
 
 ```bash
 # 1. アプリを右クリック → 「開く」→ ダイアログでもう一度「開く」
 # 2. または quarantine 属性を外す（パスに空白があるので引用符は必須）
-xattr -dr com.apple.quarantine "/Applications/Brainforge Typo.app"
+xattr -dr com.apple.quarantine "/Applications/Mosu.app"
 ```
 
 **Windows** —— SmartScreen が「WindowsによってPCが保護されました」と出すので、
@@ -154,7 +156,7 @@ xattr -dr com.apple.quarantine "/Applications/Brainforge Typo.app"
 **Linux** —— AppImage には実行権限が必要です：
 
 ```bash
-chmod +x BrainforgeTypo-*.AppImage && ./BrainforgeTypo-*.AppImage
+chmod +x Mosu-*.AppImage && ./Mosu-*.AppImage
 ```
 
 ## リポジトリ構成

@@ -13,17 +13,17 @@
  *    同时有 `text/html`（一个 `<img>`），抢过来会插一段没用的 HTML 源码，
  *    而不是把图存下来。
  * 2. **HTML 里没有 Markdown 表达得了的结构** → 交给默认的纯文本粘贴。
- *    判断在 `@typo/import` 里（从代码编辑器复制的代码就属于这一类）。
+ *    判断在 `@mosu/import` 里（从代码编辑器复制的代码就属于这一类）。
  * 3. **只有 `text/plain`** → 什么都不做。菜单里的「粘贴为纯文本」正是靠这条
  *    生效的 —— 宿主那一侧只放纯文本进剪贴板事件，这里自然就不插手了。
  *
  * ## 为什么不做成异步
  *
- * 见 `@typo/import` 的说明：同步转换让「插入位置在等待期间失效」这一整类
+ * 见 `@mosu/import` 的说明：同步转换让「插入位置在等待期间失效」这一整类
  * 问题根本不存在。
  */
 import { EditorView } from '@codemirror/view'
-import { htmlToMarkdown } from '@typo/import'
+import { htmlToMarkdown } from '@mosu/import'
 import type { Extension } from '@codemirror/state'
 
 function hasImageFile(data: DataTransfer): boolean {

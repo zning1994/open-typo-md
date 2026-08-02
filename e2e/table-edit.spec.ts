@@ -70,7 +70,7 @@ test('手敲一张完整的表格 —— 回车不能替用户长行', async ({ 
   await page.locator('.cm-content').click()
   await page.keyboard.press('ControlOrMeta+End')
   await page.keyboard.press('Enter')
-  await expect(page.locator('.cm-typo-tr')).toHaveCount(2)
+  await expect(page.locator('.cm-mosu-tr')).toHaveCount(2)
 })
 
 test('表格没有抢走列表里的 Tab', async ({ page }) => {
@@ -86,7 +86,7 @@ test('表格没有抢走列表里的 Tab', async ({ page }) => {
 test('菜单里插入表格，光标落在第一格', async ({ app, page }) => {
   await resetDoc(page)
   await clickMenu(app, ['格式', '表格', '插入表格'])
-  await expect(page.locator('.cm-typo-tr')).not.toHaveCount(0)
+  await expect(page.locator('.cm-mosu-tr')).not.toHaveCount(0)
 
   await page.keyboard.type('标题')
   expect(await docText(page)).toContain('标题')

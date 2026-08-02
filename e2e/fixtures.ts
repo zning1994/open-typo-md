@@ -11,17 +11,17 @@ import {
 
 const appRoot = fileURLToPath(new URL('../apps/desktop', import.meta.url))
 
-export interface TypoFixtures {
+export interface MosuFixtures {
   app: ElectronApplication
   page: Page
   /** 每个用例独立的用户数据目录，避免设置互相污染。 */
   userDataDir: string
 }
 
-export const test = base.extend<TypoFixtures>({
+export const test = base.extend<MosuFixtures>({
   // eslint-disable-next-line no-empty-pattern
   userDataDir: async ({}, use) => {
-    const dir = await mkdtemp(path.join(tmpdir(), 'typo-e2e-'))
+    const dir = await mkdtemp(path.join(tmpdir(), 'mosu-e2e-'))
 
     // 把界面语言**钉死**在简体中文。
     //

@@ -18,10 +18,10 @@ describe('表格', () => {
 
   it('每一行都是表格行', () => {
     const state = mkState(TABLE, { selection: 0 })
-    expect(lineClasses(state, 1)).toContain('cm-typo-tr')
-    expect(lineClasses(state, 1)).toContain('cm-typo-tr-head')
-    expect(lineClasses(state, 3)).toContain('cm-typo-tr')
-    expect(lineClasses(state, 3)).not.toContain('cm-typo-tr-head')
+    expect(lineClasses(state, 1)).toContain('cm-mosu-tr')
+    expect(lineClasses(state, 1)).toContain('cm-mosu-tr-head')
+    expect(lineClasses(state, 3)).toContain('cm-mosu-tr')
+    expect(lineClasses(state, 3)).not.toContain('cm-mosu-tr-head')
   })
 
   it('单元格范围包含它左边那根竖线 —— 显形时列结构才不会变', () => {
@@ -30,22 +30,22 @@ describe('表格', () => {
     const state = mkState(TABLE, { selection: 0 })
     const rowStart = state.doc.line(3).from
     expect(state.doc.sliceString(rowStart, rowStart + 1)).toBe('|')
-    expect(classesAt(state, rowStart)).toContain('cm-typo-td')
+    expect(classesAt(state, rowStart)).toContain('cm-mosu-td')
   })
 
   it('对齐方式从分隔行读出来', () => {
     const state = mkState(TABLE, { selection: 0 })
     const secondCell = state.doc.line(3).from + 7 // 第二格里的某个字符
-    expect(classesAt(state, secondCell)).toContain('cm-typo-td-right')
+    expect(classesAt(state, secondCell)).toContain('cm-mosu-td-right')
   })
 
   it('居中与左对齐', () => {
     const doc = '| a | b | c |\n| :- | :-: | -: |\n| 1 | 2 | 3 |'
     const state = mkState(doc, { selection: 0 })
     const row = state.doc.line(3)
-    expect(classesAt(state, row.from + 2)).toContain('cm-typo-td-left')
-    expect(classesAt(state, row.from + 6)).toContain('cm-typo-td-center')
-    expect(classesAt(state, row.from + 10)).toContain('cm-typo-td-right')
+    expect(classesAt(state, row.from + 2)).toContain('cm-mosu-td-left')
+    expect(classesAt(state, row.from + 6)).toContain('cm-mosu-td-center')
+    expect(classesAt(state, row.from + 10)).toContain('cm-mosu-td-right')
   })
 
   it('光标进入表格时整张表的竖线一起显形', () => {
@@ -110,7 +110,7 @@ describe('删除线', () => {
   })
 
   it('带上删除线的样式类', () => {
-    expect(classesAt(mkState('~~删除线~~', { selection: 0 }), 3)).toContain('cm-typo-strike')
+    expect(classesAt(mkState('~~删除线~~', { selection: 0 }), 3)).toContain('cm-mosu-strike')
   })
 })
 
@@ -119,7 +119,7 @@ describe('自动链接', () => {
     '%s 标成链接',
     (url) => {
       const state = mkState(`前面 ${url} 后面`, { selection: 0 })
-      expect(classesAt(state, 4)).toContain('cm-typo-autolink')
+      expect(classesAt(state, 4)).toContain('cm-mosu-autolink')
     },
   )
 
@@ -137,7 +137,7 @@ describe('脚注', () => {
   it('引用 [^1] 只留标签，做成上标', () => {
     expect(preview('正文[^1]。')).toBe('正文1。')
     expect(classesAt(mkState('正文[^1]。', { selection: 0 }), 4)).toContain(
-      'cm-typo-footnote-ref',
+      'cm-mosu-footnote-ref',
     )
   })
 
@@ -148,7 +148,7 @@ describe('脚注', () => {
   it('定义行整行保留 —— 标签是内容（第几条），不是纯标记', () => {
     expect(preview('[^1]: 脚注内容')).toBe('[^1]: 脚注内容')
     expect(lineClasses(mkState('[^1]: 脚注内容', { selection: 0 }), 1)).toContain(
-      'cm-typo-footnote-def',
+      'cm-mosu-footnote-def',
     )
   })
 
@@ -221,14 +221,14 @@ describe('YAML front matter', () => {
   it('元数据的每一行都带上样式', () => {
     const state = mkState(DOC, { selection: DOC.length })
     for (const line of [1, 2, 3, 4]) {
-      expect(lineClasses(state, line)).toContain('cm-typo-frontmatter')
+      expect(lineClasses(state, line)).toContain('cm-mosu-frontmatter')
     }
   })
 
   it('正文不带元数据样式', () => {
     const state = mkState(DOC, { selection: DOC.length })
-    expect(lineClasses(state, 6)).not.toContain('cm-typo-frontmatter')
-    expect(lineClasses(state, 6)).toContain('cm-typo-heading')
+    expect(lineClasses(state, 6)).not.toContain('cm-mosu-frontmatter')
+    expect(lineClasses(state, 6)).toContain('cm-mosu-heading')
   })
 
   it('文档中间的 --- 仍然是分隔线', () => {

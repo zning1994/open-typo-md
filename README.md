@@ -1,4 +1,6 @@
-# Brainforge Typo
+<img src="docs/public/logo.png" alt="Mosu" width="88" />
+
+# Mosu
 
 **简体中文** · [English](README.en.md) · [日本語](README.ja.md)
 
@@ -11,13 +13,13 @@
 > 其中三条是**缩范围 / 换做法**的版本，各自明确没做的部分都写在路线图里。
 > 下一步是插件系统（M5）—— 见[路线图](docs/design/08-roadmap.md)。
 >
-> 仓库名 `open-typo-md` 与内部包名 `@typo/*` 保持不变，它们不是用户可见的部分。
+> 仓库名 `open-typo-md` 与内部包名 `@mosu/*` 保持不变，它们不是用户可见的部分。
 
 ---
 
 ## 这是什么
 
-大多数 Markdown 编辑器是「左边源码 / 右边预览」。Brainforge Typo 走另一条路：
+大多数 Markdown 编辑器是「左边源码 / 右边预览」。Mosu 走另一条路：
 只有一个编辑区，标题、粗体、链接、图片都以最终形态呈现；
 只有当光标进入某个元素时，它的 Markdown 标记才就地显形，供你直接编辑。
 
@@ -26,7 +28,7 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/public/shots/zh/hero-dark.png">
-  <img src="docs/public/shots/zh/hero-light.png" alt="Brainforge Typo 编辑一篇带表格、任务列表与数学公式的文档">
+  <img src="docs/public/shots/zh/hero-light.png" alt="Mosu 编辑一篇带表格、任务列表与数学公式的文档">
 </picture>
 
 上面这张图是**脚本跑真应用拍的**（`pnpm screenshots`），不是设计稿 ——
@@ -66,7 +68,7 @@ pnpm test         # 单元测试（含 CommonMark 全量语料的保真与不变
 pnpm test:e2e     # 端到端测试（真 Electron + 真 Chromium，含输入法用例）
 pnpm verify       # 提交前跑一遍：分层检查 + 类型 + lint + 格式 + 单测
 pnpm build        # 构建 main / preload / renderer
-pnpm --filter @typo/desktop package     # 打出当前平台的安装包
+pnpm --filter @mosu/desktop package     # 打出当前平台的安装包
 ```
 
 Linux 上跑端到端测试需要一个显示环境：`xvfb-run -a pnpm test:e2e`。
@@ -134,19 +136,19 @@ Linux 上跑端到端测试需要一个显示环境：`xvfb-run -a pnpm test:e2e
 ## 试用 CI 构建的安装包
 
 每次推到 `main`，[Actions](https://github.com/zning1994/open-typo-md/actions) 里会产出三个平台的安装包。
-注意页面上显示的 `typo-macos-arm64-dmg` 这类名字是**产物包**的名称，不是文件名 ——
-GitHub 一律把产物打成 zip，解开之后才是 `BrainforgeTypo-0.1.0-arm64.dmg`。
+注意页面上显示的 `mosu-macos-arm64-dmg` 这类名字是**产物包**的名称，不是文件名 ——
+GitHub 一律把产物打成 zip，解开之后才是 `Mosu-0.1.0-arm64.dmg`。
 
 **这些包都没有签名**，因为开发者证书还没配（见 [07 §6.1](docs/design/07-quality.md)）。
 所以首次打开会被系统拦下来：
 
-**macOS** —— 提示「Apple 无法验证"Brainforge Typo"是否包含恶意软件」。
+**macOS** —— 提示「Apple 无法验证"Mosu"是否包含恶意软件」。
 应用没问题，只是没有经过公证。两种放行办法：
 
 ```bash
 # 办法一：右键点应用 → 打开 → 在弹窗里再点一次「打开」
 # 办法二：直接去掉 quarantine 标记（路径含空格，引号不能省）
-xattr -dr com.apple.quarantine "/Applications/Brainforge Typo.app"
+xattr -dr com.apple.quarantine "/Applications/Mosu.app"
 ```
 
 （更早的版本会报「已损坏，无法打开」——那是完全没签名导致的，已经用 ad-hoc
@@ -162,7 +164,7 @@ Developer ID 证书 + 公证，那是 M6 的内容。）
 **Linux** —— AppImage 需要先加执行权限：
 
 ```bash
-chmod +x BrainforgeTypo-*.AppImage && ./BrainforgeTypo-*.AppImage
+chmod +x Mosu-*.AppImage && ./Mosu-*.AppImage
 ```
 
 ## 仓库结构

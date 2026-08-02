@@ -46,7 +46,7 @@ test('五套内置主题各自给出不同的配色', async ({ app, page }) => {
   for (const label of ['浅色', '深色', '护眼（Sepia）', '高对比', 'GitHub']) {
     await pickTheme(app, label)
     await expect
-      .poll(() => page.evaluate(() => document.documentElement.dataset['typoTheme']))
+      .poll(() => page.evaluate(() => document.documentElement.dataset['mosuTheme']))
       .not.toBe(undefined)
     const { fg, bg } = await colors(page)
     seen.add(`${fg}|${bg}`)
@@ -60,7 +60,7 @@ test('主题挂在 <html> 上，主题作者据此覆盖', async ({ app, page })
   await pickTheme(app, '护眼（Sepia）')
 
   await expect
-    .poll(() => page.evaluate(() => document.documentElement.dataset['typoTheme']))
+    .poll(() => page.evaluate(() => document.documentElement.dataset['mosuTheme']))
     .toBe('sepia')
 })
 
@@ -69,13 +69,13 @@ test('选择会被记住 —— 新窗口沿用同一个主题', async ({ app, p
   await pickTheme(app, '深色')
 
   const before = page.context().pages().length
-  await page.evaluate(() => window.typo.window.create())
+  await page.evaluate(() => window.mosu.window.create())
   await expect.poll(() => page.context().pages().length).toBeGreaterThan(before)
 
   const created = page.context().pages().at(-1)!
   await created.waitForSelector('.cm-content', { state: 'visible' })
   await expect
-    .poll(() => created.evaluate(() => document.documentElement.dataset['typoTheme']))
+    .poll(() => created.evaluate(() => document.documentElement.dataset['mosuTheme']))
     .toBe('dark')
 
   await resetDoc(created)
@@ -88,7 +88,7 @@ test('打印时回到浅色，界面元素不上纸', async ({ app, page }) => {
 
   await page.emulateMedia({ media: 'print' })
   const printed = await page.evaluate(() => ({
-    bg: getComputedStyle(document.documentElement).getPropertyValue('--typo-bg').trim(),
+    bg: getComputedStyle(document.documentElement).getPropertyValue('--mosu-bg').trim(),
     statusBar: getComputedStyle(document.querySelector('.status-bar') as HTMLElement).display,
   }))
   await page.emulateMedia({ media: 'screen' })

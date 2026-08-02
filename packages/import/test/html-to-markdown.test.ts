@@ -6,7 +6,7 @@
  * 而失败的样子往往不是报错，是悄悄多出几百行 CSS 或者整篇变成粗体。
  */
 import { describe, expect, test } from 'vitest'
-import { htmlToMarkdown } from '@typo/import'
+import { htmlToMarkdown } from '@mosu/import'
 
 /** 转换结果，断言用。`null` 表示「不该转，走纯文本」。 */
 const md = (html: string): string | null => htmlToMarkdown(html)

@@ -117,7 +117,7 @@ async function insertImages(view: EditorView, files: File[], at: number): Promis
         changes: { from: pos, insert: markdown },
         selection: { anchor: pos + markdown.length },
         scrollIntoView: true,
-        userEvent: 'input.typo.image',
+        userEvent: 'input.mosu.image',
       })
     }
   } finally {

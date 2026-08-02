@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { EditorSelection, type EditorState, type StateCommand } from '@codemirror/state'
 
-import { continueMarkup, setHeading, toggleBold, toggleItalic } from '@typo/editor'
+import { continueMarkup, setHeading, toggleBold, toggleItalic } from '@mosu/editor'
 import { mkState } from './helpers.js'
 
 /** 跑一条 StateCommand，返回执行后的文档与选区 —— 不需要 DOM。 */

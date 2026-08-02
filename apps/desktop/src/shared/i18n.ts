@@ -19,7 +19,7 @@
  * 所以繁体用户会退到英文。这是有意的：给繁体用户看简体是一种「看着像支持了
  * 其实没有」的状态，不如老实退到英文，等真有人来提交那份翻译。
  */
-import { createTranslator, matchLocale, type Translator } from '@typo/i18n'
+import { createTranslator, matchLocale, type Translator } from '@mosu/i18n'
 import { zhCN } from './messages/zh-CN.js'
 import { en } from './messages/en.js'
 import { ja } from './messages/ja.js'
@@ -31,7 +31,7 @@ export type MessageKey = keyof typeof zhCN
  * 一份完整的语言包。
  *
  * `Record<MessageKey, string>` 而不是 `Partial` —— 漏一条就是**编译错误**。
- * 运行期的降级（见 `@typo/i18n` 的 `createTranslator`）是给将来的用户 / 插件
+ * 运行期的降级（见 `@mosu/i18n` 的 `createTranslator`）是给将来的用户 / 插件
  * 语言包准备的，内置这三份不该用到它。
  */
 export type Messages = Record<MessageKey, string>

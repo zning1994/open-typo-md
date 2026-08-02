@@ -150,7 +150,7 @@ widget 设 `ignoreEvent: false` 但不 `contenteditable`，让 CM 自己处理�
 
 1. **一个字节的 HTML 都不进 DOM。** 没有 `innerHTML`、没有 `DOMParser`。
    渲染效果全部由 mark 装饰 + CSS 类名达成 —— 往 DOM 里写的只有**类名**，
-   而那是个封闭集合（`cm-typo-html-` 加上一个白名单里的标签名）。
+   而那是个封闭集合（`cm-mosu-html-` 加上一个白名单里的标签名）。
 2. **标签集合封闭**：`b` `strong` `i` `em` `u` `s` `del` `ins` `sub` `sup`
    `kbd` `mark` `br`。入选标准只有一条 —— 纯排版语义、没有行为、
    不带属性也有意义。落选的例子：`<a>`（离了 href 没意义）、`<span>`（同上）、
@@ -412,7 +412,7 @@ inputHandler 认的是**最终插入的字符**，这才是真正关心的东西
 ### 8.2 变暗用 `opacity`，不调前景色
 
 文档里有代码块底色、表格边框、图片、公式。逐个调色是永远补不完的清单，
-`opacity` 一次盖住整层。不透明度走 `--typo-focus-dim`，**高对比主题必须调高**
+`opacity` 一次盖住整层。不透明度走 `--mosu-focus-dim`，**高对比主题必须调高**
 （0.7 而不是 0.35）—— 否则刚保证的对比度又被这个功能拿掉了。
 
 ### 8.3 打字机模式不走 `dispatch`，也不走 `scrollIntoView`

@@ -1,6 +1,6 @@
-appId: com.ohgiantai.typo
-productName: Brainforge Typo
-copyright: Copyright © 2026 Brainforge Typo Contributors
+appId: com.ohgiantai.mosu
+productName: Mosu
+copyright: Copyright © 2026 Mosu Contributors
 
 directories:
   output: release
@@ -38,14 +38,14 @@ asar: true
 
 extraMetadata:
   main: dist/main/index.cjs
-  # 覆盖掉带 scope 的包名 `@typo/desktop`：deb / rpm 会拿它当包名，
+  # 覆盖掉带 scope 的包名 `@mosu/desktop`：deb / rpm 会拿它当包名，
   # `@` 和 `/` 在文件路径里非法，构建会直接失败
-  name: brainforge-typo
+  name: mosu
 
 # 显式指定产物文件名，同样是为了不让 scope 名漏进文件路径
 # 刻意写死无空格的 slug，不用 ${productName} —— 产品名里有空格，
 # 而空格进文件路径是自找麻烦（M0 已经因为 scope 名进路径吃过一次亏）
-artifactName: BrainforgeTypo-${version}-${arch}.${ext}
+artifactName: Mosu-${version}-${arch}.${ext}
 
 fileAssociations:
   - ext: md
@@ -61,6 +61,10 @@ afterPack: scripts/after-pack.mjs
 
 mac:
   category: public.app-category.productivity
+  # 1024×1024 的 PNG，electron-builder 自己派生出整套 icns。
+  # macOS 的图标规范要求四周留白（系统会再加圆角与阴影），所以这张比
+  # Windows / Linux 那两套留得多 —— 生成脚本里两种边距是分开算的
+  icon: build/icon.png
   target:
     - target: dmg
       arch: [x64, arm64]
@@ -85,6 +89,9 @@ mac:
   # 完整的发布清单见 docs/design/07 §6。
 
 win:
+  # 多尺寸 .ico（16…256）。16px 是任务栏和文件列表里最常出现的尺寸，
+  # 直接缩原图会让笔画细到看不见 —— 生成脚本先按内容包围盒裁掉留白再排版
+  icon: build/icon.ico
   target:
     - target: nsis
       arch: [x64, arm64]
@@ -95,7 +102,7 @@ win:
 # 后打的覆盖先打的。给便携版单独一个命名模板 —— 这个冲突只在 release 的全量
 # 矩阵里才出现（CI 只打 nsis），所以它一直藏着
 portable:
-  artifactName: BrainforgeTypo-${version}-${arch}-portable.${ext}
+  artifactName: Mosu-${version}-${arch}-portable.${ext}
 
 nsis:
   oneClick: false
@@ -103,9 +110,12 @@ nsis:
   perMachine: false
 
 linux:
-  # 必须显式指定：否则 electron-builder 会从包名 `@typo/desktop` 推出
-  # `@typodesktop`，而 AppImage 不接受文件名里的 `@`
-  executableName: brainforge-typo
+  # 一个装着 `<尺寸>x<尺寸>.png` 的目录 —— Linux 桌面环境按尺寸各取所需，
+  # 给单张图的话某些环境会自己缩，缩出来很糊
+  icon: build/icons
+  # 必须显式指定：否则 electron-builder 会从包名 `@mosu/desktop` 推出
+  # `@mosudesktop`，而 AppImage 不接受文件名里的 `@`
+  executableName: mosu
   category: Office
   target:
     - target: AppImage

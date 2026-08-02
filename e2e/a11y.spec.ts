@@ -92,23 +92,23 @@ test('主界面（编辑区 + 状态栏）没有违规', async ({ page }) => {
 
 test('设置面板没有违规', async ({ app, page }) => {
   await clickMenu(app, ['视图', '设置…'])
-  await expect(page.locator('.typo-settings')).toBeVisible()
-  expect(summarize(await scan(page, '.typo-settings'))).toEqual([])
+  await expect(page.locator('.mosu-settings')).toBeVisible()
+  expect(summarize(await scan(page, '.mosu-settings'))).toEqual([])
   await page.keyboard.press('Escape')
 })
 
 test('命令面板没有违规', async ({ app, page }) => {
   await clickMenu(app, ['视图', '命令面板'])
-  await expect(page.locator('.typo-palette')).toBeVisible()
-  expect(summarize(await scan(page, '.typo-palette'))).toEqual([])
+  await expect(page.locator('.mosu-palette')).toBeVisible()
+  expect(summarize(await scan(page, '.mosu-palette'))).toEqual([])
   await page.keyboard.press('Escape')
 })
 
 test('大纲面板没有违规', async ({ app, page }) => {
   await resetDoc(page, '# 一级\n\n## 二级\n\n### 三级\n\n正文\n')
   await clickMenu(app, ['视图', '大纲'])
-  await expect(page.locator('.typo-outline')).toBeVisible()
-  expect(summarize(await scan(page, '.typo-outline'))).toEqual([])
+  await expect(page.locator('.mosu-outline')).toBeVisible()
+  expect(summarize(await scan(page, '.mosu-outline'))).toEqual([])
   await clickMenu(app, ['视图', '大纲'])
 })
 
@@ -117,7 +117,7 @@ test('高对比主题下对比度依然达标', async ({ app, page }) => {
   // 就是对比度。它要是不达标，那这套主题就是个摆设
   await resetDoc(page, '# 标题\n\n正文，带 **加粗**、`代码` 与 [链接](https://example.com)。\n')
   await clickMenu(app, ['视图', '主题', '高对比'])
-  await expect(page.locator('html')).toHaveAttribute('data-typo-theme', 'high-contrast')
+  await expect(page.locator('html')).toHaveAttribute('data-mosu-theme', 'high-contrast')
 
   expect(summarize(await scan(page))).toEqual([])
 
@@ -134,11 +134,11 @@ test('系统开了「增强对比度」时，专注模式不再变暗', async ({
   // 这里能守住的是「系统说了要对比度，我们就不压」。
   await resetDoc(page, '第一段\n\n第二段\n\n第三段\n')
   await clickMenu(app, ['视图', '专注模式'])
-  await expect(page.locator('.cm-typo-dim').first()).toBeVisible()
+  await expect(page.locator('.cm-mosu-dim').first()).toBeVisible()
 
   const dimOf = () =>
     page.evaluate(() =>
-      getComputedStyle(document.documentElement).getPropertyValue('--typo-focus-dim').trim(),
+      getComputedStyle(document.documentElement).getPropertyValue('--mosu-focus-dim').trim(),
     )
 
   expect(Number(await dimOf())).toBeLessThan(1)
@@ -155,7 +155,7 @@ test('专注模式变暗的行，结构上仍然是可选中的正文', async ({
   // 那会让读屏用户在专注模式下「丢失」整篇文档的其余部分
   await resetDoc(page, '第一段\n\n第二段\n\n第三段\n')
   await clickMenu(app, ['视图', '专注模式'])
-  const dim = page.locator(`${ACTIVE_CONTENT} .cm-typo-dim`).first()
+  const dim = page.locator(`${ACTIVE_CONTENT} .cm-mosu-dim`).first()
   await expect(dim).toBeVisible()
   await expect(dim).not.toHaveAttribute('aria-hidden', 'true')
   await expect(dim).toHaveText('第一段')

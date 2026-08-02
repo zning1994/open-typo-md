@@ -1,5 +1,5 @@
 {
-  "name": "@typo/plugin-api",
+  "name": "@mosu/plugin-api",
   "version": "0.1.0",
   "private": true,
   "type": "module",

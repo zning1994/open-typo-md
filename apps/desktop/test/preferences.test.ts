@@ -6,7 +6,7 @@
  * 一个坏值不该让编辑器打不开，也不该让 PDF 用一个荒唐的页边距。
  */
 import { beforeEach, describe, expect, it } from 'vitest'
-import type { KeyValueStore } from '@typo/plugin-api'
+import type { KeyValueStore } from '@mosu/plugin-api'
 import { DEFAULT_PREFERENCES, PreferenceStore } from '../src/renderer/preferences.js'
 
 /** 内存版设置存储，可以直接塞进任意脏值。 */

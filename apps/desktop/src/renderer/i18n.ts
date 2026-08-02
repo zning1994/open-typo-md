@@ -26,7 +26,7 @@ import {
   type LocaleId,
   type MessageKey,
 } from '../shared/i18n.js'
-import type { MessageParams } from '@typo/i18n'
+import type { MessageParams } from '@mosu/i18n'
 
 let translate = createTranslate(FALLBACK_LOCALE)
 let currentId: LocaleId = FALLBACK_LOCALE

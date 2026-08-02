@@ -118,14 +118,14 @@ export function markdownLanguageSupport(
     // `matchLanguageName`，跟语言选择器那边分家（见 resolveCodeLanguage 的说明）。
     // 返回 LanguageDescription 时上游照旧走懒加载，体积不受影响。
     codeLanguages: (info) => matchCodeLanguage(info, codeLanguages),
-    addKeymap: false, // 键位由 @typo/editor 统一管理，避免两处定义打架
+    addKeymap: false, // 键位由 @mosu/editor 统一管理，避免两处定义打架
   })
 }
 
 /**
  * 可选的代码语言名清单（首选名，已排序）。
  *
- * 给编辑器的语言选择器用。放在这里而不是让 @typo/editor 自己去 import
+ * 给编辑器的语言选择器用。放在这里而不是让 @mosu/editor 自己去 import
  * `@codemirror/language-data`：语言表是「解析器认识哪些语言」这件事的一部分，
  * 两处各自维护一份迟早会对不上（选择器里有、解析器不认，或者反过来）。
  */

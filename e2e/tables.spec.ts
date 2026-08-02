@@ -36,7 +36,7 @@ async function typeTable(page: import('@playwright/test').Page): Promise<void> {
   await page.keyboard.press('Enter')
   await page.keyboard.type('表格后面的段落')
 
-  await expect(page.locator('.cm-typo-tr')).toHaveCount(3)
+  await expect(page.locator('.cm-mosu-tr')).toHaveCount(3)
 }
 
 test('分隔行藏起来，竖线折叠', async ({ page }) => {
@@ -56,9 +56,9 @@ test('连续的表格行形成一张表：同列的左边界跨行对齐', async
   await typeTable(page)
 
   const columnLefts = await page.evaluate(() => {
-    const rows = Array.from(document.querySelectorAll('.cm-typo-tr'))
+    const rows = Array.from(document.querySelectorAll('.cm-mosu-tr'))
     return rows.map((row) =>
-      Array.from(row.querySelectorAll('.cm-typo-td')).map((cell) =>
+      Array.from(row.querySelectorAll('.cm-mosu-td')).map((cell) =>
         Math.round(cell.getBoundingClientRect().left),
       ),
     )
@@ -86,12 +86,12 @@ test('中间夹一行普通段落会断成两张表', async ({ page }) => {
   await page.keyboard.type('结尾')
 
   // 同 typeTable：等装饰落地再量尺寸。两张表各 2 行 = 4 个表格行
-  await expect(page.locator('.cm-typo-tr')).toHaveCount(4)
+  await expect(page.locator('.cm-mosu-tr')).toHaveCount(4)
 
   const widths = await page.evaluate(() =>
-    Array.from(document.querySelectorAll('.cm-typo-tr')).map((row) =>
+    Array.from(document.querySelectorAll('.cm-mosu-tr')).map((row) =>
       Math.round(
-        (row.querySelector('.cm-typo-td') as HTMLElement).getBoundingClientRect().width,
+        (row.querySelector('.cm-mosu-td') as HTMLElement).getBoundingClientRect().width,
       ),
     ),
   )
@@ -103,7 +103,7 @@ test('点击单元格，光标落在被点的那个字上', async ({ page }) => 
   // 坐标映射是这套方案的头号风险：table-row 会不会让 posAtCoords 算歪
   await typeTable(page)
 
-  const target = page.locator('.cm-typo-tr').nth(2).locator('.cm-typo-td').nth(1)
+  const target = page.locator('.cm-mosu-tr').nth(2).locator('.cm-mosu-td').nth(1)
   const box = (await target.boundingBox())!
   // 点在这一格靠左的位置（右对齐列，内容贴右，所以取内容起点附近）
   await page.mouse.click(box.x + box.width - 8, box.y + box.height / 2)
@@ -117,7 +117,7 @@ test('点击单元格，光标落在被点的那个字上', async ({ page }) => 
 test('在单元格里打字，表格结构不散', async ({ page }) => {
   await typeTable(page)
 
-  const cell = page.locator('.cm-typo-tr').nth(1).locator('.cm-typo-td').first()
+  const cell = page.locator('.cm-mosu-tr').nth(1).locator('.cm-mosu-td').first()
   await cell.click()
   await page.keyboard.type('新')
 
@@ -129,7 +129,7 @@ test('在单元格里打字，表格结构不散', async ({ page }) => {
 
 test('光标进入表格时竖线与分隔行一起显形', async ({ page }) => {
   await typeTable(page)
-  await page.locator('.cm-typo-tr').nth(1).locator('.cm-typo-td').first().click()
+  await page.locator('.cm-mosu-tr').nth(1).locator('.cm-mosu-td').first().click()
 
   const shown = await visibleText(page)
   expect(shown).toContain('|')
@@ -142,13 +142,13 @@ test('显形之后列结构不变 —— 竖线是长在单元格里的', async 
   await typeTable(page)
 
   const columnsWhenFolded = await page.evaluate(
-    () => document.querySelectorAll('.cm-typo-tr')[0]!.querySelectorAll('.cm-typo-td').length,
+    () => document.querySelectorAll('.cm-mosu-tr')[0]!.querySelectorAll('.cm-mosu-td').length,
   )
 
-  await page.locator('.cm-typo-tr').nth(1).locator('.cm-typo-td').first().click()
+  await page.locator('.cm-mosu-tr').nth(1).locator('.cm-mosu-td').first().click()
 
   const columnsWhenRevealed = await page.evaluate(
-    () => document.querySelectorAll('.cm-typo-tr')[0]!.querySelectorAll('.cm-typo-td').length,
+    () => document.querySelectorAll('.cm-mosu-tr')[0]!.querySelectorAll('.cm-mosu-td').length,
   )
 
   expect(columnsWhenRevealed).toBe(columnsWhenFolded)
@@ -158,8 +158,8 @@ test('右对齐列真的右对齐', async ({ page }) => {
   await typeTable(page)
   const align = await page.evaluate(() => {
     const cell = document
-      .querySelectorAll('.cm-typo-tr')[1]!
-      .querySelectorAll('.cm-typo-td')[1] as HTMLElement
+      .querySelectorAll('.cm-mosu-tr')[1]!
+      .querySelectorAll('.cm-mosu-td')[1] as HTMLElement
     return getComputedStyle(cell).textAlign
   })
   expect(align).toBe('right')
@@ -173,15 +173,15 @@ test('表格内容不折行', async ({ page }) => {
   await page.keyboard.press('Enter')
   await page.keyboard.type('结尾')
 
-  await expect(page.locator('.cm-typo-tr')).toHaveCount(2)
+  await expect(page.locator('.cm-mosu-tr')).toHaveCount(2)
 
   const measured = await page.evaluate(() => {
-    const rows = document.querySelectorAll('.cm-typo-tr')
+    const rows = document.querySelectorAll('.cm-mosu-tr')
     const row = rows[rows.length - 1] as HTMLElement
     return {
       whiteSpace: getComputedStyle(row).whiteSpace,
       // 不折行的直接证据：单元格比可视宽度宽得多，而不是被压成多行
-      cellWidth: (row.querySelector('.cm-typo-td') as HTMLElement).getBoundingClientRect()
+      cellWidth: (row.querySelector('.cm-mosu-td') as HTMLElement).getBoundingClientRect()
         .width,
       lineHeight: row.getBoundingClientRect().height,
     }

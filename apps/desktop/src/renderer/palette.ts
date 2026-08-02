@@ -2,7 +2,7 @@
  * 命令面板。
  *
  * 用裸 DOM 而不是 React：外壳目前只有编辑区 + 状态栏，为一个浮层引入
- * 整套框架不划算。真正需要 React 的是文件树 / 标签页那一层（`@typo/ui`），
+ * 整套框架不划算。真正需要 React 的是文件树 / 标签页那一层（`@mosu/ui`），
  * 而它已随 M4.5 搁置 —— 届时这个文件会被重写，现在多写的抽象都是浪费。
  *
  * 三条不肯让步的交互约定：
@@ -33,7 +33,7 @@ export class CommandPalette {
 
   constructor(private readonly options: PaletteOptions) {
     this.root = document.createElement('div')
-    this.root.className = 'typo-palette'
+    this.root.className = 'mosu-palette'
     this.root.hidden = true
     // 浮层对读屏软件应当是一个对话框，否则焦点跑进去之后毫无上下文
     this.root.setAttribute('role', 'dialog')
@@ -41,13 +41,13 @@ export class CommandPalette {
     this.root.setAttribute('aria-label', t('panel.palette.label'))
 
     const box = document.createElement('div')
-    box.className = 'typo-palette__box'
+    box.className = 'mosu-palette__box'
 
     this.input = document.createElement('input')
-    this.input.className = 'typo-palette__input'
+    this.input.className = 'mosu-palette__input'
     this.input.type = 'text'
     this.input.placeholder = t('panel.palette.placeholder')
-    this.input.setAttribute('aria-controls', 'typo-palette-list')
+    this.input.setAttribute('aria-controls', 'mosu-palette-list')
     // 完整的 combobox 模式：焦点始终在输入框，「当前高亮的是哪一项」
     // 靠 aria-activedescendant 告诉读屏软件。少了它，上下键在读屏软件那边
     // 是完全没有反馈的 —— 视觉上有高亮，听觉上什么都没发生
@@ -56,8 +56,8 @@ export class CommandPalette {
     this.input.setAttribute('aria-autocomplete', 'list')
 
     this.list = document.createElement('ul')
-    this.list.className = 'typo-palette__list'
-    this.list.id = 'typo-palette-list'
+    this.list.className = 'mosu-palette__list'
+    this.list.id = 'mosu-palette-list'
     this.list.setAttribute('role', 'listbox')
     this.list.setAttribute('aria-label', t('panel.palette.results'))
     // 这个列表会滚动，而滚动区域必须能被键盘够到。它的键盘操作实际在输入框上
@@ -119,7 +119,7 @@ export class CommandPalette {
     )
     if (found.length === 0) {
       const empty = document.createElement('li')
-      empty.className = 'typo-palette__empty'
+      empty.className = 'mosu-palette__empty'
       empty.textContent = t('panel.palette.empty')
       this.list.append(empty)
     }
@@ -128,19 +128,19 @@ export class CommandPalette {
 
   private renderItem(command: Command, hits: number[], index: number): HTMLElement {
     const item = document.createElement('li')
-    item.className = 'typo-palette__item'
+    item.className = 'mosu-palette__item'
     item.setAttribute('role', 'option')
-    item.id = `typo-palette-item-${index}`
+    item.id = `mosu-palette-item-${index}`
     item.dataset['index'] = String(index)
 
     const label = document.createElement('span')
-    label.className = 'typo-palette__label'
+    label.className = 'mosu-palette__label'
     label.append(...highlight(command.title, hits))
     item.append(label)
 
     if (command.binding) {
       const key = document.createElement('kbd')
-      key.className = 'typo-palette__key'
+      key.className = 'mosu-palette__key'
       key.textContent = formatBinding(command.binding, this.options.mac())
       item.append(key)
     }
@@ -159,7 +159,7 @@ export class CommandPalette {
   }
 
   private syncActive(): void {
-    const items = [...this.list.querySelectorAll<HTMLElement>('.typo-palette__item')]
+    const items = [...this.list.querySelectorAll<HTMLElement>('.mosu-palette__item')]
     items.forEach((item, index) => {
       const on = index === this.active
       item.classList.toggle('is-active', on)

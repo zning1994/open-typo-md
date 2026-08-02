@@ -10,7 +10,7 @@ import type { Page } from '@playwright/test'
 /** 让 main 进程新建一个窗口，并等它出现。 */
 async function openNewWindow(page: Page): Promise<Page> {
   const app = page.context().pages().length
-  await page.evaluate(() => window.typo.window.create())
+  await page.evaluate(() => window.mosu.window.create())
   await expect
     .poll(() => page.context().pages().length, { timeout: 15_000 })
     .toBeGreaterThan(app)
@@ -63,9 +63,9 @@ test.describe('多窗口', () => {
     await resetDoc(second)
   })
 
-  test('新窗口的标题是 Brainforge Typo', async ({ page }) => {
+  test('新窗口的标题是 Mosu', async ({ page }) => {
     const second = await openNewWindow(page)
-    await expect.poll(() => second.title()).toContain('Brainforge Typo')
+    await expect.poll(() => second.title()).toContain('Mosu')
     await resetDoc(second)
   })
 })

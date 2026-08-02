@@ -1,7 +1,7 @@
 /*
  * 外壳布局。
  *
- * 编辑区自身的样式由 @typo/editor 的 baseTheme 提供；
+ * 编辑区自身的样式由 @mosu/editor 的 baseTheme 提供；
  * **颜色与排版变量全部在 themes.css 里**，这里只用不定义 ——
  * 两处都定义的话，改主题时总有一处被漏掉。
  */
@@ -15,10 +15,10 @@ html,
 body {
   margin: 0;
   height: 100%;
-  background: var(--typo-bg);
-  color: var(--typo-fg);
+  background: var(--mosu-bg);
+  color: var(--mosu-fg);
   /* 走契约变量而不是再写一份字体栈 —— Sepia 主题换衬线体靠的就是它 */
-  font-family: var(--typo-font-body);
+  font-family: var(--mosu-font-body);
 }
 
 body {
@@ -37,9 +37,9 @@ body {
   align-items: center;
   gap: 12px;
   padding: 4px 12px;
-  border-top: 1px solid var(--typo-border);
-  background: var(--typo-status-bg);
-  color: var(--typo-fg-muted);
+  border-top: 1px solid var(--mosu-border);
+  background: var(--mosu-status-bg);
+  color: var(--mosu-fg-muted);
   font-size: 12px;
   user-select: none;
   -webkit-user-select: none;
@@ -50,7 +50,7 @@ body {
 }
 
 .status-name {
-  color: var(--typo-fg);
+  color: var(--mosu-fg);
   font-weight: 500;
   max-width: 40%;
   overflow: hidden;
@@ -59,7 +59,7 @@ body {
 }
 
 .status-mode {
-  border: 1px solid var(--typo-border);
+  border: 1px solid var(--mosu-border);
   background: transparent;
   color: inherit;
   font: inherit;
@@ -69,13 +69,13 @@ body {
 }
 
 .status-mode:hover {
-  border-color: var(--typo-accent);
-  color: var(--typo-accent);
+  border-color: var(--mosu-accent);
+  color: var(--mosu-accent);
 }
 
 .status-mode[aria-pressed='true'] {
-  background: var(--typo-accent);
-  border-color: var(--typo-accent);
+  background: var(--mosu-accent);
+  border-color: var(--mosu-accent);
   color: #fff;
 }
 
@@ -97,7 +97,7 @@ body {
   flex-direction: row;
 }
 
-.typo-files {
+.mosu-files {
   order: 0;
 }
 .editor-column {
@@ -107,7 +107,7 @@ body {
   display: flex;
   flex-direction: column;
 }
-.typo-outline {
+.mosu-outline {
   order: 2;
 }
 
@@ -118,8 +118,8 @@ body {
   align-items: stretch;
   overflow-x: auto;
   scrollbar-width: none;
-  border-bottom: 1px solid var(--typo-border);
-  background: var(--typo-status-bg);
+  border-bottom: 1px solid var(--mosu-border);
+  background: var(--mosu-status-bg);
 }
 .tab-bar::-webkit-scrollbar {
   display: none;
@@ -135,23 +135,23 @@ body {
   max-width: 220px;
   padding: 6px 8px 6px 12px;
   border: 0;
-  border-right: 1px solid var(--typo-border);
+  border-right: 1px solid var(--mosu-border);
   background: transparent;
-  color: var(--typo-fg-muted);
+  color: var(--mosu-fg-muted);
   font: inherit;
   font-size: 13px;
   cursor: default;
   white-space: nowrap;
 }
 .tab:hover {
-  color: var(--typo-fg);
+  color: var(--mosu-fg);
 }
 .tab.is-active {
-  background: var(--typo-bg);
-  color: var(--typo-fg);
+  background: var(--mosu-bg);
+  color: var(--mosu-fg);
   /* 活动标签靠一条顶边强调，而不是靠背景色 ——
      背景色在浅色主题下跟编辑区几乎一样，看不出选中的是哪个 */
-  box-shadow: inset 0 2px 0 var(--typo-accent);
+  box-shadow: inset 0 2px 0 var(--mosu-accent);
 }
 
 .tab__label {
@@ -166,11 +166,11 @@ body {
   line-height: 15px;
   text-align: center;
   border-radius: 3px;
-  color: var(--typo-fg-muted);
+  color: var(--mosu-fg-muted);
 }
 .tab__close:hover {
-  background: var(--typo-border);
-  color: var(--typo-fg);
+  background: var(--mosu-border);
+  color: var(--mosu-fg);
 }
 
 /* 非活动标签平时不显示关闭按钮，鼠标过去才出现 —— 满屏的 × 很吵 */
@@ -188,132 +188,132 @@ body {
 
 /* —— 文件树 —— */
 
-.typo-files {
+.mosu-files {
   flex: none;
   width: 240px;
   min-width: 160px;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid var(--typo-border);
-  background: var(--typo-status-bg);
+  border-right: 1px solid var(--mosu-border);
+  background: var(--mosu-status-bg);
   font-size: 13px;
   overflow: hidden;
 }
-.typo-files[hidden] {
+.mosu-files[hidden] {
   display: none;
 }
 
-.typo-files__header {
+.mosu-files__header {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  border-bottom: 1px solid var(--typo-border);
+  border-bottom: 1px solid var(--mosu-border);
 }
 
-.typo-files__title {
+.mosu-files__title {
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 600;
-  color: var(--typo-fg-muted);
+  color: var(--mosu-fg-muted);
 }
 
-.typo-files__refresh {
+.mosu-files__refresh {
   flex: none;
   border: 0;
   background: transparent;
-  color: var(--typo-fg-muted);
+  color: var(--mosu-fg-muted);
   font: inherit;
   cursor: default;
   padding: 0 4px;
 }
-.typo-files__refresh:hover {
-  color: var(--typo-fg);
+.mosu-files__refresh:hover {
+  color: var(--mosu-fg);
 }
 
-.typo-files__list {
+.mosu-files__list {
   flex: 1;
   min-height: 0;
   overflow: auto;
   padding-bottom: 8px;
 }
 
-.typo-files__item {
+.mosu-files__item {
   display: flex;
   align-items: center;
   gap: 4px;
   padding-top: 3px;
   padding-bottom: 3px;
   padding-right: 8px;
-  color: var(--typo-fg);
+  color: var(--mosu-fg);
   white-space: nowrap;
   cursor: default;
 }
-.typo-files__item:hover {
-  background: var(--typo-selection);
+.mosu-files__item:hover {
+  background: var(--mosu-selection);
 }
-.typo-files__item.is-active {
-  background: var(--typo-selection);
+.mosu-files__item.is-active {
+  background: var(--mosu-selection);
   font-weight: 600;
 }
 
-.typo-files__arrow {
+.mosu-files__arrow {
   flex: none;
   width: 12px;
-  color: var(--typo-fg-muted);
+  color: var(--mosu-fg-muted);
 }
 
-.typo-files__name {
+.mosu-files__name {
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.typo-files__item--directory .typo-files__name {
-  color: var(--typo-fg-muted);
+.mosu-files__item--directory .mosu-files__name {
+  color: var(--mosu-fg-muted);
 }
 
-.typo-files__empty {
+.mosu-files__empty {
   padding: 3px 8px;
-  color: var(--typo-fg-muted);
+  color: var(--mosu-fg-muted);
 }
 
 /* —— 大纲面板 —— */
-.typo-outline {
+.mosu-outline {
   width: 240px;
   flex: none;
   overflow-y: auto;
   /* 大纲现在在右边（见上面的 order），分隔线跟着换边 */
-  border-left: 1px solid var(--typo-border);
-  background: var(--typo-status-bg);
+  border-left: 1px solid var(--mosu-border);
+  background: var(--mosu-status-bg);
   padding: 12px 0 24px;
   user-select: none;
   -webkit-user-select: none;
 }
 
-.typo-outline__title {
+.mosu-outline__title {
   margin: 0 12px 8px;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.08em;
-  color: var(--typo-fg-muted);
+  color: var(--mosu-fg-muted);
   text-transform: uppercase;
 }
 
-.typo-outline__list {
+.mosu-outline__list {
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.typo-outline__link {
+.mosu-outline__link {
   display: block;
   width: 100%;
   border: 0;
   background: transparent;
-  color: var(--typo-fg-muted);
+  color: var(--mosu-fg-muted);
   font: inherit;
   font-size: 13px;
   text-align: left;
@@ -324,46 +324,46 @@ body {
   white-space: nowrap;
 }
 
-.typo-outline__link:hover {
-  color: var(--typo-fg);
-  background: var(--typo-code-bg);
+.mosu-outline__link:hover {
+  color: var(--mosu-fg);
+  background: var(--mosu-code-bg);
 }
 
-.typo-outline__item.is-active .typo-outline__link {
-  color: var(--typo-accent);
-  box-shadow: inset 2px 0 0 var(--typo-accent);
+.mosu-outline__item.is-active .mosu-outline__link {
+  color: var(--mosu-accent);
+  box-shadow: inset 2px 0 0 var(--mosu-accent);
 }
 
 /* 缩进用层级表达；到六级为止，再深就没有可读性可言了 */
-.typo-outline__item--h1 .typo-outline__link {
+.mosu-outline__item--h1 .mosu-outline__link {
   padding-left: 12px;
   font-weight: 600;
-  color: var(--typo-fg);
+  color: var(--mosu-fg);
 }
-.typo-outline__item--h2 .typo-outline__link {
+.mosu-outline__item--h2 .mosu-outline__link {
   padding-left: 24px;
 }
-.typo-outline__item--h3 .typo-outline__link {
+.mosu-outline__item--h3 .mosu-outline__link {
   padding-left: 36px;
 }
-.typo-outline__item--h4 .typo-outline__link {
+.mosu-outline__item--h4 .mosu-outline__link {
   padding-left: 48px;
 }
-.typo-outline__item--h5 .typo-outline__link {
+.mosu-outline__item--h5 .mosu-outline__link {
   padding-left: 60px;
 }
-.typo-outline__item--h6 .typo-outline__link {
+.mosu-outline__item--h6 .mosu-outline__link {
   padding-left: 72px;
 }
 
-.typo-outline__empty {
+.mosu-outline__empty {
   padding: 4px 12px;
   font-size: 12px;
-  color: var(--typo-fg-muted);
+  color: var(--mosu-fg-muted);
 }
 
 /* —— 命令面板 —— */
-.typo-palette {
+.mosu-palette {
   position: fixed;
   inset: 0;
   z-index: 100;
@@ -374,41 +374,41 @@ body {
   background: rgb(0 0 0 / 25%);
 }
 
-.typo-palette[hidden] {
+.mosu-palette[hidden] {
   display: none;
 }
 
-.typo-palette__box {
+.mosu-palette__box {
   width: min(560px, 90vw);
   max-height: 60vh;
   display: flex;
   flex-direction: column;
-  background: var(--typo-bg);
-  border: 1px solid var(--typo-border);
+  background: var(--mosu-bg);
+  border: 1px solid var(--mosu-border);
   border-radius: 10px;
   box-shadow: 0 12px 40px rgb(0 0 0 / 25%);
   overflow: hidden;
 }
 
-.typo-palette__input {
+.mosu-palette__input {
   border: 0;
-  border-bottom: 1px solid var(--typo-border);
+  border-bottom: 1px solid var(--mosu-border);
   background: transparent;
-  color: var(--typo-fg);
+  color: var(--mosu-fg);
   font: inherit;
   font-size: 15px;
   padding: 12px 16px;
   outline: none;
 }
 
-.typo-palette__list {
+.mosu-palette__list {
   margin: 0;
   padding: 4px 0;
   list-style: none;
   overflow-y: auto;
 }
 
-.typo-palette__item {
+.mosu-palette__item {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -417,51 +417,51 @@ body {
   font-size: 14px;
 }
 
-.typo-palette__item.is-active {
-  background: var(--typo-accent);
+.mosu-palette__item.is-active {
+  background: var(--mosu-accent);
   color: #fff;
 }
 
-.typo-palette__label {
+.mosu-palette__label {
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.typo-palette__label mark {
+.mosu-palette__label mark {
   background: transparent;
-  color: var(--typo-accent);
+  color: var(--mosu-accent);
   font-weight: 600;
 }
 
-.typo-palette__item.is-active .typo-palette__label mark {
+.mosu-palette__item.is-active .mosu-palette__label mark {
   color: inherit;
   text-decoration: underline;
 }
 
-.typo-palette__key {
+.mosu-palette__key {
   font-size: 11px;
-  color: var(--typo-fg-muted);
-  border: 1px solid var(--typo-border);
+  color: var(--mosu-fg-muted);
+  border: 1px solid var(--mosu-border);
   border-radius: 4px;
   padding: 1px 6px;
 }
 
-.typo-palette__item.is-active .typo-palette__key {
+.mosu-palette__item.is-active .mosu-palette__key {
   color: inherit;
   border-color: currentcolor;
 }
 
-.typo-palette__empty {
+.mosu-palette__empty {
   padding: 12px 16px;
-  color: var(--typo-fg-muted);
+  color: var(--mosu-fg-muted);
   font-size: 13px;
 }
 
 /* —— 设置面板 —— */
 
-.typo-settings {
+.mosu-settings {
   position: fixed;
   inset: 0;
   z-index: 110;
@@ -472,42 +472,42 @@ body {
   background: rgb(0 0 0 / 25%);
 }
 
-.typo-settings[hidden] {
+.mosu-settings[hidden] {
   display: none;
 }
 
-.typo-settings__box {
+.mosu-settings__box {
   width: min(520px, 92vw);
   max-height: 76vh;
   display: flex;
   flex-direction: column;
-  background: var(--typo-bg);
-  color: var(--typo-fg);
-  border: 1px solid var(--typo-border);
+  background: var(--mosu-bg);
+  color: var(--mosu-fg);
+  border: 1px solid var(--mosu-border);
   border-radius: 10px;
   box-shadow: 0 16px 48px rgb(0 0 0 / 28%);
   overflow: hidden;
 }
 
-.typo-settings__header {
+.mosu-settings__header {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  border-bottom: 1px solid var(--typo-border);
+  border-bottom: 1px solid var(--mosu-border);
 }
 
-.typo-settings__title {
+.mosu-settings__title {
   flex: 1;
   margin: 0;
   font-size: 15px;
   font-weight: 600;
 }
 
-.typo-settings__close {
+.mosu-settings__close {
   border: 0;
   background: transparent;
-  color: var(--typo-fg-muted);
+  color: var(--mosu-fg-muted);
   font: inherit;
   font-size: 18px;
   line-height: 1;
@@ -515,41 +515,41 @@ body {
   padding: 2px 6px;
   border-radius: 4px;
 }
-.typo-settings__close:hover {
-  background: var(--typo-selection);
-  color: var(--typo-fg);
+.mosu-settings__close:hover {
+  background: var(--mosu-selection);
+  color: var(--mosu-fg);
 }
 
-.typo-settings__body {
+.mosu-settings__body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   padding: 4px 16px 12px;
 }
 
-.typo-settings__section {
+.mosu-settings__section {
   padding: 12px 0;
 }
-.typo-settings__section + .typo-settings__section {
-  border-top: 1px solid var(--typo-border);
+.mosu-settings__section + .mosu-settings__section {
+  border-top: 1px solid var(--mosu-border);
 }
 
-.typo-settings__section-title {
+.mosu-settings__section-title {
   margin: 0 0 8px;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.04em;
-  color: var(--typo-fg-muted);
+  color: var(--mosu-fg-muted);
 }
 
-.typo-settings__row {
+.mosu-settings__row {
   display: flex;
   align-items: center;
   gap: 16px;
   padding: 7px 0;
 }
 
-.typo-settings__label {
+.mosu-settings__label {
   flex: 1;
   min-width: 0;
   display: flex;
@@ -558,68 +558,68 @@ body {
   font-size: 13px;
 }
 
-.typo-settings__note {
-  color: var(--typo-fg-muted);
+.mosu-settings__note {
+  color: var(--mosu-fg-muted);
   font-size: 11px;
 }
 
-.typo-settings__control {
+.mosu-settings__control {
   flex: none;
   font: inherit;
   font-size: 13px;
-  color: var(--typo-fg);
-  background: var(--typo-bg);
-  border: 1px solid var(--typo-border);
+  color: var(--mosu-fg);
+  background: var(--mosu-bg);
+  border: 1px solid var(--mosu-border);
   border-radius: 5px;
   padding: 3px 6px;
 }
 
-.typo-settings__number {
+.mosu-settings__number {
   width: 5.5em;
 }
 
-.typo-settings__check {
+.mosu-settings__check {
   /* 复选框用系统控件，跟着主题走配色 —— 自绘要把键盘与读屏行为重做一遍 */
   width: 15px;
   height: 15px;
   padding: 0;
-  accent-color: var(--typo-accent);
+  accent-color: var(--mosu-accent);
 }
 
-.typo-settings__footer {
+.mosu-settings__footer {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 10px 16px;
-  border-top: 1px solid var(--typo-border);
-  background: var(--typo-status-bg);
+  border-top: 1px solid var(--mosu-border);
+  background: var(--mosu-status-bg);
 }
 
-.typo-settings__reset {
+.mosu-settings__reset {
   font: inherit;
   font-size: 12px;
-  color: var(--typo-fg);
+  color: var(--mosu-fg);
   background: transparent;
-  border: 1px solid var(--typo-border);
+  border: 1px solid var(--mosu-border);
   border-radius: 5px;
   padding: 3px 10px;
   cursor: default;
 }
-.typo-settings__reset:hover {
-  border-color: var(--typo-border-strong);
+.mosu-settings__reset:hover {
+  border-color: var(--mosu-border-strong);
 }
 
-.typo-settings__hint {
+.mosu-settings__hint {
   flex: 1;
   text-align: right;
   font-size: 11px;
-  color: var(--typo-fg-muted);
+  color: var(--mosu-fg-muted);
 }
 
 /* —— 快捷键表 —— */
 /* 一条命令一行。行数比别的设置项多一个量级，所以行距压得更紧，
    而且整块可以自己滚动，不至于把纸张、页边距那些顶出视野 */
-.typo-keys {
+.mosu-keys {
   display: flex;
   flex-direction: column;
   max-height: 260px;
@@ -627,14 +627,14 @@ body {
   scrollbar-width: thin;
 }
 
-.typo-keys__row {
+.mosu-keys__row {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 3px 0;
 }
 
-.typo-keys__label {
+.mosu-keys__label {
   flex: 1;
   min-width: 0;
   font-size: 13px;
@@ -643,64 +643,64 @@ body {
   white-space: nowrap;
 }
 
-.typo-keys__conflict {
+.mosu-keys__conflict {
   flex: none;
   font-size: 11px;
-  color: var(--typo-danger);
+  color: var(--mosu-danger);
   border: 1px solid currentcolor;
   border-radius: 3px;
   padding: 0 4px;
 }
 
-.typo-keys__binding {
+.mosu-keys__binding {
   flex: none;
   min-width: 7em;
   font: inherit;
   font-size: 12px;
-  color: var(--typo-fg);
-  background: var(--typo-bg);
-  border: 1px solid var(--typo-border);
+  color: var(--mosu-fg);
+  background: var(--mosu-bg);
+  border: 1px solid var(--mosu-border);
   border-radius: 5px;
   padding: 2px 8px;
   cursor: pointer;
 }
 
-.typo-keys__binding--empty {
-  color: var(--typo-fg-muted);
+.mosu-keys__binding--empty {
+  color: var(--mosu-fg-muted);
 }
 
 /* 录制中必须一眼看出来 —— 这个状态下所有按键都被吞掉，
    用户要是没意识到自己在录制，会以为应用卡死了 */
-.typo-keys__binding--capturing {
-  color: var(--typo-accent);
-  border-color: var(--typo-accent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--typo-accent) 25%, transparent);
+.mosu-keys__binding--capturing {
+  color: var(--mosu-accent);
+  border-color: var(--mosu-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--mosu-accent) 25%, transparent);
 }
 
-.typo-keys__clear {
+.mosu-keys__clear {
   flex: none;
   font: inherit;
   font-size: 13px;
   line-height: 1;
-  color: var(--typo-fg-muted);
+  color: var(--mosu-fg-muted);
   background: none;
   border: 0;
   padding: 2px 4px;
   cursor: pointer;
 }
 
-.typo-keys__clear:hover {
-  color: var(--typo-danger);
+.mosu-keys__clear:hover {
+  color: var(--mosu-danger);
 }
 
-.typo-keys__reset {
+.mosu-keys__reset {
   align-self: flex-start;
   margin-top: 8px;
   font: inherit;
   font-size: 12px;
-  color: var(--typo-fg);
-  background: var(--typo-bg);
-  border: 1px solid var(--typo-border);
+  color: var(--mosu-fg);
+  background: var(--mosu-bg);
+  border: 1px solid var(--mosu-border);
   border-radius: 5px;
   padding: 3px 10px;
   cursor: pointer;

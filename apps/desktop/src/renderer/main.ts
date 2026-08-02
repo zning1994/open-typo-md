@@ -8,7 +8,7 @@
 import { openSearchPanel } from '@codemirror/search'
 import type { StateCommand } from '@codemirror/state'
 import {
-  TypoEditor,
+  MosuEditor,
   renderMermaid,
   setHeading,
   tableAlignColumn,
@@ -25,7 +25,7 @@ import {
   toggleItalic,
   type EditorLabels,
   type EditorStatus,
-} from '@typo/editor'
+} from '@mosu/editor'
 import type { MenuCommand } from '../shared/channels.js'
 import { menuCommandTitle, type Command } from './commands.js'
 import { DocumentController } from './document.js'
@@ -109,10 +109,10 @@ function renderModeStatus(): void {
  * 它随窗口活、随窗口死，正是我们要的生命周期。
  */
 function windowKey(): string {
-  const existing = sessionStorage.getItem('typo:window-key')
+  const existing = sessionStorage.getItem('mosu:window-key')
   if (existing) return existing
   const created = crypto.randomUUID()
-  sessionStorage.setItem('typo:window-key', created)
+  sessionStorage.setItem('mosu:window-key', created)
   return created
 }
 
@@ -138,7 +138,7 @@ const tabs: TabManager = new TabManager({
     // 控制器又要先有编辑器 —— 用一个可变的取值函数把这个环打开
     let pathOf: () => string | null = () => null
 
-    const editor = new TypoEditor({
+    const editor = new MosuEditor({
       parent,
       // 只影响**新建的**标签：已经开着的那些按用户当时的选择留着，
       // 改一个设置就把所有标签的视图切一遍，是很吓人的行为
@@ -197,7 +197,7 @@ const tabs: TabManager = new TabManager({
   },
 })
 
-function activeEditor(): TypoEditor {
+function activeEditor(): MosuEditor {
   return tabs.active().editor
 }
 
@@ -220,7 +220,7 @@ function render(): void {
   if (state.deleted) bits.push(t('status.deleted'))
   statusMeta.textContent = bits.join(' · ')
 
-  document.title = `${state.dirty ? '● ' : ''}${state.name} — Brainforge Typo`
+  document.title = `${state.dirty ? '● ' : ''}${state.name} — Mosu`
   files.setActive(state.path)
 }
 
@@ -255,7 +255,7 @@ function runCommand(command: StateCommand): void {
  * state 与 dispatch，`Command` 要整个 view。表格命令要读选区并滚动到目标格，
  * 属于后者。
  */
-function runViewCommand(command: (view: TypoEditor['view']) => boolean): void {
+function runViewCommand(command: (view: MosuEditor['view']) => boolean): void {
   const editor = activeEditor()
   command(editor.view)
   editor.focus()

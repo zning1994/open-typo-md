@@ -7,17 +7,17 @@ const pkg = (name: string) =>
 export default defineConfig({
   resolve: {
     alias: {
-      '@typo/plugin-api/testing': fileURLToPath(
+      '@mosu/plugin-api/testing': fileURLToPath(
         new URL('./packages/plugin-api/src/testing/index.ts', import.meta.url),
       ),
-      '@typo/plugin-api': pkg('plugin-api'),
-      '@typo/markdown/text': fileURLToPath(
+      '@mosu/plugin-api': pkg('plugin-api'),
+      '@mosu/markdown/text': fileURLToPath(
         new URL('./packages/markdown/src/text.ts', import.meta.url),
       ),
-      '@typo/markdown': pkg('markdown'),
-      '@typo/export': pkg('export'),
-      '@typo/import': pkg('import'),
-      '@typo/editor': pkg('editor'),
+      '@mosu/markdown': pkg('markdown'),
+      '@mosu/export': pkg('export'),
+      '@mosu/import': pkg('import'),
+      '@mosu/editor': pkg('editor'),
     },
   },
   test: {

@@ -1,5 +1,5 @@
-export { TypoEditor } from './editor.js'
-export type { EditorStats, EditorStatus, TypoEditorOptions } from './editor.js'
+export { MosuEditor } from './editor.js'
+export type { EditorStats, EditorStatus, MosuEditorOptions } from './editor.js'
 export {
   DEFAULT_LABELS,
   livePreviewConfig,
@@ -53,12 +53,12 @@ export {
   toggleItalic,
   toggleStrikethrough,
   toggleWrap,
-  typoCommands,
+  mosuCommands,
   formatKeymap,
   structuralKeymap,
   DEFAULT_FORMAT_KEYS,
   FORMAT_COMMANDS,
-  typoKeymap,
+  mosuKeymap,
 } from './commands.js'
 export {
   displayWidth,
@@ -88,7 +88,7 @@ export { inputBehavior } from './input.js'
 export { MathWidget, mathTheme } from './math.js'
 export { MermaidWidget, mermaidTheme, renderMermaid } from './mermaid.js'
 export { linkInteraction, linkTargetAt } from './links.js'
-export { baseTheme, markdownHighlight, typoTheme } from './theme.js'
+export { baseTheme, markdownHighlight, mosuTheme } from './theme.js'
 export {
   DIM_CLASS,
   TYPEWRITER_CLASS,

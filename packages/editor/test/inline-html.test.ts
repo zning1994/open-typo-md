@@ -19,13 +19,13 @@ describe('认得的标签', () => {
   it('内容带上对应的样式类', () => {
     const state = mkState('前文 <b>粗体</b> 后文', { selection: 0 })
     const at = state.doc.toString().indexOf('粗体')
-    expect(classesAt(state, at)).toContain('cm-typo-html-b')
-    expect(classesAt(state, at)).toContain('cm-typo-html')
+    expect(classesAt(state, at)).toContain('cm-mosu-html-b')
+    expect(classesAt(state, at)).toContain('cm-mosu-html')
   })
 
   it('同义标签共用一个类 —— del 就是 s，ins 就是 u', () => {
     const state = mkState('前文 <del>删掉</del> 后文', { selection: 0 })
-    expect(classesAt(state, state.doc.toString().indexOf('删掉'))).toContain('cm-typo-html-s')
+    expect(classesAt(state, state.doc.toString().indexOf('删掉'))).toContain('cm-mosu-html-s')
   })
 
   it('光标进去就露出标签本身', () => {
@@ -42,8 +42,8 @@ describe('认得的标签', () => {
     expect(preview('<em><strong>双</strong></em>')).toBe('双')
     const state = mkState('前文 <em><strong>双</strong></em>', { selection: 0 })
     const classes = classesAt(state, state.doc.toString().indexOf('双'))
-    expect(classes).toContain('cm-typo-html-em')
-    expect(classes).toContain('cm-typo-html-strong')
+    expect(classes).toContain('cm-mosu-html-em')
+    expect(classes).toContain('cm-mosu-html-strong')
   })
 
   it('跨行的一对也能配上 —— 段落是一个整体，不是一行', () => {
@@ -158,7 +158,7 @@ describe('跟 Markdown 结构共存', () => {
   it('Markdown 强调与 HTML 标签用不同的类 —— 源码里写的是哪一种必须分得出来', () => {
     const md = mkState('前文 **粗**', { selection: 0 })
     const html = mkState('前文 <b>粗</b>', { selection: 0 })
-    expect(classesAt(md, md.doc.toString().indexOf('粗'))).toContain('cm-typo-strong')
-    expect(classesAt(html, html.doc.toString().indexOf('粗'))).toContain('cm-typo-html-b')
+    expect(classesAt(md, md.doc.toString().indexOf('粗'))).toContain('cm-mosu-strong')
+    expect(classesAt(html, html.doc.toString().indexOf('粗'))).toContain('cm-mosu-html-b')
   })
 })

@@ -13,7 +13,7 @@ import {
   type Encoding,
   type Eol,
   type TextFileMeta,
-} from '@typo/plugin-api'
+} from '@mosu/plugin-api'
 
 const BOM_UTF8 = [0xef, 0xbb, 0xbf]
 const BOM_UTF16LE = [0xff, 0xfe]

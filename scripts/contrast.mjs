@@ -73,7 +73,7 @@ async function parseThemes() {
   for (const [, rawSelector, body] of blocks) {
     const selector = rawSelector.trim()
     const vars = {}
-    for (const [, name, value] of body.matchAll(/--typo-([\w-]+)\s*:\s*([^;]+);/g)) {
+    for (const [, name, value] of body.matchAll(/--mosu-([\w-]+)\s*:\s*([^;]+);/g)) {
       vars[name] = value.trim()
     }
     if (Object.keys(vars).length === 0) continue
@@ -82,7 +82,7 @@ async function parseThemes() {
       base = { ...base, ...vars }
       continue
     }
-    const named = /\[data-typo-theme='([\w-]+)'\]/.exec(selector)
+    const named = /\[data-mosu-theme='([\w-]+)'\]/.exec(selector)
     if (!named) continue
     // 同一个主题可能被拆成几段（比如 auto 的 dark 分支），合并
     const id = named[1]

@@ -9,7 +9,7 @@ import { Facet, combineConfig } from '@codemirror/state'
  * 把 Markdown 里的图片路径解析成渲染层可加载的 URL。
  *
  * 必须是**同步**的：装饰构建跑在按键路径上，不能等 Promise。
- * Electron 侧的实现就是把相对路径拼成 `typo-asset://…`（纯字符串运算），
+ * Electron 侧的实现就是把相对路径拼成 `mosu-asset://…`（纯字符串运算），
  * 真正的路径合法性校验发生在 main 进程的协议处理器里（docs/design/01 §6）。
  *
  * 默认实现原样返回 —— 测试环境和纯文本场景下不做任何解析。

@@ -1,4 +1,6 @@
-# Brainforge Typo
+<img src="docs/public/logo.png" alt="Mosu" width="88" />
+
+# Mosu
 
 [简体中文](README.md) · **English** · [日本語](README.ja.md)
 
@@ -12,14 +14,14 @@ An open-source WYSIWYG Markdown editor — no split pane, no preview pane. What 
 > version; exactly what was cut is written down in the roadmap.
 > Next up is the plugin system (M5).
 >
-> The repository name `open-typo-md` and the internal package scope `@typo/*` are unchanged —
+> The repository name `open-typo-md` and the internal package scope `@mosu/*` are unchanged —
 > they are not user-facing.
 
 ---
 
 ## What this is
 
-Most Markdown editors put source on the left and a preview on the right. Brainforge Typo takes
+Most Markdown editors put source on the left and a preview on the right. Mosu takes
 the other road: there is a single editing surface where headings, bold text, links and images
 are already in their final form. Only when the cursor enters an element do its Markdown markers
 reappear in place, ready to edit.
@@ -30,7 +32,7 @@ materials, and borrows only the seamless live-preview interaction model.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/public/shots/en/hero-dark.png">
-  <img src="docs/public/shots/en/hero-light.png" alt="Brainforge Typo editing a document with a table, task list and math">
+  <img src="docs/public/shots/en/hero-light.png" alt="Mosu editing a document with a table, task list and math">
 </picture>
 
 That screenshot is **taken by a script driving the real app** (`pnpm screenshots`), not a mockup —
@@ -70,7 +72,7 @@ pnpm test         # unit tests (includes the full CommonMark corpus for fidelity
 pnpm test:e2e     # end-to-end (real Electron + real Chromium, including IME cases)
 pnpm verify       # what CI runs: layering + types + lint + format + unit tests
 pnpm build        # build main / preload / renderer
-pnpm --filter @typo/desktop package     # build an installer for the current platform
+pnpm --filter @mosu/desktop package     # build an installer for the current platform
 ```
 
 On Linux the end-to-end tests need a display: `xvfb-run -a pnpm test:e2e`.
@@ -134,7 +136,7 @@ Every rough edge is written down at the end of each milestone in the roadmap, un
 
 Every push to `main` produces installers for all three platforms under
 [Actions](https://github.com/zning1994/open-typo-md/actions). Note that the names shown there
-(`typo-macos-arm64-dmg` and the like) are **artifact bundle** names, not file names — GitHub
+(`mosu-macos-arm64-dmg` and the like) are **artifact bundle** names, not file names — GitHub
 always zips artifacts, so unpack first.
 
 **These builds are unsigned**, because the certificates are not configured yet.
@@ -145,7 +147,7 @@ notarised. Two ways through:
 ```bash
 # 1. Right-click the app → Open → click Open again in the dialog
 # 2. Or strip the quarantine flag (the path contains a space, keep the quotes)
-xattr -dr com.apple.quarantine "/Applications/Brainforge Typo.app"
+xattr -dr com.apple.quarantine "/Applications/Mosu.app"
 ```
 
 **Windows** — SmartScreen says "Windows protected your PC"; click "More info" → "Run anyway".
@@ -156,7 +158,7 @@ kind that works immediately is expensive and requires a cloud signing service.
 **Linux** — make the AppImage executable first:
 
 ```bash
-chmod +x BrainforgeTypo-*.AppImage && ./BrainforgeTypo-*.AppImage
+chmod +x Mosu-*.AppImage && ./Mosu-*.AppImage
 ```
 
 ## Repository layout

@@ -34,7 +34,7 @@ describe('行内强调', () => {
 
   it('加粗文字带上样式类', () => {
     const state = mkState('这是 **粗体** 内容')
-    expect(classesAt(state, 5)).toContain('cm-typo-strong')
+    expect(classesAt(state, 5)).toContain('cm-mosu-strong')
   })
 
   it('嵌套强调各自独立判定', () => {
@@ -55,7 +55,7 @@ describe('标题', () => {
   it('给整行打上层级类，供主题控制字号', () => {
     const state = mkState('## 二级')
     expect(lineClasses(state, 1)).toEqual(
-      expect.arrayContaining(['cm-typo-heading', 'cm-typo-h2']),
+      expect.arrayContaining(['cm-mosu-heading', 'cm-mosu-h2']),
     )
   })
 
@@ -71,7 +71,7 @@ describe('标题', () => {
 describe('引用与列表', () => {
   it('隐藏引用标记，改由行装饰画左边线', () => {
     expect(preview('> 引用内容')).toBe('引用内容')
-    expect(lineClasses(mkState('> 引用内容'), 1)).toContain('cm-typo-quote')
+    expect(lineClasses(mkState('> 引用内容'), 1)).toContain('cm-mosu-quote')
   })
 
   it('嵌套引用逐层隐藏', () => {
@@ -114,9 +114,9 @@ describe('链接与图片', () => {
   it('图片替换为 widget，路径经 AssetResolver 解析', () => {
     expect(
       preview('![截图](shot.png)', {
-        assetResolver: (src) => `typo-asset://workspace/${src}`,
+        assetResolver: (src) => `mosu-asset://workspace/${src}`,
       }),
-    ).toBe('⟦img:typo-asset://workspace/shot.png|截图⟧')
+    ).toBe('⟦img:mosu-asset://workspace/shot.png|截图⟧')
   })
 
   it('拿不到 URL 的图片退回显示源码，不吞内容', () => {
@@ -133,7 +133,7 @@ describe('代码', () => {
   it('围栏被藏起来，只留代码本身', () => {
     const doc = '```js\nconst a = 1\n```'
     expect(preview(doc)).toBe('const a = 1')
-    expect(lineClasses(mkState(doc), 2)).toContain('cm-typo-code-block')
+    expect(lineClasses(mkState(doc), 2)).toContain('cm-mosu-code-block')
   })
 
   it('藏围栏是块级装饰层的事，行内装饰层一根手指头都不碰', () => {

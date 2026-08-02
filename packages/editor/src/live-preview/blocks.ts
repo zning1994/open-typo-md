@@ -22,7 +22,7 @@ import {
   TABLE_NODES,
   codeLanguageNames,
   resolveCodeLanguage,
-} from '@typo/markdown'
+} from '@mosu/markdown'
 import { MathWidget } from '../math.js'
 import { MermaidWidget } from '../mermaid.js'
 import { CodeLanguageWidget } from './widgets.js'
@@ -50,7 +50,7 @@ import { delimiterRowOf, tableIsActive } from './tables.js'
 const HIDE_LINE = Decoration.replace({ block: true })
 
 /** 代码块首行的行装饰 —— 给语言选择器提供定位参照（position: relative）。 */
-const CODE_FIRST_LINE = Decoration.line({ class: 'cm-typo-code-first' })
+const CODE_FIRST_LINE = Decoration.line({ class: 'cm-mosu-code-first' })
 
 /**
  * 语言清单只算一次。

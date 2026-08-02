@@ -5,7 +5,7 @@
  * 布局才有意义（行高、折行、视口高度都来自 DOM），它归 E2E 管。
  */
 import { describe, expect, it } from 'vitest'
-import { computeDimDecorations, focusRangeAt } from '@typo/editor'
+import { computeDimDecorations, focusRangeAt } from '@mosu/editor'
 import type { EditorState } from '@codemirror/state'
 import { mkState } from './helpers.js'
 

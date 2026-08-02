@@ -12,7 +12,7 @@ import type { Extension } from '@codemirror/state'
 import { mathTheme } from './math.js'
 import { mermaidTheme } from './mermaid.js'
 
-const v = (name: string, fallback: string) => `var(--typo-${name}, ${fallback})`
+const v = (name: string, fallback: string) => `var(--mosu-${name}, ${fallback})`
 
 export const baseTheme = EditorView.theme({
   '&': {
@@ -35,46 +35,46 @@ export const baseTheme = EditorView.theme({
   '.cm-line': { padding: '0' },
 
   // —— 标题 ——
-  '.cm-typo-heading': { fontWeight: '600', lineHeight: '1.3' },
-  '.cm-typo-h1': { fontSize: '1.9em', margin: '0.9em 0 0.4em' },
-  '.cm-typo-h2': { fontSize: '1.55em', margin: '0.85em 0 0.35em' },
-  '.cm-typo-h3': { fontSize: '1.3em', margin: '0.8em 0 0.3em' },
-  '.cm-typo-h4': { fontSize: '1.12em', margin: '0.75em 0 0.3em' },
-  '.cm-typo-h5': { fontSize: '1em', margin: '0.7em 0 0.3em' },
-  '.cm-typo-h6': {
+  '.cm-mosu-heading': { fontWeight: '600', lineHeight: '1.3' },
+  '.cm-mosu-h1': { fontSize: '1.9em', margin: '0.9em 0 0.4em' },
+  '.cm-mosu-h2': { fontSize: '1.55em', margin: '0.85em 0 0.35em' },
+  '.cm-mosu-h3': { fontSize: '1.3em', margin: '0.8em 0 0.3em' },
+  '.cm-mosu-h4': { fontSize: '1.12em', margin: '0.75em 0 0.3em' },
+  '.cm-mosu-h5': { fontSize: '1em', margin: '0.7em 0 0.3em' },
+  '.cm-mosu-h6': {
     fontSize: '0.94em',
     color: v('fg-muted', '#6e7781'),
     margin: '0.7em 0 0.3em',
   },
 
   // —— 行内 ——
-  '.cm-typo-strong': { fontWeight: '700' },
-  '.cm-typo-em': { fontStyle: 'italic' },
-  '.cm-typo-strike': { textDecoration: 'line-through', opacity: '0.7' },
-  '.cm-typo-code-inline': {
+  '.cm-mosu-strong': { fontWeight: '700' },
+  '.cm-mosu-em': { fontStyle: 'italic' },
+  '.cm-mosu-strike': { textDecoration: 'line-through', opacity: '0.7' },
+  '.cm-mosu-code-inline': {
     fontFamily: v('font-mono', 'ui-monospace, Menlo, Consolas, monospace'),
     fontSize: '0.92em',
     backgroundColor: v('code-bg', '#f0f2f4'),
     borderRadius: '4px',
     padding: '0.1em 0.32em',
   },
-  '.cm-typo-link': { color: v('accent', '#0969da'), textDecoration: 'underline' },
+  '.cm-mosu-link': { color: v('accent', '#0969da'), textDecoration: 'underline' },
 
   // —— 行内 HTML ——
   //
   // 这一组只有类名，没有任何 HTML 参与（见 live-preview/inline-html.ts）。
   // 有几个跟 Markdown 自己的写法效果重合（`<b>` ≡ `**`），仍然分开定义 ——
   // 共用类名会让「源码里到底写的哪一种」在样式层面彻底不可分辨。
-  '.cm-typo-html-b, .cm-typo-html-strong': { fontWeight: '700' },
-  '.cm-typo-html-i, .cm-typo-html-em': { fontStyle: 'italic' },
-  '.cm-typo-html-u': { textDecoration: 'underline' },
-  '.cm-typo-html-s': { textDecoration: 'line-through', opacity: '0.7' },
+  '.cm-mosu-html-b, .cm-mosu-html-strong': { fontWeight: '700' },
+  '.cm-mosu-html-i, .cm-mosu-html-em': { fontStyle: 'italic' },
+  '.cm-mosu-html-u': { textDecoration: 'underline' },
+  '.cm-mosu-html-s': { textDecoration: 'line-through', opacity: '0.7' },
   // 上下标用 relative 位移而不是 `vertical-align: super/sub`：
   // 后者会把行高撑开，一行里出现一个 `<sup>` 整段就跳一下
-  '.cm-typo-html-sup, .cm-typo-html-sub': { fontSize: '0.75em', position: 'relative' },
-  '.cm-typo-html-sup': { top: '-0.4em' },
-  '.cm-typo-html-sub': { bottom: '-0.25em' },
-  '.cm-typo-html-kbd': {
+  '.cm-mosu-html-sup, .cm-mosu-html-sub': { fontSize: '0.75em', position: 'relative' },
+  '.cm-mosu-html-sup': { top: '-0.4em' },
+  '.cm-mosu-html-sub': { bottom: '-0.25em' },
+  '.cm-mosu-html-kbd': {
     fontFamily: v('font-mono', 'ui-monospace, Menlo, Consolas, monospace'),
     fontSize: '0.85em',
     padding: '0.1em 0.4em',
@@ -86,23 +86,23 @@ export const baseTheme = EditorView.theme({
   // `<mark>` 的底色从强调色兑出来，而不是新加一个主题变量：
   // 为一个标签往变量契约里加一条，六个内置主题和所有第三方主题都得跟着改，
   // 代价远大于收益。兑出来的颜色在任何主题下都自动成立。
-  '.cm-typo-html-mark': {
+  '.cm-mosu-html-mark': {
     backgroundColor: `color-mix(in srgb, ${v('accent', '#0969da')} 22%, transparent)`,
     borderRadius: '2px',
   },
 
   // 显形中的 Markdown 标记：看得见，但不抢戏
-  '.cm-typo-mark': { color: v('marker-fg', '#b0b6bd'), fontWeight: 'normal' },
-  '.cm-typo-list-number': { color: v('marker-fg', '#b0b6bd') },
-  '.cm-typo-bullet': { color: v('marker-fg', '#b0b6bd') },
+  '.cm-mosu-mark': { color: v('marker-fg', '#b0b6bd'), fontWeight: 'normal' },
+  '.cm-mosu-list-number': { color: v('marker-fg', '#b0b6bd') },
+  '.cm-mosu-bullet': { color: v('marker-fg', '#b0b6bd') },
 
   // —— 块级 ——
-  '.cm-typo-quote': {
+  '.cm-mosu-quote': {
     borderLeft: `3px solid ${v('border', '#d0d7de')}`,
     paddingLeft: '1em',
     color: v('fg-muted', '#6e7781'),
   },
-  '.cm-typo-code-block': {
+  '.cm-mosu-code-block': {
     fontFamily: v('font-mono', 'ui-monospace, Menlo, Consolas, monospace'),
     fontSize: '0.9em',
     backgroundColor: v('code-bg', '#f0f2f4'),
@@ -118,23 +118,23 @@ export const baseTheme = EditorView.theme({
     // 用不带横向滚轮的鼠标就彻底滚不动了。能用优先于好看。
     scrollbarWidth: 'thin',
   },
-  '.cm-typo-code-block::-webkit-scrollbar': { height: '6px' },
-  '.cm-typo-code-block::-webkit-scrollbar-thumb': {
+  '.cm-mosu-code-block::-webkit-scrollbar': { height: '6px' },
+  '.cm-mosu-code-block::-webkit-scrollbar-thumb': {
     backgroundColor: v('border', '#d0d7de'),
     borderRadius: '3px',
   },
-  '.cm-typo-code-block::-webkit-scrollbar-track': { background: 'transparent' },
+  '.cm-mosu-code-block::-webkit-scrollbar-track': { background: 'transparent' },
 
   // 围栏被藏起来时，在代码块首行右上角标出语言。
   // 同时补回上下留白 —— 藏围栏用的是「与上一行合并」，会顺带吃掉块前的空行
-  '.cm-typo-code-first': { position: 'relative', marginTop: '0.9em', paddingTop: '0.4em' },
-  '.cm-typo-code-block:not(:has(+ .cm-typo-code-block))': {
+  '.cm-mosu-code-first': { position: 'relative', marginTop: '0.9em', paddingTop: '0.4em' },
+  '.cm-mosu-code-block:not(:has(+ .cm-mosu-code-block))': {
     marginBottom: '0.9em',
     paddingBottom: '0.4em',
   },
   // 语言选择器：绝对定位飘在右上角，**不占行内空间**，
   // 否则代码首行会被它顶得往右缩一截
-  '.cm-typo-code-lang': {
+  '.cm-mosu-code-lang': {
     position: 'absolute',
     top: '0.1em',
     right: '0.4em',
@@ -155,7 +155,7 @@ export const baseTheme = EditorView.theme({
     opacity: '0.55',
     transition: 'opacity 120ms, border-color 120ms',
   },
-  '.cm-typo-code-block:hover .cm-typo-code-lang, .cm-typo-code-lang:focus': {
+  '.cm-mosu-code-block:hover .cm-mosu-code-lang, .cm-mosu-code-lang:focus': {
     opacity: '1',
     borderColor: v('border', '#d0d7de'),
   },
@@ -165,36 +165,36 @@ export const baseTheme = EditorView.theme({
   // `.cm-content` 不是 display:table，但 CSS 2.1 规定非表格父元素下**连续的**
   // table-row 会被自动包进一个匿名表格盒 —— 于是连续的表格行自成一张表，
   // 中间夹一行普通段落就自然断开。详见 live-preview/tables.ts 的说明。
-  '.cm-typo-tr': {
+  '.cm-mosu-tr': {
     display: 'table-row',
     // 表格里的内容不跟着散文折行：一折，列宽就失去参考意义
     whiteSpace: 'pre',
   },
-  '.cm-typo-td': {
+  '.cm-mosu-td': {
     display: 'table-cell',
     padding: '0.28em 0.7em',
     borderBottom: `1px solid ${v('border', '#d0d7de')}`,
     verticalAlign: 'top',
   },
-  '.cm-typo-tr-head .cm-typo-td': {
+  '.cm-mosu-tr-head .cm-mosu-td': {
     fontWeight: '600',
     borderBottom: `2px solid ${v('border-strong', '#afb8c1')}`,
   },
   // 分隔行平时是藏起来的（blocks.ts）；光标进表格时露出来，
   // 此刻它也必须是表格行，否则匿名表格盒会被它截成两张，列宽当场分家
-  '.cm-typo-tr-delim .cm-typo-td': {
+  '.cm-mosu-tr-delim .cm-mosu-td': {
     color: v('marker-fg', '#b0b6bd'),
     padding: '0 0.7em',
     borderBottom: 'none',
   },
-  '.cm-typo-td-center': { textAlign: 'center' },
-  '.cm-typo-td-right': { textAlign: 'right' },
-  '.cm-typo-td-left': { textAlign: 'left' },
+  '.cm-mosu-td-center': { textAlign: 'center' },
+  '.cm-mosu-td-right': { textAlign: 'right' },
+  '.cm-mosu-td-left': { textAlign: 'left' },
 
   // —— YAML front matter ——
   // 弱化成「这是元数据，不是正文」的样子：等宽、小一号、左侧一条边线。
   // 不藏起来 —— 它是内容，用户要能看见和改（跟有序列表编号同一条理由）
-  '.cm-typo-frontmatter': {
+  '.cm-mosu-frontmatter': {
     fontFamily: v('font-mono', 'ui-monospace, Menlo, Consolas, monospace'),
     fontSize: '0.85em',
     color: v('fg-muted', '#6e7781'),
@@ -204,7 +204,7 @@ export const baseTheme = EditorView.theme({
   },
 
   // —— 任务列表 ——
-  '.cm-typo-task': {
+  '.cm-mosu-task': {
     verticalAlign: 'middle',
     margin: '0 0.35em 0.15em 0',
     cursor: 'pointer',
@@ -212,18 +212,18 @@ export const baseTheme = EditorView.theme({
 
   // —— 脚注 ——
   // 引用做成上标；标签本身保持可见 —— 它是内容（「第几条」），不是纯标记
-  '.cm-typo-footnote-ref': {
+  '.cm-mosu-footnote-ref': {
     verticalAlign: 'super',
     fontSize: '0.78em',
     color: v('accent', '#0969da'),
   },
-  '.cm-typo-footnote-def': {
+  '.cm-mosu-footnote-def': {
     fontSize: '0.92em',
     color: v('fg-muted', '#6e7781'),
   },
 
-  '.cm-typo-hr-line': { display: 'flex', alignItems: 'center', minHeight: '1.7em' },
-  '.cm-typo-hr': {
+  '.cm-mosu-hr-line': { display: 'flex', alignItems: 'center', minHeight: '1.7em' },
+  '.cm-mosu-hr': {
     display: 'inline-block',
     width: '100%',
     borderTop: `1px solid ${v('border', '#d0d7de')}`,
@@ -231,21 +231,21 @@ export const baseTheme = EditorView.theme({
   },
 
   // 显形中的公式源码：等宽，跟正文区分开
-  '.cm-typo-math-source': {
+  '.cm-mosu-math-source': {
     fontFamily: v('font-mono', 'ui-monospace, Menlo, Consolas, monospace'),
     fontSize: '0.92em',
     color: v('fg-muted', '#6e7781'),
   },
 
   // —— 图片 ——
-  '.cm-typo-image img': { maxWidth: '100%', borderRadius: '4px', verticalAlign: 'bottom' },
-  '.cm-typo-image--broken': {
+  '.cm-mosu-image img': { maxWidth: '100%', borderRadius: '4px', verticalAlign: 'bottom' },
+  '.cm-mosu-image--broken': {
     fontFamily: v('font-mono', 'monospace'),
     fontSize: '0.9em',
     color: v('danger', '#cf222e'),
     textDecoration: 'underline wavy',
   },
-  '.cm-typo-image-source': { color: v('fg-muted', '#6e7781') },
+  '.cm-mosu-image-source': { color: v('fg-muted', '#6e7781') },
 
   '.cm-selectionBackground, ::selection': { backgroundColor: v('selection', '#b4d5fe') },
   '.cm-focused .cm-selectionBackground': { backgroundColor: v('selection', '#b4d5fe') },
@@ -253,7 +253,7 @@ export const baseTheme = EditorView.theme({
   // —— 专注模式 ——
   // 用 opacity 而不是把前景色调淡：文档里有代码块底色、表格边框、图片、
   // 公式，逐个调色是永远补不完的清单，而 opacity 一次盖住整层
-  '.cm-typo-dim': {
+  '.cm-mosu-dim': {
     opacity: v('focus-dim', '0.35'),
     transition: 'opacity 150ms ease-out',
   },
@@ -262,7 +262,7 @@ export const baseTheme = EditorView.theme({
   '@media (prefers-reduced-motion: reduce)': {
     '.cm-scroller': { scrollBehavior: 'auto' },
     // 变暗的淡入也是动态效果。关掉之后功能不受影响，只是切换得干脆
-    '.cm-typo-dim': { transition: 'none' },
+    '.cm-mosu-dim': { transition: 'none' },
   },
 })
 
@@ -281,6 +281,6 @@ export const markdownHighlight = HighlightStyle.define([
   { tag: tags.url, color: v('accent', '#0969da') },
 ])
 
-export function typoTheme(): Extension {
+export function mosuTheme(): Extension {
   return [baseTheme, mathTheme, mermaidTheme, syntaxHighlighting(markdownHighlight)]
 }

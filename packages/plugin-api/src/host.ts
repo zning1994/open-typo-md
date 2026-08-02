@@ -2,7 +2,7 @@
  * HostBridge —— 编辑器内核与宿主环境之间的唯一接缝。
  *
  * 设计约束（见 docs/design/01-architecture.md §4）：
- * - 内核（@typo/editor、@typo/markdown）不得直接 import 任何 Node / Electron API。
+ * - 内核（@mosu/editor、@mosu/markdown）不得直接 import 任何 Node / Electron API。
  * - 所有宿主能力都通过注入的 HostBridge 获得。
  * - 因此内核可以在纯 Node 测试环境里跑（用 createMemoryHost），也可以将来跑在
  *   浏览器（File System Access API）或别的桌面壳里。
@@ -122,7 +122,7 @@ export interface HostFs {
   /**
    * 把工作区内的资源路径解析成渲染层可加载的 URL。
    *
-   * Electron 实现返回 `typo-asset://…`（受路径白名单约束，见 01 §6），
+   * Electron 实现返回 `mosu-asset://…`（受路径白名单约束，见 01 §6），
    * 绝不返回 `file://`。
    */
   resolveAssetUrl(path: string, baseDir: string): Promise<string>

@@ -94,7 +94,7 @@ const FRONTMATTER_HANDLER = {
     return {
       type: 'element',
       tagName: 'pre',
-      properties: { className: ['typo-frontmatter'] },
+      properties: { className: ['mosu-frontmatter'] },
       children: [{ type: 'text', value: node.value }],
     }
   },
@@ -159,7 +159,7 @@ async function applyHooks(tree: Root, hooks: ExportHooks): Promise<void> {
         parent.children[index] = {
           type: 'element',
           tagName: 'figure',
-          properties: { className: ['typo-diagram'] },
+          properties: { className: ['mosu-diagram'] },
           children: parsed.children,
         } as Element
       }),

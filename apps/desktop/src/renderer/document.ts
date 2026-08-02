@@ -5,7 +5,7 @@
  * 这样 04 号文档里那些「必须有的防灾测试」可以用内存 HostBridge 直接跑，
  * 不需要启动 Electron。
  */
-import type { HostBridge, TextFileMeta } from '@typo/plugin-api'
+import type { HostBridge, TextFileMeta } from '@mosu/plugin-api'
 import { t } from './i18n.js'
 
 /** 控制器需要编辑器提供的最小能力。 */
@@ -68,7 +68,7 @@ const DEFAULT_META: TextFileMeta = { encoding: 'utf8', eol: 'lf', mixedEol: fals
 /**
  * 打不开文件时给用户看的原因。
  *
- * `UnsupportedEncodingError` 的消息是 `@typo/plugin-api` 里写死的中文 ——
+ * `UnsupportedEncodingError` 的消息是 `@mosu/plugin-api` 里写死的中文 ——
  * 那一层是 i18n 够不着的（它比文案层还低，也不该认识文案层）。所以在这里按
  * **错误类型**换成本地化的说法，而不是把 IPC 传过来的 message 直接贴出去。
  *

@@ -2,7 +2,7 @@
  * 主题切换（docs/design/05 §1）。
  *
  * 主题本身是纯 CSS（见 themes.css）；这个文件只负责两件事：
- * 记住用户选了哪个，把它挂到 `<html data-typo-theme>` 上。
+ * 记住用户选了哪个，把它挂到 `<html data-mosu-theme>` 上。
  *
  * 「跟随系统」是**单独一档**，不是「没设置时的默认行为」。
  * 只在未设置时跟随系统的话，用户手动选过一次就再也回不到跟随状态了 ——
@@ -13,7 +13,7 @@
  * 为它常驻一套失效逻辑不划算。等类名契约（05 §3）落地、图表改由 CSS 变量
  * 着色时会一并解决。
  */
-import type { KeyValueStore } from '@typo/plugin-api'
+import type { KeyValueStore } from '@mosu/plugin-api'
 
 /**
  * 内置主题。**只有 id，没有标签** —— 标签在文案表里（`theme.*`）。
@@ -33,9 +33,9 @@ export const THEMES = [
 export type ThemeId = (typeof THEMES)[number]['id']
 
 /**
- * 变量契约的完整清单（不带 `--typo-` 前缀）。
+ * 变量契约的完整清单（不带 `--mosu-` 前缀）。
  *
- * 跟 themes.css 里 `[data-typo-theme='light']` 那一份**必须一致** ——
+ * 跟 themes.css 里 `[data-mosu-theme='light']` 那一份**必须一致** ——
  * 导出时按这张表采集当前生效的计算值，漏一个，导出的文件里那一处就会退回
  * 兜底色。放在这里而不是 CSS 里，是因为只有 TS 这边能被别的代码读到。
  */
@@ -77,7 +77,7 @@ export class ThemeManager {
   /**
    * 读取已保存的选择并应用。
    *
-   * 在此之前 `index.html` 上已经写死了 `data-typo-theme="auto"` ——
+   * 在此之前 `index.html` 上已经写死了 `data-mosu-theme="auto"` ——
    * 不预置的话，从进程启动到这里 await 完成之间会有一段没有任何变量的空窗，
    * 界面先闪一下无样式的白底。
    */
@@ -97,6 +97,6 @@ export class ThemeManager {
 
   private apply(theme: ThemeId): void {
     this.current = theme
-    document.documentElement.dataset['typoTheme'] = theme
+    document.documentElement.dataset['mosuTheme'] = theme
   }
 }

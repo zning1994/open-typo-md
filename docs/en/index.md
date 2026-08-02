@@ -2,7 +2,10 @@
 layout: home
 
 hero:
-  name: "Brainforge Typo"
+  name: "Mosu"
+  image:
+    src: /logo.png
+    alt: Mosu
   text: "What you type is what you see"
   tagline: "An open-source WYSIWYG Markdown editor. No split pane, no preview pane — just one editing surface."
   actions:
@@ -27,8 +30,8 @@ features:
     details: "The editor core is a plain web library that imports no Node or Electron API; host capabilities are injected. A browser or any other shell can reuse it as is."
 ---
 
-<div class="shot shot-light"><img src="/shots/en/hero-light.png" alt="Brainforge Typo editing a document with a table, task list and math" /></div>
-<div class="shot shot-dark"><img src="/shots/en/hero-dark.png" alt="Brainforge Typo in its dark theme" /></div>
+<div class="shot shot-light"><img src="/shots/en/hero-light.png" alt="Mosu editing a document with a table, task list and math" /></div>
+<div class="shot shot-dark"><img src="/shots/en/hero-dark.png" alt="Mosu in its dark theme" /></div>
 
 <p class="shot-caption">These screenshots are taken by a script driving the real app
 (<code>pnpm screenshots</code>), not mockups — the column widths, the typeset formula and the

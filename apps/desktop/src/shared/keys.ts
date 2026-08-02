@@ -4,7 +4,7 @@
  * ## 为什么必须先有这个文件
  *
  * 在它之前，同一个绑定写在**三个地方**：`main/menu.ts` 的 `accelerator`、
- * 渲染进程 `MENU_COMMAND_INFO` 里给命令面板显示的那份、以及 `@typo/editor`
+ * 渲染进程 `MENU_COMMAND_INFO` 里给命令面板显示的那份、以及 `@mosu/editor`
  * 的 CodeMirror keymap。三份格式互不相同（`CmdOrCtrl+Shift+K` / `Mod+Shift+K` /
  * `Mod-Shift-k`），改一处漏两处是必然的 —— 而「让用户能改快捷键」意味着这三份
  * 都要跟着变。所以第一步不是做界面，是把三份合成一份。

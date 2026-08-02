@@ -104,7 +104,7 @@ export class SettingsPanel {
 
   constructor(private readonly options: SettingsPanelOptions) {
     this.root = document.createElement('div')
-    this.root.className = 'typo-settings'
+    this.root.className = 'mosu-settings'
     this.root.hidden = true
     // 浮层对读屏软件应当是一个对话框，否则焦点跑进去之后毫无上下文
     this.root.setAttribute('role', 'dialog')
@@ -112,18 +112,18 @@ export class SettingsPanel {
     this.root.setAttribute('aria-label', t('settings.title'))
 
     const box = document.createElement('div')
-    box.className = 'typo-settings__box'
+    box.className = 'mosu-settings__box'
 
     const header = document.createElement('div')
-    header.className = 'typo-settings__header'
+    header.className = 'mosu-settings__header'
     this.titleEl = document.createElement('h2')
-    this.titleEl.className = 'typo-settings__title'
+    this.titleEl.className = 'mosu-settings__title'
     this.titleEl.textContent = t('settings.title')
     header.appendChild(this.titleEl)
 
     const close = document.createElement('button')
     close.type = 'button'
-    close.className = 'typo-settings__close'
+    close.className = 'mosu-settings__close'
     close.textContent = '×'
     this.closeEl = close
     close.setAttribute('aria-label', t('settings.close'))
@@ -132,14 +132,14 @@ export class SettingsPanel {
     box.appendChild(header)
 
     this.body = document.createElement('div')
-    this.body.className = 'typo-settings__body'
+    this.body.className = 'mosu-settings__body'
     box.appendChild(this.body)
 
     const footer = document.createElement('div')
-    footer.className = 'typo-settings__footer'
+    footer.className = 'mosu-settings__footer'
     const reset = document.createElement('button')
     reset.type = 'button'
-    reset.className = 'typo-settings__reset'
+    reset.className = 'mosu-settings__reset'
     this.resetEl = reset
     reset.textContent = t('settings.reset')
     reset.addEventListener('click', () => {
@@ -148,7 +148,7 @@ export class SettingsPanel {
     footer.appendChild(reset)
 
     const hint = document.createElement('span')
-    hint.className = 'typo-settings__hint'
+    hint.className = 'mosu-settings__hint'
     this.hintEl = hint
     hint.textContent = t('settings.hint')
     footer.appendChild(hint)
@@ -282,7 +282,7 @@ export class SettingsPanel {
 
     if (focusCommand) {
       this.body
-        .querySelector<HTMLElement>(`.typo-keys__binding[data-command="${focusCommand}"]`)
+        .querySelector<HTMLElement>(`.mosu-keys__binding[data-command="${focusCommand}"]`)
         ?.focus()
     }
   }
@@ -296,17 +296,17 @@ export class SettingsPanel {
    */
   private keysTable(): HTMLElement {
     const table = document.createElement('div')
-    table.className = 'typo-keys'
+    table.className = 'mosu-keys'
 
     const conflicts = this.options.keys.conflicts()
 
     for (const command of this.options.commands) {
       const binding = this.options.keys.get(command)
       const row = document.createElement('div')
-      row.className = 'typo-keys__row'
+      row.className = 'mosu-keys__row'
 
       const label = document.createElement('span')
-      label.className = 'typo-keys__label'
+      label.className = 'mosu-keys__label'
       label.textContent = menuCommandTitle(command)
       row.appendChild(label)
 
@@ -314,7 +314,7 @@ export class SettingsPanel {
       // 各自生效），我们判断不了用户的上下文，所以只把事实摆出来
       if (binding && (conflicts.get(binding)?.length ?? 0) > 1) {
         const warn = document.createElement('span')
-        warn.className = 'typo-keys__conflict'
+        warn.className = 'mosu-keys__conflict'
         warn.textContent = t('settings.keys.conflict')
         warn.title = (conflicts.get(binding) ?? [])
           .map((id) => menuCommandTitle(id))
@@ -326,7 +326,7 @@ export class SettingsPanel {
 
       const clear = document.createElement('button')
       clear.type = 'button'
-      clear.className = 'typo-keys__clear'
+      clear.className = 'mosu-keys__clear'
       clear.textContent = '×'
       clear.title = t('settings.keys.clear')
       clear.addEventListener('click', () => {
@@ -339,7 +339,7 @@ export class SettingsPanel {
 
     const reset = document.createElement('button')
     reset.type = 'button'
-    reset.className = 'typo-keys__reset'
+    reset.className = 'mosu-keys__reset'
     reset.textContent = t('settings.keys.reset')
     reset.addEventListener('click', () => {
       void this.options.keys.reset(this.options.commands).then(() => this.render())
@@ -359,17 +359,17 @@ export class SettingsPanel {
   private captureButton(command: MenuCommand, binding: string | undefined): HTMLElement {
     const button = document.createElement('button')
     button.type = 'button'
-    button.className = 'typo-keys__binding'
+    button.className = 'mosu-keys__binding'
     button.dataset['command'] = command
     button.textContent = binding
       ? formatBinding(binding, this.options.mac())
       : t('settings.keys.unset')
-    if (!binding) button.classList.add('typo-keys__binding--empty')
+    if (!binding) button.classList.add('mosu-keys__binding--empty')
 
     let capturing = false
     const stop = (): void => {
       capturing = false
-      button.classList.remove('typo-keys__binding--capturing')
+      button.classList.remove('mosu-keys__binding--capturing')
       button.textContent = binding
         ? formatBinding(binding, this.options.mac())
         : t('settings.keys.unset')
@@ -377,7 +377,7 @@ export class SettingsPanel {
 
     button.addEventListener('click', () => {
       capturing = true
-      button.classList.add('typo-keys__binding--capturing')
+      button.classList.add('mosu-keys__binding--capturing')
       button.textContent = t('settings.keys.recording')
       button.focus()
     })
@@ -411,9 +411,9 @@ export class SettingsPanel {
 
   private section(title: string, rows: HTMLElement[]): HTMLElement {
     const section = document.createElement('section')
-    section.className = 'typo-settings__section'
+    section.className = 'mosu-settings__section'
     const heading = document.createElement('h3')
-    heading.className = 'typo-settings__section-title'
+    heading.className = 'mosu-settings__section-title'
     heading.textContent = title
     section.append(heading, ...rows)
     return section
@@ -421,14 +421,14 @@ export class SettingsPanel {
 
   private row(label: string, control: HTMLElement, note = ''): HTMLElement {
     const row = document.createElement('label')
-    row.className = 'typo-settings__row'
+    row.className = 'mosu-settings__row'
 
     const text = document.createElement('span')
-    text.className = 'typo-settings__label'
+    text.className = 'mosu-settings__label'
     text.textContent = label
     if (note) {
       const small = document.createElement('small')
-      small.className = 'typo-settings__note'
+      small.className = 'mosu-settings__note'
       small.textContent = note
       text.appendChild(small)
     }
@@ -445,7 +445,7 @@ export class SettingsPanel {
     note = '',
   ): HTMLElement {
     const select = document.createElement('select')
-    select.className = 'typo-settings__control'
+    select.className = 'mosu-settings__control'
     for (const [value, text] of options) {
       const option = document.createElement('option')
       option.value = value
@@ -465,7 +465,7 @@ export class SettingsPanel {
   ): HTMLElement {
     const input = document.createElement('input')
     input.type = 'checkbox'
-    input.className = 'typo-settings__control typo-settings__check'
+    input.className = 'mosu-settings__control mosu-settings__check'
     input.checked = current
     input.addEventListener('change', () => void onChange(input.checked))
     return this.row(label, input, note)
@@ -478,7 +478,7 @@ export class SettingsPanel {
   ): HTMLElement {
     const input = document.createElement('input')
     input.type = 'number'
-    input.className = 'typo-settings__control typo-settings__number'
+    input.className = 'mosu-settings__control mosu-settings__number'
     input.min = '0'
     input.max = '3'
     input.step = '0.1'

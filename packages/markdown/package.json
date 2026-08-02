@@ -1,5 +1,5 @@
 {
-  "name": "@typo/markdown",
+  "name": "@mosu/markdown",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -19,6 +19,6 @@
     "@lezer/common": "^1.5.2",
     "@lezer/highlight": "^1.2.3",
     "@lezer/markdown": "^1.7.2",
-    "@typo/plugin-api": "workspace:*"
+    "@mosu/plugin-api": "workspace:*"
   }
 }

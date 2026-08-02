@@ -16,7 +16,7 @@
 import { EditorView, ViewPlugin, type PluginValue } from '@codemirror/view'
 import type { Extension } from '@codemirror/state'
 
-export const CODE_LINE_CLASS = 'cm-typo-code-block'
+export const CODE_LINE_CLASS = 'cm-mosu-code-block'
 
 function isCodeLine(node: Element | null): node is HTMLElement {
   return node instanceof HTMLElement && node.classList.contains(CODE_LINE_CLASS)

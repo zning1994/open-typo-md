@@ -2,7 +2,7 @@
 
 ## 1. 产品定位
 
-**Brainforge Typo**（下文简称 Typo）是一个**桌面优先、本地优先**的 Markdown 编辑器，
+**Mosu**（下文简称 Mosu）是一个**桌面优先、本地优先**的 Markdown 编辑器，
 交互范式是「无缝实时预览」：
 单一编辑区域，内容以渲染后的形态呈现；光标所在的那个元素（且仅那个元素）就地展开为
 Markdown 源码，可以直接改。
@@ -75,7 +75,7 @@ Markdown 源码，可以直接改。
 
 **P3 · 内核不认识 Electron**
 
-`@typo/editor` 是纯浏览器代码，不 import 任何 Node / Electron API。所有文件、对话框、
+`@mosu/editor` 是纯浏览器代码，不 import 任何 Node / Electron API。所有文件、对话框、
 菜单能力通过注入的 `HostBridge` 接口获得。这样才能有 Web 版、才能被别的壳复用、
 才能在纯 jsdom/Playwright 里测。
 
@@ -123,8 +123,8 @@ Markdown 里的原始 HTML 一律经过消毒；本地图片走自定义协议�
 
 ## 7. 命名与法律提示
 
-- **产品名为 Brainforge Typo**（M1 之后确定）。仓库名 `open-typo-md` 与内部包名
-  `@typo/*` 暂不跟随改动 —— 它们不是用户可见的东西，改动只会制造无谓的迁移成本。
+- **产品名为 Mosu**（M1 之后确定）。仓库名 `open-typo-md` 与内部包名
+  `@mosu/*` 暂不跟随改动 —— 它们不是用户可见的东西，改动只会制造无谓的迁移成本。
   改名涉及的具体位置与副作用见 [08 路线图 · M1.5](08-roadmap.md)。
 - Typora 是他人商标。本项目名称、图标、宣传语都不得与之近似。
   加上 Brainforge 前缀之后混淆风险已显著降低，但正式发布前仍应确认

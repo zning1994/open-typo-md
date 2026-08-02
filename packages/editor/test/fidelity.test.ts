@@ -14,8 +14,8 @@
  */
 import spec from 'commonmark-spec'
 import { describe, expect, it } from 'vitest'
-import { decodeText, encodeText } from '@typo/markdown'
-import { computeBlockDecorations } from '@typo/editor'
+import { decodeText, encodeText } from '@mosu/markdown'
+import { computeBlockDecorations } from '@mosu/editor'
 import { hiddenRanges, mkState } from './helpers.js'
 
 interface SpecExample {

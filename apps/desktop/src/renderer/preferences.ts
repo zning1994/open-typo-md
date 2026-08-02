@@ -18,7 +18,7 @@
  * 或者手滑打成 `"A4 "`。**一个坏值不该让编辑器打不开**，也不该让 PDF 导出
  * 悄悄用一个荒唐的页边距 —— 每个字段各自校验，不合法就退回默认值。
  */
-import type { KeyValueStore } from '@typo/plugin-api'
+import type { KeyValueStore } from '@mosu/plugin-api'
 
 export const PAGE_SIZES = ['A4', 'Letter', 'Legal', 'A3', 'Tabloid'] as const
 export type PageSize = (typeof PAGE_SIZES)[number]

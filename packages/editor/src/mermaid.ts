@@ -46,7 +46,7 @@ function loadMermaid(): Promise<MermaidModule | null> {
       mermaidReady = loaded
       return loaded
     } catch (error) {
-      console.warn('[typo] Mermaid 加载失败，图表将按源码显示：', error)
+      console.warn('[mosu] Mermaid 加载失败，图表将按源码显示：', error)
       return null
     }
   })()
@@ -66,7 +66,7 @@ export async function renderMermaid(code: string): Promise<string | null> {
   const mermaid = mermaidReady ?? (await loadMermaid())
   if (!mermaid) return null
   try {
-    const { svg } = await mermaid.default.render(`typo-mermaid-${nextId++}`, code)
+    const { svg } = await mermaid.default.render(`mosu-mermaid-${nextId++}`, code)
     return svg
   } catch {
     return null
@@ -85,10 +85,10 @@ export class MermaidWidget extends WidgetType {
 
   toDOM(view: EditorView): HTMLElement {
     const host = document.createElement('div')
-    host.className = 'cm-typo-mermaid'
+    host.className = 'cm-mosu-mermaid'
     revealOnClick(view, host)
     // 还没画出来之前先显示源码。留白会让人以为编辑器卡住了
-    host.classList.add('cm-typo-mermaid--pending')
+    host.classList.add('cm-mosu-mermaid--pending')
     host.textContent = this.code
 
     void this.draw(host)
@@ -100,15 +100,15 @@ export class MermaidWidget extends WidgetType {
     if (!mermaid) return
 
     try {
-      const { svg } = await mermaid.default.render(`typo-mermaid-${nextId++}`, this.code)
-      host.classList.remove('cm-typo-mermaid--pending', 'cm-typo-mermaid--broken')
+      const { svg } = await mermaid.default.render(`mosu-mermaid-${nextId++}`, this.code)
+      host.classList.remove('cm-mosu-mermaid--pending', 'cm-mosu-mermaid--broken')
       // mermaid 的输出是它自己生成的 SVG 字符串，且已按 securityLevel: 'strict'
       // 过滤过标签内容；这里不再做二次解析
       host.innerHTML = svg
     } catch (error) {
       // 图写错了：显示源码 + 一条说明。绝不留白，也绝不把异常抛给装饰层
-      host.classList.add('cm-typo-mermaid--broken')
-      host.classList.remove('cm-typo-mermaid--pending')
+      host.classList.add('cm-mosu-mermaid--broken')
+      host.classList.remove('cm-mosu-mermaid--pending')
       host.textContent = this.code
       host.title = error instanceof Error ? error.message : String(error)
     }
@@ -121,26 +121,26 @@ export class MermaidWidget extends WidgetType {
 }
 
 export const mermaidTheme = EditorView.theme({
-  '.cm-typo-mermaid': {
+  '.cm-mosu-mermaid': {
     display: 'block',
     textAlign: 'center',
     margin: '0.8em 0',
     padding: '0.6em',
     overflowX: 'auto',
   },
-  '.cm-typo-mermaid svg': {
+  '.cm-mosu-mermaid svg': {
     maxWidth: '100%',
     height: 'auto',
   },
-  '.cm-typo-mermaid--pending, .cm-typo-mermaid--broken': {
-    fontFamily: 'var(--typo-font-mono, ui-monospace, Menlo, Consolas, monospace)',
+  '.cm-mosu-mermaid--pending, .cm-mosu-mermaid--broken': {
+    fontFamily: 'var(--mosu-font-mono, ui-monospace, Menlo, Consolas, monospace)',
     fontSize: '0.9em',
     textAlign: 'left',
     whiteSpace: 'pre',
-    color: 'var(--typo-fg-muted, #6e7781)',
+    color: 'var(--mosu-fg-muted, #6e7781)',
   },
-  '.cm-typo-mermaid--broken': {
-    color: 'var(--typo-danger, #cf222e)',
+  '.cm-mosu-mermaid--broken': {
+    color: 'var(--mosu-danger, #cf222e)',
     textDecoration: 'underline wavy',
   },
 })

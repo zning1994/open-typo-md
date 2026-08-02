@@ -30,7 +30,7 @@
  */
 import type { EditorState } from '@codemirror/state'
 import type { SyntaxNode } from '@lezer/common'
-import { TABLE_NODES } from '@typo/markdown'
+import { TABLE_NODES } from '@mosu/markdown'
 
 export type ColumnAlign = 'left' | 'center' | 'right' | 'none'
 

@@ -59,19 +59,19 @@ importers:
       '@codemirror/view':
         specifier: ^6.43.7
         version: 6.43.7
-      '@typo/editor':
+      '@mosu/editor':
         specifier: workspace:*
         version: link:../../packages/editor
-      '@typo/export':
+      '@mosu/export':
         specifier: workspace:*
         version: link:../../packages/export
-      '@typo/i18n':
+      '@mosu/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
-      '@typo/markdown':
+      '@mosu/markdown':
         specifier: workspace:*
         version: link:../../packages/markdown
-      '@typo/plugin-api':
+      '@mosu/plugin-api':
         specifier: workspace:*
         version: link:../../packages/plugin-api
     devDependencies:
@@ -117,13 +117,13 @@ importers:
       '@lezer/highlight':
         specifier: ^1.2.1
         version: 1.2.3
-      '@typo/import':
+      '@mosu/import':
         specifier: workspace:*
         version: link:../import
-      '@typo/markdown':
+      '@mosu/markdown':
         specifier: workspace:*
         version: link:../markdown
-      '@typo/plugin-api':
+      '@mosu/plugin-api':
         specifier: workspace:*
         version: link:../plugin-api
       katex:
@@ -139,10 +139,10 @@ importers:
 
   packages/export:
     dependencies:
-      '@typo/markdown':
+      '@mosu/markdown':
         specifier: workspace:*
         version: link:../markdown
-      '@typo/plugin-api':
+      '@mosu/plugin-api':
         specifier: workspace:*
         version: link:../plugin-api
       hast-util-from-html:
@@ -239,7 +239,7 @@ importers:
       '@lezer/markdown':
         specifier: ^1.7.2
         version: 1.7.2
-      '@typo/plugin-api':
+      '@mosu/plugin-api':
         specifier: workspace:*
         version: link:../plugin-api
 

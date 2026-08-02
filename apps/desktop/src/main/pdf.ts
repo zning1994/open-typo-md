@@ -13,7 +13,7 @@
  *
  * ## 这个隐藏窗口的安全设置
  *
- * 装进去的是**用户文档转成的 HTML**。虽然它已经过消毒（`@typo/export` 默认
+ * 装进去的是**用户文档转成的 HTML**。虽然它已经过消毒（`@mosu/export` 默认
  * 剥掉 script 与事件属性），这里仍然按「假定它是敌意内容」来配：
  *
  * - `javascript: false` —— 根本不给脚本执行的机会，比依赖上游消毒更硬；
@@ -46,7 +46,7 @@ const MARGIN_INCH = 0.6
  * 而那个失败是「窗口白屏、没有任何报错」，最难排查的那一类。
  */
 export async function renderPdf(html: string, options: PdfOptions = {}): Promise<Buffer> {
-  const dir = await mkdtemp(path.join(tmpdir(), 'typo-pdf-'))
+  const dir = await mkdtemp(path.join(tmpdir(), 'mosu-pdf-'))
   const file = path.join(dir, 'print.html')
   await writeFile(file, html, 'utf8')
 

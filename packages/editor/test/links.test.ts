@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { linkTargetAt } from '@typo/editor'
+import { linkTargetAt } from '@mosu/editor'
 import { mkState } from './helpers.js'
 
 /** 取文档中某个子串中间位置的链接目标。 */

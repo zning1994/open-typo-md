@@ -1,7 +1,7 @@
 /**
  * 导出：把当前文档变成一份能发出去的 HTML（docs/design/06 §2）。
  *
- * 转换本身在 `@typo/export` 里（纯函数、可脱离 Electron 单测）；
+ * 转换本身在 `@mosu/export` 里（纯函数、可脱离 Electron 单测）；
  * 这个文件负责**只有宿主才做得到的那几件事**：
  *
  * - 采集当前主题的实际配色；
@@ -19,7 +19,7 @@ import {
   buildDocument,
   markdownToHtmlFragment,
   type ExportHooks,
-} from '@typo/export'
+} from '@mosu/export'
 import { THEME_VARIABLES, type ThemeId } from './theme.js'
 
 /**
@@ -31,12 +31,12 @@ import { THEME_VARIABLES, type ThemeId } from './theme.js'
  */
 function themeCss(force?: ThemeId): string {
   // 取值的元素：不指定主题时就是文档根（= 用户此刻看到的样子）；
-  // 指定时挂一个临时探针，靠 themes.css 里 `[data-typo-theme='…']` 的定义取值。
+  // 指定时挂一个临时探针，靠 themes.css 里 `[data-mosu-theme='…']` 的定义取值。
   // 探针必须真的进文档 —— 游离元素没有计算样式。
   let probe: HTMLElement = document.documentElement
   if (force) {
     probe = document.createElement('div')
-    probe.dataset['typoTheme'] = force
+    probe.dataset['mosuTheme'] = force
     probe.style.display = 'none'
     document.body.appendChild(probe)
   }
@@ -44,8 +44,8 @@ function themeCss(force?: ThemeId): string {
   try {
     const computed = getComputedStyle(probe)
     const lines = THEME_VARIABLES.map((name) => {
-      const value = computed.getPropertyValue(`--typo-${name}`).trim()
-      return value ? `  --typo-${name}: ${value};` : ''
+      const value = computed.getPropertyValue(`--mosu-${name}`).trim()
+      return value ? `  --mosu-${name}: ${value};` : ''
     }).filter(Boolean)
 
     return `:root {\n${lines.join('\n')}\n}`

@@ -7,8 +7,8 @@
  */
 import { ensureSyntaxTree } from '@codemirror/language'
 import { EditorSelection, EditorState, type Extension } from '@codemirror/state'
-import { markdownLanguageSupport, type MarkdownDialect } from '@typo/markdown'
-import { computeBlockDecorations, computeDecorations, livePreviewConfig } from '@typo/editor'
+import { markdownLanguageSupport, type MarkdownDialect } from '@mosu/markdown'
+import { computeBlockDecorations, computeDecorations, livePreviewConfig } from '@mosu/editor'
 import {
   BulletWidget,
   EntityWidget,
@@ -18,7 +18,7 @@ import {
   MermaidWidget,
   RuleWidget,
   TaskCheckboxWidget,
-} from '@typo/editor'
+} from '@mosu/editor'
 
 export interface StateOptions {
   /** 光标位置；数组表示多光标；[from, to] 元组表示选区。 */

@@ -2,7 +2,10 @@
 layout: home
 
 hero:
-  name: "Brainforge Typo"
+  name: "Mosu"
+  image:
+    src: /logo.png
+    alt: Mosu
   text: "写下的就是看到的"
   tagline: "开源的 Markdown 所见即所得编辑器。无分屏，无预览窗格，只有一个编辑区。"
   actions:
@@ -27,8 +30,8 @@ features:
     details: "编辑器内核是纯 Web 库，不 import 任何 Node/Electron API，宿主能力全部靠注入。浏览器或别的壳都能复用。"
 ---
 
-<div class="shot shot-light"><img src="/shots/zh/hero-light.png" alt="Brainforge Typo 编辑一篇带表格、任务列表与数学公式的文档" /></div>
-<div class="shot shot-dark"><img src="/shots/zh/hero-dark.png" alt="Brainforge Typo 的深色主题" /></div>
+<div class="shot shot-light"><img src="/shots/zh/hero-light.png" alt="Mosu 编辑一篇带表格、任务列表与数学公式的文档" /></div>
+<div class="shot shot-dark"><img src="/shots/zh/hero-dark.png" alt="Mosu 的深色主题" /></div>
 
 <p class="shot-caption">图是脚本跑真应用拍的（<code>pnpm screenshots</code>），不是设计稿 ——
 表格的列宽、公式的排版、下面那张流程图，都是产品自己算出来的。</p>

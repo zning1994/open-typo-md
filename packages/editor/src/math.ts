@@ -46,7 +46,7 @@ function loadKatex(): Promise<KatexModule | null> {
       katexReady = loaded
       return loaded
     } catch (error) {
-      console.warn('[typo] KaTeX 加载失败，公式将按源码显示：', error)
+      console.warn('[mosu] KaTeX 加载失败，公式将按源码显示：', error)
       return null
     }
   })()
@@ -68,7 +68,7 @@ export class MathWidget extends WidgetType {
 
   toDOM(view: EditorView): HTMLElement {
     const host = document.createElement(this.display ? 'div' : 'span')
-    host.className = this.display ? 'cm-typo-math cm-typo-math--block' : 'cm-typo-math'
+    host.className = this.display ? 'cm-mosu-math cm-mosu-math--block' : 'cm-mosu-math'
     revealOnClick(view, host)
 
     if (katexReady) {
@@ -77,14 +77,14 @@ export class MathWidget extends WidgetType {
     }
 
     // 还没加载好：先显示源码。空白会让人以为编辑器坏了
-    host.classList.add('cm-typo-math--pending')
+    host.classList.add('cm-mosu-math--pending')
     host.textContent = this.tex
 
     void loadKatex().then((katex) => {
       if (!katex) return
       // widget 可能已经被销毁（用户继续编辑了），此时 host 是游离节点，
       // 写进去无害；不写反而要多一套失效检查
-      host.classList.remove('cm-typo-math--pending')
+      host.classList.remove('cm-mosu-math--pending')
       render(katex, host, this.tex, this.display)
     })
 
@@ -108,18 +108,18 @@ function render(katex: KatexModule, host: HTMLElement, tex: string, display: boo
 
 /** 公式在编辑器里的基础样式。颜色一律走变量，主题层可以覆盖。 */
 export const mathTheme = EditorView.theme({
-  '.cm-typo-math--block': {
+  '.cm-mosu-math--block': {
     display: 'block',
     textAlign: 'center',
     margin: '0.8em 0',
     overflowX: 'auto',
   },
-  '.cm-typo-math--pending': {
-    fontFamily: 'var(--typo-font-mono, ui-monospace, Menlo, Consolas, monospace)',
-    color: 'var(--typo-fg-muted, #6e7781)',
+  '.cm-mosu-math--pending': {
+    fontFamily: 'var(--mosu-font-mono, ui-monospace, Menlo, Consolas, monospace)',
+    color: 'var(--mosu-fg-muted, #6e7781)',
   },
   // KaTeX 自己会把错误标红，这里只是让它跟主题的危险色一致
-  '.cm-typo-math .katex-error': {
-    color: 'var(--typo-danger, #cf222e)',
+  '.cm-mosu-math .katex-error': {
+    color: 'var(--mosu-danger, #cf222e)',
   },
 })

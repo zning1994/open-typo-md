@@ -2,7 +2,7 @@
  * 脚注扩展的解析行为。
  *
  * 这里断言的是**语法树形状**而不是渲染结果 —— 脚注是自己写的解析器，
- * 出问题一定出在树上；呈现规则的测试在 @typo/editor 那边。
+ * 出问题一定出在树上；呈现规则的测试在 @mosu/editor 那边。
  */
 import { describe, expect, it } from 'vitest'
 import type { SyntaxNode, Tree } from '@lezer/common'

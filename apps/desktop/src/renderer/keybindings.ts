@@ -7,7 +7,7 @@
  *
  * 这个类负责的是「读 / 写 / 通知」，不负责界面 —— 界面在 settings-panel.ts。
  */
-import type { KeyValueStore } from '@typo/plugin-api'
+import type { KeyValueStore } from '@mosu/plugin-api'
 import type { MenuCommand } from '../shared/channels.js'
 import {
   BINDING_KEY_PREFIX,

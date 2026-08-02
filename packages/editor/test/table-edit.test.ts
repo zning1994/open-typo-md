@@ -26,7 +26,7 @@ import {
   tableNextCell,
   tableNextRow,
   tablePrevCell,
-} from '@typo/editor'
+} from '@mosu/editor'
 import { mkState } from './helpers.js'
 
 /**

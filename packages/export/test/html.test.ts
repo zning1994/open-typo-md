@@ -104,7 +104,7 @@ describe('宿主能力注入', () => {
       renderDiagram: async (code) => `<svg data-code="${code.trim().length}"></svg>`,
     })
     expect(html).toContain('<svg')
-    expect(html).toContain('typo-diagram')
+    expect(html).toContain('mosu-diagram')
     expect(html).not.toContain('language-mermaid')
   })
 
@@ -159,7 +159,7 @@ describe('自包含单文件', () => {
 
   it('自带兜底排版 —— 没有它导出的文件像是导坏了', () => {
     const doc = buildDocument('<p>x</p>', { title: 't' })
-    expect(doc).toContain('max-width: var(--typo-content-width)')
+    expect(doc).toContain('max-width: var(--mosu-content-width)')
   })
 
   it('传入的主题 CSS 排在兜底之后，能覆盖它', () => {

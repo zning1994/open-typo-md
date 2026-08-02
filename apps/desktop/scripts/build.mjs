@@ -13,18 +13,18 @@ import { build as viteBuild } from 'vite'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const alias = {
-  '@typo/plugin-api': path.join(root, '../../packages/plugin-api/src/index.ts'),
-  '@typo/plugin-api/testing': path.join(root, '../../packages/plugin-api/src/testing/index.ts'),
-  '@typo/markdown/text': path.join(root, '../../packages/markdown/src/text.ts'),
-  '@typo/markdown': path.join(root, '../../packages/markdown/src/index.ts'),
-  '@typo/editor': path.join(root, '../../packages/editor/src/index.ts'),
+  '@mosu/plugin-api': path.join(root, '../../packages/plugin-api/src/index.ts'),
+  '@mosu/plugin-api/testing': path.join(root, '../../packages/plugin-api/src/testing/index.ts'),
+  '@mosu/markdown/text': path.join(root, '../../packages/markdown/src/text.ts'),
+  '@mosu/markdown': path.join(root, '../../packages/markdown/src/index.ts'),
+  '@mosu/editor': path.join(root, '../../packages/editor/src/index.ts'),
 }
 
 /** 把工作区包名解析到源码文件 —— esbuild 没有 vite 那样的 alias 配置项。 */
 const workspaceAlias = {
-  name: 'typo-workspace-alias',
+  name: 'mosu-workspace-alias',
   setup(build) {
-    const pattern = /^@typo\//
+    const pattern = /^@mosu\//
     build.onResolve({ filter: pattern }, (args) => {
       const target = alias[args.path]
       return target ? { path: target } : null

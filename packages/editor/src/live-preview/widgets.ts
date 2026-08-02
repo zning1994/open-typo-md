@@ -27,7 +27,7 @@ export class BulletWidget extends WidgetType {
   }
   toDOM(): HTMLElement {
     const span = document.createElement('span')
-    span.className = 'cm-typo-bullet'
+    span.className = 'cm-mosu-bullet'
     span.textContent = '•'
     // 项目符号是纯装饰，读屏软件应该读列表语义而不是这个字符
     span.setAttribute('aria-hidden', 'true')
@@ -50,7 +50,7 @@ export class LineBreakWidget extends WidgetType {
   }
   toDOM(): HTMLElement {
     const span = document.createElement('span')
-    span.className = 'cm-typo-html-br'
+    span.className = 'cm-mosu-html-br'
     span.appendChild(document.createElement('br'))
     return span
   }
@@ -69,7 +69,7 @@ export class RuleWidget extends WidgetType {
   }
   toDOM(): HTMLElement {
     const span = document.createElement('span')
-    span.className = 'cm-typo-hr'
+    span.className = 'cm-mosu-hr'
     span.setAttribute('role', 'separator')
     return span
   }
@@ -99,11 +99,11 @@ export function revealOnClick(view: EditorView, host: HTMLElement): void {
 /**
  * 代码块右上角的语言选择器。
  *
- * 之前这里是纯 CSS 的 `::after { content: attr(data-typo-lang) }`，只能看不能点。
+ * 之前这里是纯 CSS 的 `::after { content: attr(data-mosu-lang) }`，只能看不能点。
  * 换成真元素是为了让它可交互，但有两条约束要一起满足：
  *
  * 1. **不能占据行内空间** —— 它挂在代码首行上，一旦参与布局就会把代码顶右边去。
- *    所以用绝对定位脱离文档流（`.cm-typo-code-first` 已经是 `position: relative`）。
+ *    所以用绝对定位脱离文档流（`.cm-mosu-code-first` 已经是 `position: relative`）。
  * 2. **不能持有状态** —— 选择的结果必须立刻写回围栏的语言标注，
  *    走一次普通 transaction（docs/design/02 §6 的铁律）。
  *    这里连 `<select>` 的当前值都不自己记：它每次都从文档重新渲染。
@@ -141,7 +141,7 @@ export class CodeLanguageWidget extends WidgetType {
 
   toDOM(view: EditorView): HTMLElement {
     const select = document.createElement('select')
-    select.className = 'cm-typo-code-lang'
+    select.className = 'cm-mosu-code-lang'
     const labels = labelsOf(view)
     select.title = labels.codeLanguage
     select.setAttribute('aria-label', labels.codeLanguage)
@@ -204,7 +204,7 @@ function setFenceLanguage(view: EditorView, pos: number, language: string): void
   const from = fence.from + (match[1] as string).length
   view.dispatch({
     changes: { from, to: fence.to, insert: language },
-    userEvent: 'input.typo.code-language',
+    userEvent: 'input.mosu.code-language',
   })
 }
 
@@ -232,7 +232,7 @@ export class TaskCheckboxWidget extends WidgetType {
   toDOM(view: EditorView): HTMLElement {
     const box = document.createElement('input')
     box.type = 'checkbox'
-    box.className = 'cm-typo-task'
+    box.className = 'cm-mosu-task'
     box.checked = this.checked
     // contenteditable 里的表单控件必须显式声明不可编辑，否则光标能走进去
     box.setAttribute('contenteditable', 'false')
@@ -273,7 +273,7 @@ function toggleTaskAt(view: EditorView, pos: number): void {
   const insert = match[1] === ' ' ? 'x' : ' '
   view.dispatch({
     changes: { from, to: from + 1, insert },
-    userEvent: 'input.typo.task',
+    userEvent: 'input.mosu.task',
   })
 }
 
@@ -298,7 +298,7 @@ export class EntityWidget extends WidgetType {
 
   toDOM(): HTMLElement {
     const span = document.createElement('span')
-    span.className = 'cm-typo-entity'
+    span.className = 'cm-mosu-entity'
     span.textContent = this.text
     span.title = this.source
     return span
@@ -331,14 +331,14 @@ export class ImageWidget extends WidgetType {
 
   toDOM(view: EditorView): HTMLElement {
     const wrap = document.createElement('span')
-    wrap.className = 'cm-typo-image'
+    wrap.className = 'cm-mosu-image'
 
     const img = document.createElement('img')
     img.src = this.src
     img.alt = this.alt
     img.loading = 'lazy'
     img.addEventListener('error', () => {
-      wrap.classList.add('cm-typo-image--broken')
+      wrap.classList.add('cm-mosu-image--broken')
       wrap.textContent = this.source
       wrap.title = labelsOf(view).imageFailed(this.src)
     })

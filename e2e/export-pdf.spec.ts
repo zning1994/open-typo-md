@@ -18,7 +18,7 @@ import type { ElectronApplication, Page } from '@playwright/test'
 let dir: string
 
 test.beforeEach(async () => {
-  dir = await mkdtemp(path.join(tmpdir(), 'typo-pdf-'))
+  dir = await mkdtemp(path.join(tmpdir(), 'mosu-pdf-'))
 })
 
 test.afterEach(async () => {
@@ -80,7 +80,7 @@ test('正文确实画进了 PDF，不是一页空白', async ({ app, page }) => 
 async function pdfFromHtml(page: Page, name: string, html: string): Promise<string> {
   const target = path.join(dir, name)
   await page.evaluate(
-    ([file, source]) => window.typo.fs.writePdf(file as string, source as string),
+    ([file, source]) => window.mosu.fs.writePdf(file as string, source as string),
     [target, html],
   )
   return contentStreams(await readFile(target))
@@ -117,7 +117,7 @@ test('深色主题下导出的 PDF 仍然是浅色底', async ({ app, page }) =>
   // 深色主题打出来是一整页黑，既费墨也读不了。
   // 这跟应用自己的打印样式是同一条规矩，不是建议而是默认行为
   await clickMenu(app, ['视图', '主题', '深色'])
-  await expect(page.locator('html')).toHaveAttribute('data-typo-theme', 'dark')
+  await expect(page.locator('html')).toHaveAttribute('data-mosu-theme', 'dark')
 
   await pasteText(page, '# 标题\n\n正文一段')
   const content = contentStreams(await exportPdf(app, 'dark.pdf'))
@@ -140,7 +140,7 @@ test('图片进得了 PDF', async ({ app, page }) => {
   await writeFile(docPath, '![图](a.png)\n', 'utf8')
 
   const before = page.context().pages().length
-  await page.evaluate((p) => window.typo.window.create(p), docPath)
+  await page.evaluate((p) => window.mosu.window.create(p), docPath)
   await expect.poll(() => page.context().pages().length).toBeGreaterThan(before)
   const doc = page.context().pages().at(-1)!
   await doc.waitForSelector('.cm-content', { state: 'visible' })

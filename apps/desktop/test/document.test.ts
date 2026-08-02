@@ -5,7 +5,7 @@
  * 最容易出数据丢失事故的逻辑，可以毫秒级地反复验证。
  */
 import { beforeEach, describe, expect, it } from 'vitest'
-import { createMemoryHost, type MemoryHost } from '@typo/plugin-api/testing'
+import { createMemoryHost, type MemoryHost } from '@mosu/plugin-api/testing'
 import { DocumentController, type EditorHandle } from '../src/renderer/document.js'
 // 断言用**文案表里的那一条**，不写死字面量。这不是同义反复：真正要验的是
 // 「这个条件触发的是这一条消息」，而写死字面量的话任何一次改文案（哪怕只是

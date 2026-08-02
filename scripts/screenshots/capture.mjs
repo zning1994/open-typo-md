@@ -114,7 +114,7 @@ async function sendCommand(app, command) {
 async function setTheme(app, page, id) {
   await sendCommand(app, `view.theme.${id}`)
   await page.waitForFunction(
-    (expected) => document.documentElement.dataset['typoTheme'] === expected,
+    (expected) => document.documentElement.dataset['mosuTheme'] === expected,
     id,
   )
   await page.waitForTimeout(200)
@@ -138,7 +138,7 @@ async function shootLang(app, page, lang) {
   // —— 第一屏：标题、正文、表格、任务列表、公式 ——
   //
   // 公式是懒加载的，等它渲染完再拍
-  await waitFor(page, '.cm-typo-math .katex', 'KaTeX 公式')
+  await waitFor(page, '.cm-mosu-math .katex', 'KaTeX 公式')
   await toTop(page)
 
   await setTheme(app, page, 'light')
@@ -153,7 +153,7 @@ async function shootLang(app, page, lang) {
   // 算装饰 —— 图表在视口外时那个 SVG 根本不存在，干等只会超时。
   await setTheme(app, page, 'light')
   await page.keyboard.press('ControlOrMeta+End')
-  await waitFor(page, '.cm-typo-mermaid svg', 'Mermaid 图表')
+  await waitFor(page, '.cm-mosu-mermaid svg', 'Mermaid 图表')
 
   // 定位到那一节的标题，而**不是靠滚动距离猜**。猜距离的写法一改文档就错位，
   // 而且错位了 CI 也不会告诉你 —— 图还是能出，只是拍歪了。
@@ -170,7 +170,7 @@ async function shootLang(app, page, lang) {
   // 滚到文档末尾时编辑区底下有一大片留白（`padding-bottom: 40vh`，为了让最后
   // 一行也能停在舒服的位置）。按 mermaid 图的实际底边裁掉它 —— 写死一个高度
   // 的话，样例文档一改就又留白或者又切掉半张图
-  const diagram = await page.locator('.cm-typo-mermaid').first().boundingBox()
+  const diagram = await page.locator('.cm-mosu-mermaid').first().boundingBox()
   if (!diagram) throw new Error(`[${lang.id}] 找不到图表，没法决定裁到哪儿`)
   await shoot(page, lang.id, 'blocks-light', {
     clip: { x: 0, y: 0, width: WIDTH, height: Math.ceil(diagram.y + diagram.height + 40) },
@@ -194,9 +194,9 @@ async function shootLang(app, page, lang) {
   await shoot(page, lang.id, 'reveal-before', { clip })
 
   // 点进那句加粗文字里，`**` 就地显形
-  await paragraph.locator('.cm-typo-strong').first().click()
+  await paragraph.locator('.cm-mosu-strong').first().click()
   await page.waitForFunction(
-    () => document.querySelector('.cm-typo-mark') !== null,
+    () => document.querySelector('.cm-mosu-mark') !== null,
     undefined,
     {
       timeout: 10_000,
@@ -216,7 +216,7 @@ async function shootAll() {
   await mkdir(outDir, { recursive: true })
 
   for (const lang of LANGS) {
-    const userDataDir = path.join(tmpdir(), `typo-shots-${lang.id}-${Date.now()}`)
+    const userDataDir = path.join(tmpdir(), `mosu-shots-${lang.id}-${Date.now()}`)
     await mkdir(userDataDir, { recursive: true })
     await mkdir(path.join(outDir, lang.id), { recursive: true })
 

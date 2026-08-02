@@ -20,9 +20,9 @@ import {
   markdownLanguageSupport,
   type MarkdownDialect,
   type OutlineItem,
-} from '@typo/markdown'
+} from '@mosu/markdown'
 import { codeBlockScrollSync } from './code-block.js'
-import { DEFAULT_FORMAT_KEYS, currentHeadingLevel, typoCommands } from './commands.js'
+import { DEFAULT_FORMAT_KEYS, currentHeadingLevel, mosuCommands } from './commands.js'
 import {
   DEFAULT_LABELS,
   livePreviewConfig,
@@ -36,7 +36,7 @@ import { inputBehavior } from './input.js'
 import { linkInteraction } from './links.js'
 import { livePreview } from './live-preview/index.js'
 import { richTextPaste } from './paste.js'
-import { typoTheme } from './theme.js'
+import { mosuTheme } from './theme.js'
 import { WritingModes } from './writing-modes.js'
 
 export interface EditorStats {
@@ -57,7 +57,7 @@ export interface EditorStatus {
   typewriterMode: boolean
 }
 
-export interface TypoEditorOptions {
+export interface MosuEditorOptions {
   parent: HTMLElement
   doc?: string
   dialect?: MarkdownDialect
@@ -93,7 +93,7 @@ export interface TypoEditorOptions {
 
 const STATUS_DEBOUNCE_MS = 200
 
-export class TypoEditor {
+export class MosuEditor {
   readonly view: EditorView
 
   private readonly previewCompartment = new Compartment()
@@ -123,7 +123,7 @@ export class TypoEditor {
    */
   private readonly modes: WritingModes
 
-  constructor(private readonly options: TypoEditorOptions) {
+  constructor(private readonly options: MosuEditorOptions) {
     this.sourceModeOn = options.sourceMode ?? false
     this.renderInlineHtmlOn = options.renderInlineHtml ?? true
     this.formatKeys = options.formatKeys ?? DEFAULT_FORMAT_KEYS
@@ -142,7 +142,7 @@ export class TypoEditor {
   private buildExtensions(): Extension[] {
     const { options } = this
     return [
-      // 方言默认值交给 @typo/markdown 决定（现为 GFM），这里不再写死一份 ——
+      // 方言默认值交给 @mosu/markdown 决定（现为 GFM），这里不再写死一份 ——
       // 写死过一次，结果是「解析器默认换了、编辑器还在跑旧方言」
       markdownLanguageSupport(options.dialect ? { dialect: options.dialect } : {}),
       this.configCompartment.of(livePreviewConfig.of(this.previewConfig())),
@@ -150,8 +150,8 @@ export class TypoEditor {
       this.modes.extension(),
       linkInteraction(),
       this.readOnlyCompartment.of(EditorState.readOnly.of(options.readOnly ?? false)),
-      typoTheme(),
-      this.keymapCompartment.of(typoCommands(this.formatKeys)),
+      mosuTheme(),
+      this.keymapCompartment.of(mosuCommands(this.formatKeys)),
       inputBehavior(),
       imageInsertion(),
       richTextPaste(),
@@ -252,7 +252,7 @@ export class TypoEditor {
   replaceDoc(text: string): void {
     this.view.dispatch({
       changes: { from: 0, to: this.view.state.doc.length, insert: text },
-      userEvent: 'input.typo.reload',
+      userEvent: 'input.mosu.reload',
     })
   }
 
@@ -285,11 +285,11 @@ export class TypoEditor {
     })
   }
 
-  /** 换掉格式命令的键位。整份替换，见 `TypoEditorOptions.formatKeys`。 */
+  /** 换掉格式命令的键位。整份替换，见 `MosuEditorOptions.formatKeys`。 */
   setFormatKeys(keys: Record<string, string>): void {
     this.formatKeys = keys
     this.view.dispatch({
-      effects: this.keymapCompartment.reconfigure(typoCommands(keys)),
+      effects: this.keymapCompartment.reconfigure(mosuCommands(keys)),
     })
   }
 

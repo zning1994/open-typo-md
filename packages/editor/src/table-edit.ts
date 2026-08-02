@@ -23,7 +23,7 @@
 import { syntaxTree } from '@codemirror/language'
 import { EditorSelection, type EditorState, type SelectionRange } from '@codemirror/state'
 import type { Command, EditorView } from '@codemirror/view'
-import { TABLE_NODES } from '@typo/markdown'
+import { TABLE_NODES } from '@mosu/markdown'
 import {
   alignmentsOf,
   delimiterRowOf,
@@ -327,7 +327,7 @@ function applyModel(
     changes: current === text ? [] : { from: model.from, to: model.to, insert: text },
     ...(selection ? { selection: EditorSelection.create([selection]) } : {}),
     scrollIntoView: true,
-    userEvent: 'input.typo.table',
+    userEvent: 'input.mosu.table',
   })
   return true
 }
@@ -442,7 +442,7 @@ export const tableNextRow: Command = (view) =>
         changes: { from: model.from, to: model.to, insert: `${text}\n` },
         selection: EditorSelection.cursor(model.from + text.length + 1),
         scrollIntoView: true,
-        userEvent: 'input.typo.table',
+        userEvent: 'input.mosu.table',
       })
       return true
     }
@@ -555,7 +555,7 @@ export function tableInsert(rows: number, columns: number): Command {
       changes: { from: pos, insert: prefix + text + suffix },
       selection: EditorSelection.cursor(at + (cells[0]?.[0]?.from ?? 0)),
       scrollIntoView: true,
-      userEvent: 'input.typo.table',
+      userEvent: 'input.mosu.table',
     })
     return true
   }

@@ -55,7 +55,7 @@ test('粘进来的表格在实时预览里真的是表格', async ({ page }) => 
 
   // 光标停在「后文」上，表格不处于激活态，因此应当以渲染形态呈现。
   // 两行而不是三行：分隔行在渲染态里是藏起来的（见 tables.spec.ts）
-  await expect(page.locator('.cm-typo-tr')).toHaveCount(2)
+  await expect(page.locator('.cm-mosu-tr')).toHaveCount(2)
 })
 
 test('Google 文档的假粗体外壳不会让整篇变粗', async ({ page }) => {

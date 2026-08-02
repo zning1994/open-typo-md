@@ -28,7 +28,7 @@ async function paste(page: Page, text: string): Promise<void> {
 
 /** 当前变暗的行数。0 表示专注模式没开（或整篇都是当前块）。 */
 function dimmed(page: Page) {
-  return page.locator(`${ACTIVE_PAGE} .cm-typo-dim`)
+  return page.locator(`${ACTIVE_PAGE} .cm-mosu-dim`)
 }
 
 async function scrollTop(page: Page): Promise<number> {
@@ -47,7 +47,7 @@ test.describe('专注模式', () => {
     // 当前段本身不能带 dim —— 否则「专注」反而把要写的那段调暗了
     await expect(
       page.locator(`${ACTIVE_PAGE} .cm-line`).filter({ hasText: '第三段' }),
-    ).not.toHaveClass(/cm-typo-dim/)
+    ).not.toHaveClass(/cm-mosu-dim/)
 
     await clickMenu(app, ['视图', '专注模式'])
     await expect(dimmed(page)).toHaveCount(0)
@@ -60,10 +60,10 @@ test.describe('专注模式', () => {
     await page.locator(`${ACTIVE_PAGE} .cm-line`).filter({ hasText: '第一段' }).click()
     await expect(
       page.locator(`${ACTIVE_PAGE} .cm-line`).filter({ hasText: '第一段' }),
-    ).not.toHaveClass(/cm-typo-dim/)
+    ).not.toHaveClass(/cm-mosu-dim/)
     await expect(
       page.locator(`${ACTIVE_PAGE} .cm-line`).filter({ hasText: '第三段' }),
-    ).toHaveClass(/cm-typo-dim/)
+    ).toHaveClass(/cm-mosu-dim/)
 
     await clickMenu(app, ['视图', '专注模式'])
   })

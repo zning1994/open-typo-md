@@ -1,7 +1,7 @@
 /**
  * 分层依赖方向检查（架构 01 §1）。
  *
- * 规则：依赖只能向下。`@typo/markdown` 不认识编辑器，`@typo/editor` 不认识 UI，
+ * 规则：依赖只能向下。`@mosu/markdown` 不认识编辑器，`@mosu/editor` 不认识 UI，
  * 内核不认识 Electron。这条规则一旦被破坏，「内核可嵌入、可脱离 Electron 测试」
  * 的能力就没了 —— 而且通常是在某次「就加一个 import」之后悄悄没的。
  *
@@ -15,33 +15,33 @@ const root = fileURLToPath(new URL('..', import.meta.url))
 
 /** 每个包**允许**依赖的工作区包。未列出的一律视为违规。 */
 const ALLOWED = {
-  '@typo/plugin-api': [],
+  '@mosu/plugin-api': [],
   // 文案层是纯字符串处理，谁也不认识 —— 它跟 plugin-api 一样是叶子
-  '@typo/i18n': [],
-  '@typo/markdown': ['@typo/plugin-api'],
+  '@mosu/i18n': [],
+  '@mosu/markdown': ['@mosu/plugin-api'],
   // 导出层认识语义解析，但**不认识编辑器** —— 导出不该依赖「界面上现在是什么样」
-  '@typo/export': ['@typo/plugin-api', '@typo/markdown'],
+  '@mosu/export': ['@mosu/plugin-api', '@mosu/markdown'],
   // 导入层是纯转换，谁也不认识 —— 它比编辑器还低一层
-  '@typo/import': [],
-  '@typo/editor': ['@typo/plugin-api', '@typo/markdown', '@typo/import'],
-  '@typo/desktop': [
-    '@typo/plugin-api',
-    '@typo/i18n',
-    '@typo/markdown',
-    '@typo/export',
-    '@typo/import',
-    '@typo/editor',
+  '@mosu/import': [],
+  '@mosu/editor': ['@mosu/plugin-api', '@mosu/markdown', '@mosu/import'],
+  '@mosu/desktop': [
+    '@mosu/plugin-api',
+    '@mosu/i18n',
+    '@mosu/markdown',
+    '@mosu/export',
+    '@mosu/import',
+    '@mosu/editor',
   ],
 }
 
 /** 这些包的源码里不允许出现的 import —— 内核必须与宿主无关（原则 P3）。 */
 const FORBIDDEN_IMPORTS = {
-  '@typo/plugin-api': [/^electron$/, /^node:/],
-  '@typo/i18n': [/^electron$/, /^node:/],
-  '@typo/markdown': [/^electron$/, /^node:/],
-  '@typo/export': [/^electron$/, /^node:/],
-  '@typo/import': [/^electron$/, /^node:/],
-  '@typo/editor': [/^electron$/, /^node:/],
+  '@mosu/plugin-api': [/^electron$/, /^node:/],
+  '@mosu/i18n': [/^electron$/, /^node:/],
+  '@mosu/markdown': [/^electron$/, /^node:/],
+  '@mosu/export': [/^electron$/, /^node:/],
+  '@mosu/import': [/^electron$/, /^node:/],
+  '@mosu/editor': [/^electron$/, /^node:/],
 }
 
 const errors = []
@@ -82,7 +82,7 @@ for (const dir of await listPackages()) {
   const declared = Object.keys({
     ...manifest.dependencies,
     ...manifest.devDependencies,
-  }).filter((dep) => dep.startsWith('@typo/'))
+  }).filter((dep) => dep.startsWith('@mosu/'))
   for (const dep of declared) {
     if (!allowed.includes(dep)) {
       errors.push(`${name} 不允许依赖 ${dep}（package.json）`)
@@ -98,7 +98,7 @@ for (const dir of await listPackages()) {
       const specifier = match[1]
       const rel = path.relative(root, file)
 
-      if (specifier.startsWith('@typo/')) {
+      if (specifier.startsWith('@mosu/')) {
         const target = specifier.split('/').slice(0, 2).join('/')
         if (target !== name && !allowed.includes(target)) {
           errors.push(`${rel} 不允许 import ${specifier}`)

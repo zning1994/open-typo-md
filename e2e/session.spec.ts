@@ -30,8 +30,8 @@ let userDataDir: string
 let workDir: string
 
 test.beforeEach(async () => {
-  userDataDir = await mkdtemp(path.join(tmpdir(), 'typo-session-ud-'))
-  workDir = await mkdtemp(path.join(tmpdir(), 'typo-session-'))
+  userDataDir = await mkdtemp(path.join(tmpdir(), 'mosu-session-ud-'))
+  workDir = await mkdtemp(path.join(tmpdir(), 'mosu-session-'))
   // 这个文件自己管 userData，所以要自己钉住界面语言 —— 理由见 fixtures.ts。
   // 下面那几处 `label === '打开文件夹…'` 否则会随跑测试的机器的系统区域而变
   await writeFile(
@@ -96,10 +96,10 @@ test('重启之后恢复上次的工作区与标签', async () => {
     const file = Menu.getApplicationMenu()?.items.find((i) => i.label === '文件')
     file?.submenu?.items.find((i) => i.label === '打开文件夹…')?.click()
   })
-  await expect(page1.locator('.typo-files')).toBeVisible()
+  await expect(page1.locator('.mosu-files')).toBeVisible()
 
-  await page1.locator('.typo-files__item').filter({ hasText: '甲.md' }).click()
-  await page1.locator('.typo-files__item').filter({ hasText: '乙.md' }).click()
+  await page1.locator('.mosu-files__item').filter({ hasText: '甲.md' }).click()
+  await page1.locator('.mosu-files__item').filter({ hasText: '乙.md' }).click()
   await expect(page1.locator('.tab-bar .tab')).toHaveCount(2)
 
   // 等会话落盘（渲染进程 300ms 防抖 + main 侧 400ms 防抖）
@@ -115,8 +115,8 @@ test('重启之后恢复上次的工作区与标签', async () => {
   await page2.waitForSelector(ACTIVE_CONTENT, { state: 'visible' })
 
   // 工作区回来了
-  await expect(page2.locator('.typo-files')).toBeVisible({ timeout: 20_000 })
-  await expect(page2.locator('.typo-files__title')).toHaveText(path.basename(workDir))
+  await expect(page2.locator('.mosu-files')).toBeVisible({ timeout: 20_000 })
+  await expect(page2.locator('.mosu-files__title')).toHaveText(path.basename(workDir))
   // 两个标签也回来了
   await expect(page2.locator('.tab-bar .tab')).toHaveCount(2, { timeout: 20_000 })
 
@@ -140,8 +140,8 @@ test('上次的文件被删掉时，静默跳过它，其余照常恢复', async
     const file = Menu.getApplicationMenu()?.items.find((i) => i.label === '文件')
     file?.submenu?.items.find((i) => i.label === '打开文件夹…')?.click()
   })
-  await page1.locator('.typo-files__item').filter({ hasText: '留下.md' }).click()
-  await page1.locator('.typo-files__item').filter({ hasText: '会被删掉.md' }).click()
+  await page1.locator('.mosu-files__item').filter({ hasText: '留下.md' }).click()
+  await page1.locator('.mosu-files__item').filter({ hasText: '会被删掉.md' }).click()
   await expect(page1.locator('.tab-bar .tab')).toHaveCount(2)
 
   await expect

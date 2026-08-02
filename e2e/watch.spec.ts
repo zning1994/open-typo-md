@@ -20,7 +20,7 @@ import type { Page } from '@playwright/test'
 let dir: string
 
 test.beforeEach(async () => {
-  dir = await mkdtemp(path.join(tmpdir(), 'typo-watch-'))
+  dir = await mkdtemp(path.join(tmpdir(), 'mosu-watch-'))
 })
 
 test.afterEach(async () => {
@@ -33,7 +33,7 @@ async function openDoc(page: Page, name: string, content: string): Promise<[Page
   await writeFile(target, content, 'utf8')
 
   const before = page.context().pages().length
-  await page.evaluate((p) => window.typo.window.create(p), target)
+  await page.evaluate((p) => window.mosu.window.create(p), target)
   await expect
     .poll(() => page.context().pages().length, { timeout: 15_000 })
     .toBeGreaterThan(before)
@@ -81,7 +81,7 @@ test('自己保存不会惊动自己', async ({ page }) => {
   await doc.evaluate(() => {
     const w = window as unknown as { __changes: number }
     w.__changes = 0
-    window.typo.on.fileChanged(() => {
+    window.mosu.on.fileChanged(() => {
       w.__changes++
     })
   })
@@ -91,7 +91,7 @@ test('自己保存不会惊动自己', async ({ page }) => {
   for (const n of [1, 2, 3]) {
     await doc.evaluate(
       async ({ path, text }) => {
-        await window.typo.fs.write(path, text, {
+        await window.mosu.fs.write(path, text, {
           meta: { encoding: 'utf8', eol: 'lf', mixedEol: false },
           expectedHash: null,
         })

@@ -18,25 +18,25 @@ Typora 生态最有价值的资产就是社区主题。要复制这个效果，�
 ```css
 :root {
   /* 排版 */
-  --typo-font-body: -apple-system, "Segoe UI", "PingFang SC", sans-serif;
-  --typo-font-mono: "JetBrains Mono", Menlo, Consolas, monospace;
-  --typo-font-size: 16px;
-  --typo-line-height: 1.7;
-  --typo-content-width: 40em;
+  --mosu-font-body: -apple-system, "Segoe UI", "PingFang SC", sans-serif;
+  --mosu-font-mono: "JetBrains Mono", Menlo, Consolas, monospace;
+  --mosu-font-size: 16px;
+  --mosu-line-height: 1.7;
+  --mosu-content-width: 40em;
 
   /* 颜色（语义化，不是"blue-500"这种） */
-  --typo-bg: #fff;
-  --typo-fg: #24292f;
-  --typo-fg-muted: #6e7781;
-  --typo-accent: #0969da;
-  --typo-border: #d0d7de;
-  --typo-code-bg: #f6f8fa;
-  --typo-selection: #b4d5fe;
+  --mosu-bg: #fff;
+  --mosu-fg: #24292f;
+  --mosu-fg-muted: #6e7781;
+  --mosu-accent: #0969da;
+  --mosu-border: #d0d7de;
+  --mosu-code-bg: #f6f8fa;
+  --mosu-selection: #b4d5fe;
 
   /* 编辑器专属 */
-  --typo-marker-fg: #b0b6bd;      /* 显形的 Markdown 标记 */
-  --typo-cursor: var(--typo-fg);
-  --typo-focus-dim: 0.35;          /* 专注模式下非当前块的不透明度 */
+  --mosu-marker-fg: #b0b6bd;      /* 显形的 Markdown 标记 */
+  --mosu-cursor: var(--mosu-fg);
+  --mosu-focus-dim: 0.35;          /* 专注模式下非当前块的不透明度 */
   /* 注意：0.35 下变暗的正文只有 2.1:1，达不到 WCAG AA。
      内置样式在 `prefers-contrast: more` 下把它覆盖成 1，主题作者若要重定义
      这个变量，请一并保留那条 media query。取舍的完整理由见 07 §3.1 */
@@ -48,23 +48,23 @@ Typora 生态最有价值的资产就是社区主题。要复制这个效果，�
 
 ### 3. 类名契约
 
-内容区根节点 `.typo-content`，所有块级元素带 `.typo-<type>`：
+内容区根节点 `.mosu-content`，所有块级元素带 `.mosu-<type>`：
 
 ```
-.typo-content
-├── .typo-heading.typo-h1 … .typo-h6
-├── .typo-paragraph
-├── .typo-list.typo-list--ordered / --bullet / --task
-├── .typo-blockquote
-├── .typo-code-block[data-lang="ts"]
-├── .typo-table
-├── .typo-math.typo-math--block / --inline
-├── .typo-image
-└── .typo-hr
+.mosu-content
+├── .mosu-heading.mosu-h1 … .mosu-h6
+├── .mosu-paragraph
+├── .mosu-list.mosu-list--ordered / --bullet / --task
+├── .mosu-blockquote
+├── .mosu-code-block[data-lang="ts"]
+├── .mosu-table
+├── .mosu-math.mosu-math--block / --inline
+├── .mosu-image
+└── .mosu-hr
 ```
 
-状态类：`.typo-active`（光标所在块）、`.typo-source-visible`（标记显形中）、
-`.typo-widget-editing`。
+状态类：`.mosu-active`（光标所在块）、`.mosu-source-visible`（标记显形中）、
+`.mosu-widget-editing`。
 
 **打印样式是契约的一部分**：主题必须在 `@media print` 下可用，导出 PDF 直接复用（见 06）。
 
@@ -150,7 +150,7 @@ export default class WikiLinkPlugin implements Plugin {
 
 ### 4. API 稳定性
 
-- `@typo/plugin-api` 的 semver 就是插件 API 的 semver。
+- `@mosu/plugin-api` 的 semver 就是插件 API 的 semver。
 - 每个插件在 manifest 里声明 `apiVersion` 范围，不匹配则拒绝加载并提示。
 - 破坏性变更只在 major 版本，且提前一个 minor 版本开始输出废弃警告。
 - 内置功能（数学、图表、脚注）**用同一套 API 实现**，作为 API 的活体测试。
@@ -268,6 +268,6 @@ main 侧**再兜一次底**：PDF 的页边距在 `renderPdf` 里又校验了一
   并注入」的通路，涉及 CSP 与路径白名单，跟内置主题不是一个量级。
 - **附件目录名**。现在写死 `assets`。改它要动附件落盘那条路径的校验
   （目录名不能含分隔符、不能是 `..`），跟设置面板本身无关，单独做更稳妥。
-- **字体与字号**。变量契约里有 `--typo-font-body` / `--typo-font-size`，但没有
+- **字体与字号**。变量契约里有 `--mosu-font-body` / `--mosu-font-size`，但没有
   给它们做界面 —— 现在只能靠自定义主题改。做界面要先决定「它算主题的一部分
   还是独立设置」，而那个问题在用户主题目录落地之前没法回答。

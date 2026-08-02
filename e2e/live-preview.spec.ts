@@ -16,13 +16,13 @@ test.describe('基本渲染', () => {
   test('标题渲染为大字号，# 被隐藏', async ({ page }) => {
     await resetDoc(page, '# 一级标题\n\n正文')
     // 光标停在正文，标题行不激活
-    await expect(page.locator('.cm-typo-h1')).toHaveCount(1)
-    await expect(page.locator('.cm-typo-h1')).toHaveText('一级标题')
+    await expect(page.locator('.cm-mosu-h1')).toHaveCount(1)
+    await expect(page.locator('.cm-mosu-h1')).toHaveText('一级标题')
   })
 
   test('加粗文字带样式且标记不可见', async ({ page }) => {
     await resetDoc(page, '这是 **粗体** 内容\n\n第二段')
-    const strong = page.locator('.cm-typo-strong')
+    const strong = page.locator('.cm-mosu-strong')
     await expect(strong).toHaveCount(1)
     await expect(strong).toHaveText('粗体')
     expect(await visibleText(page)).toContain('这是 粗体 内容')
@@ -30,12 +30,12 @@ test.describe('基本渲染', () => {
 
   test('列表标记渲染为圆点', async ({ page }) => {
     await resetDoc(page, '- 第一项\n- 第二项\n\n段落')
-    await expect(page.locator('.cm-typo-bullet').first()).toHaveText('•')
+    await expect(page.locator('.cm-mosu-bullet').first()).toHaveText('•')
   })
 
   test('分隔线渲染为横线元素', async ({ page }) => {
     await resetDoc(page, '上文\n\n---\n\n下文')
-    await expect(page.locator('.cm-typo-hr')).toHaveCount(1)
+    await expect(page.locator('.cm-mosu-hr')).toHaveCount(1)
   })
 })
 
@@ -89,7 +89,7 @@ test.describe('编辑行为', () => {
   test('敲 # 空格立刻变成标题（源码优先模型的天然结果）', async ({ page }) => {
     await resetDoc(page)
     await page.keyboard.type('## 标题')
-    await expect(page.locator('.cm-typo-h2')).toHaveCount(1)
+    await expect(page.locator('.cm-mosu-h2')).toHaveCount(1)
   })
 
   test('回车续写列表标记', async ({ page }) => {
@@ -153,7 +153,7 @@ test.describe('代码块', () => {
     await page.keyboard.press('ControlOrMeta+End')
     expect(await visibleText(page)).not.toContain('```')
     // 语言名改由右上角的选择器呈现，显示的是规范名
-    await expect(page.locator('.cm-typo-code-lang')).toHaveValue('JavaScript')
+    await expect(page.locator('.cm-mosu-code-lang')).toHaveValue('JavaScript')
 
     // 点进代码内容行，围栏应当就地显形，这样用户才删得掉这个块
     await page.locator('.cm-line').filter({ hasText: 'const a = 1' }).first().click()
@@ -164,11 +164,11 @@ test.describe('代码块', () => {
     // 藏行时若把后面那个换行一起盖掉，会和下一行合并、把下一行的行装饰整个丢掉
     await resetDoc(page, '前文\n\n```js\nconst a = 1\n```\n\n后文')
     await page.keyboard.press('ControlOrMeta+End')
-    const first = page.locator('.cm-typo-code-first')
+    const first = page.locator('.cm-mosu-code-first')
     // 用 toContainText 而不是 toHaveText：这一行里还挂着语言选择器，
     // `<option>` 的文本也会算进 textContent 里
     await expect(first).toContainText('const a = 1')
-    await expect(first).toHaveClass(/cm-typo-code-block/)
+    await expect(first).toHaveClass(/cm-mosu-code-block/)
   })
 
   test('代码不折行，长行产生横向滚动', async ({ page }) => {
@@ -177,7 +177,7 @@ test.describe('代码块', () => {
     // 结尾也要有内容，否则光标停在文末 == 贴着代码块的闭区间边界 == 算「块内」
     await resetDoc(page, '前文\n\n```js\n' + long + '\n```\n\n后文')
 
-    const codeLine = page.locator('.cm-typo-code-block').first()
+    const codeLine = page.locator('.cm-mosu-code-block').first()
 
     // 用轮询而不是一次性读取：装饰是在语法树就绪后才应用的，
     // 直接断言会跑在它前面，读到的还是「按散文折行」的中间态
@@ -211,7 +211,7 @@ test.describe('代码块', () => {
       '前文\n\n```js\nconst a = "' + long + '"\nconst b = "' + long + '"\n```\n\n后文',
     )
 
-    const lines = page.locator('.cm-typo-code-block')
+    const lines = page.locator('.cm-mosu-code-block')
     await lines.nth(0).evaluate((el) => {
       el.scrollLeft = 120
       el.dispatchEvent(new Event('scroll', { bubbles: false }))
@@ -224,7 +224,7 @@ test.describe('代码块', () => {
     await resetDoc(page, '```js\nconst answer = 42\n```')
     // 语言解析器是异步加载的，加载完才会重新解析出 token
     await expect
-      .poll(() => page.locator('.cm-typo-code-block .ͼb, .cm-typo-code-block span').count(), {
+      .poll(() => page.locator('.cm-mosu-code-block .ͼb, .cm-mosu-code-block span').count(), {
         timeout: 15_000,
       })
       .toBeGreaterThan(0)
@@ -247,24 +247,24 @@ test.describe('代码块语言选择器', () => {
 
   test('围栏折叠后出现选择器，显示的是规范语言名', async ({ page }) => {
     await writeBlock(page, 'js')
-    await expect(page.locator('.cm-typo-code-lang')).toHaveValue('JavaScript')
+    await expect(page.locator('.cm-mosu-code-lang')).toHaveValue('JavaScript')
   })
 
   test('没标语言时显示纯文本', async ({ page }) => {
     await writeBlock(page, '')
-    await expect(page.locator('.cm-typo-code-lang')).toHaveValue('')
+    await expect(page.locator('.cm-mosu-code-lang')).toHaveValue('')
   })
 
   test('选择器和高亮认的是同一套规则 —— py 两边都认', async ({ page }) => {
     // 上游只认名字和别名，py 是扩展名。两套规则分家的表现就是
     // 「下拉框显示纯文本、代码却是彩色的」
     await writeBlock(page, 'py')
-    await expect(page.locator('.cm-typo-code-lang')).toHaveValue('Python')
+    await expect(page.locator('.cm-mosu-code-lang')).toHaveValue('Python')
   })
 
   test('改选语言会写回围栏，源码里是规范名', async ({ page }) => {
     await writeBlock(page, 'js')
-    await page.locator('.cm-typo-code-lang').selectOption('Python')
+    await page.locator('.cm-mosu-code-lang').selectOption('Python')
 
     expect(await docText(page)).toContain('```Python')
     expect(await docText(page)).not.toContain('```js')
@@ -272,7 +272,7 @@ test.describe('代码块语言选择器', () => {
 
   test('改选可以撤销 —— 走的是普通 transaction', async ({ page }) => {
     await writeBlock(page, 'js')
-    await page.locator('.cm-typo-code-lang').selectOption('Python')
+    await page.locator('.cm-mosu-code-lang').selectOption('Python')
     expect(await docText(page)).toContain('```Python')
 
     await page.locator('.cm-content').click()
@@ -282,14 +282,14 @@ test.describe('代码块语言选择器', () => {
 
   test('选成纯文本会清掉语言标注，而不是写个空字符串上去', async ({ page }) => {
     await writeBlock(page, 'js')
-    await page.locator('.cm-typo-code-lang').selectOption('')
+    await page.locator('.cm-mosu-code-lang').selectOption('')
 
     expect(await docText(page)).toContain('```\nconst a = 1')
   })
 
   test('真认不出来的语言原样保留在选项里，不会被悄悄改掉', async ({ page }) => {
     await writeBlock(page, 'zzz-not-a-language')
-    await expect(page.locator('.cm-typo-code-lang')).toHaveValue('zzz-not-a-language')
+    await expect(page.locator('.cm-mosu-code-lang')).toHaveValue('zzz-not-a-language')
     expect(await docText(page)).toContain('```zzz-not-a-language')
   })
 
@@ -297,14 +297,14 @@ test.describe('代码块语言选择器', () => {
     // 上游的规则是「信息串里包含某个长度大于 2 的别名」。这条行为不是我们定的，
     // 但**必须跟高亮一致** —— 所以在这里钉住，将来谁改了匹配规则都会被这条挡下
     await writeBlock(page, 'brainfuck-x')
-    await expect(page.locator('.cm-typo-code-lang')).toHaveValue('Brainfuck')
+    await expect(page.locator('.cm-mosu-code-lang')).toHaveValue('Brainfuck')
   })
 
   test('选择器不占行内空间 —— 代码从行首开始', async ({ page }) => {
     await writeBlock(page, 'js')
     const offsets = await page.evaluate(() => {
-      const first = document.querySelector('.cm-typo-code-first') as HTMLElement
-      const lines = Array.from(document.querySelectorAll('.cm-typo-code-block'))
+      const first = document.querySelector('.cm-mosu-code-first') as HTMLElement
+      const lines = Array.from(document.querySelectorAll('.cm-mosu-code-block'))
       return lines
         .map((l) => Math.round(l.getBoundingClientRect().left))
         .concat(Math.round(first.getBoundingClientRect().left))
@@ -315,9 +315,9 @@ test.describe('代码块语言选择器', () => {
 
   test('光标进入代码块时选择器消失（此时围栏本身可见）', async ({ page }) => {
     await writeBlock(page, 'js')
-    await expect(page.locator('.cm-typo-code-lang')).toHaveCount(1)
+    await expect(page.locator('.cm-mosu-code-lang')).toHaveCount(1)
 
     await page.getByText('const a = 1').click()
-    await expect(page.locator('.cm-typo-code-lang')).toHaveCount(0)
+    await expect(page.locator('.cm-mosu-code-lang')).toHaveCount(0)
   })
 })

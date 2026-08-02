@@ -1,5 +1,5 @@
 {
-  "name": "@typo/export",
+  "name": "@mosu/export",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -11,8 +11,8 @@
     "typecheck": "tsc --build"
   },
   "dependencies": {
-    "@typo/markdown": "workspace:*",
-    "@typo/plugin-api": "workspace:*",
+    "@mosu/markdown": "workspace:*",
+    "@mosu/plugin-api": "workspace:*",
     "hast-util-from-html": "^2.0.3",
     "hast-util-sanitize": "^5.0.2",
     "rehype-katex": "^7.0.1",

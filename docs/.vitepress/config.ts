@@ -119,7 +119,7 @@ function themeFor(labels: {
     sidebarMenuLabel: labels.menu,
     footer: {
       message: labels.footer,
-      copyright: 'Copyright © 2026 Brainforge Typo Contributors',
+      copyright: 'Copyright © 2026 Mosu Contributors',
     },
   }
 }
@@ -205,7 +205,7 @@ const LOCALES: LocaleConfig<DefaultTheme.Config> = {
 }
 
 export default defineConfig({
-  title: 'Brainforge Typo',
+  title: 'Mosu',
   base: '/',
   sitemap: { hostname: SITE },
   lastUpdated: true,
@@ -213,9 +213,11 @@ export default defineConfig({
   locales: LOCALES,
 
   head: [
-    ['meta', { name: 'theme-color', content: '#0969da' }],
+    ['link', { rel: 'icon', type: 'image/png', href: '/favicon.png' }],
+    ['link', { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' }],
+    ['meta', { name: 'theme-color', content: '#26262a' }],
     ['meta', { property: 'og:type', content: 'website' }],
-    ['meta', { property: 'og:title', content: 'Brainforge Typo' }],
+    ['meta', { property: 'og:title', content: 'Mosu' }],
     ['meta', { property: 'og:url', content: SITE }],
     ['meta', { property: 'og:image', content: `${SITE}/shots/en/hero-light.png` }],
   ],

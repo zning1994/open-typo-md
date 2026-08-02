@@ -26,23 +26,23 @@ async function acceleratorOf(app: ElectronApplication, path: string[]): Promise<
 
 async function openSettings(app: ElectronApplication, page: Page): Promise<void> {
   await clickMenu(app, ['视图', '设置…'])
-  await expect(page.locator('.typo-settings')).toBeVisible()
+  await expect(page.locator('.mosu-settings')).toBeVisible()
 }
 
 /** 快捷键表里某一条命令的那个录制按钮。 */
 function bindingButton(page: Page, title: string) {
   return page
-    .locator('.typo-keys__row')
+    .locator('.mosu-keys__row')
     .filter({ hasText: title })
-    .locator('.typo-keys__binding')
+    .locator('.mosu-keys__binding')
 }
 
 test.afterEach(async ({ app, page }) => {
   // 快捷键写进的是 settings.json，会活到下一条用例里 —— 必须收拾干净
-  if (await page.locator('.typo-settings').isHidden()) await openSettings(app, page)
-  await page.locator('.typo-keys__reset').click()
+  if (await page.locator('.mosu-settings').isHidden()) await openSettings(app, page)
+  await page.locator('.mosu-keys__reset').click()
   await page.keyboard.press('Escape')
-  await expect(page.locator('.typo-settings')).toBeHidden()
+  await expect(page.locator('.mosu-settings')).toBeHidden()
 })
 
 test('渲染进程读到的平台信息是真的', async ({ app, page }) => {
@@ -53,7 +53,7 @@ test('渲染进程读到的平台信息是真的', async ({ app, page }) => {
   // 对的」，于是它一直躲着，直到 macOS 的快捷键录制把 ⌘ 认成了 Ctrl。
   const real = await app.evaluate(() => process.platform)
   const expected = real === 'darwin' ? 'mac' : real === 'win32' ? 'win' : 'linux'
-  expect(await page.evaluate(() => window.typo.platform.os)).toBe(expected)
+  expect(await page.evaluate(() => window.mosu.platform.os)).toBe(expected)
 })
 
 test('录下一个新组合，原生菜单上的加速键当场就变了', async ({ app, page }) => {
@@ -70,9 +70,9 @@ test('录下一个新组合，原生菜单上的加速键当场就变了', async
 test('清空绑定之后菜单项就没有加速键了', async ({ app, page }) => {
   await openSettings(app, page)
   await page
-    .locator('.typo-keys__row')
+    .locator('.mosu-keys__row')
     .filter({ hasText: '斜体' })
-    .locator('.typo-keys__clear')
+    .locator('.mosu-keys__clear')
     .click()
 
   await expect.poll(() => acceleratorOf(app, ['格式', '斜体'])).toBeNull()
@@ -85,7 +85,7 @@ test('恢复默认把菜单也一起收回去', async ({ app, page }) => {
   await page.keyboard.press('ControlOrMeta+Shift+J')
   await expect.poll(() => acceleratorOf(app, ['格式', '行内代码'])).toBe('CmdOrCtrl+Shift+J')
 
-  await page.locator('.typo-keys__reset').click()
+  await page.locator('.mosu-keys__reset').click()
   await expect.poll(() => acceleratorOf(app, ['格式', '行内代码'])).toBe('CmdOrCtrl+E')
 })
 
@@ -95,8 +95,8 @@ test('撞车了会标出来，但不拦着用户', async ({ app, page }) => {
   await bindingButton(page, '斜体').click()
   await page.keyboard.press('ControlOrMeta+B')
 
-  const row = page.locator('.typo-keys__row').filter({ hasText: '斜体' })
-  await expect(row.locator('.typo-keys__conflict')).toBeVisible()
+  const row = page.locator('.mosu-keys__row').filter({ hasText: '斜体' })
+  await expect(row.locator('.mosu-keys__conflict')).toBeVisible()
   // 标归标，绑定还是照样写进去了 —— 我们判断不了用户的上下文
   await expect.poll(() => acceleratorOf(app, ['格式', '斜体'])).toBe('CmdOrCtrl+B')
 })
@@ -106,10 +106,10 @@ test('命令面板里显示的是改过之后的绑定，不是出厂那份', as
   await bindingButton(page, '大纲').click()
   await page.keyboard.press('ControlOrMeta+Shift+G')
   await page.keyboard.press('Escape')
-  await expect(page.locator('.typo-settings')).toBeHidden()
+  await expect(page.locator('.mosu-settings')).toBeHidden()
 
   await clickMenu(app, ['视图', '命令面板'])
-  await page.locator('.typo-palette__input').fill('大纲')
-  await expect(page.locator('.typo-palette__key').first()).toHaveText(/G/)
+  await page.locator('.mosu-palette__input').fill('大纲')
+  await expect(page.locator('.mosu-palette__key').first()).toHaveText(/G/)
   await page.keyboard.press('Escape')
 })

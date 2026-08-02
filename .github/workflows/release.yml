@@ -60,7 +60,7 @@ jobs:
         # 公证只在确实配了凭据时才打开 —— 没有凭据却要求公证的话，
         # electron-builder 会直接失败，而「还没有证书」是这个项目的正常状态
         run: >-
-          pnpm --filter @typo/desktop exec electron-builder
+          pnpm --filter @mosu/desktop exec electron-builder
           --config electron-builder.yml --publish always
           ${{ secrets.APPLE_TEAM_ID != '' && '-c.mac.notarize=true' || '' }}
         env:
@@ -78,7 +78,7 @@ jobs:
       - name: 打包并上传到 Release 草稿（Windows）
         if: runner.os == 'Windows'
         run: >-
-          pnpm --filter @typo/desktop exec electron-builder
+          pnpm --filter @mosu/desktop exec electron-builder
           --config electron-builder.yml --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -91,7 +91,7 @@ jobs:
         if: runner.os == 'Linux'
         # Linux 没有代码签名这回事（AppImage 可以签，但生态里几乎没人验）
         run: >-
-          pnpm --filter @typo/desktop exec electron-builder
+          pnpm --filter @mosu/desktop exec electron-builder
           --config electron-builder.yml --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

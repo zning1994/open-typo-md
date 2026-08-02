@@ -52,7 +52,7 @@ async function pasteImage(page: Page, name: string, mime = 'image/png'): Promise
  */
 async function openInNewWindow(page: Page, target: string): Promise<Page> {
   const before = page.context().pages().length
-  await page.evaluate((path) => window.typo.window.create(path), target)
+  await page.evaluate((path) => window.mosu.window.create(path), target)
   await expect
     .poll(() => page.context().pages().length, { timeout: 15_000 })
     .toBeGreaterThan(before)
@@ -66,7 +66,7 @@ async function openInNewWindow(page: Page, target: string): Promise<Page> {
 let dir: string
 
 test.beforeEach(async () => {
-  dir = await mkdtemp(path.join(tmpdir(), 'typo-img-'))
+  dir = await mkdtemp(path.join(tmpdir(), 'mosu-img-'))
 })
 
 test.afterEach(async () => {

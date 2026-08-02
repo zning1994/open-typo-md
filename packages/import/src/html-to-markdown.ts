@@ -1,7 +1,7 @@
 /**
  * HTML → Markdown（docs/design/03 §8）。
  *
- * 跟 `@typo/export` 正好是反方向的一条路：那边 mdast → hast → HTML，
+ * 跟 `@mosu/export` 正好是反方向的一条路：那边 mdast → hast → HTML，
  * 这边 HTML → hast → mdast。同一套 unified 生态，概念只有一份。
  *
  * ## 为什么是同步的

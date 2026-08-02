@@ -13,15 +13,15 @@ import type { ElectronApplication, Page } from '@playwright/test'
 /** 打开设置面板。语言只能在这里换，所以每条用例都要走一遍。 */
 async function openSettings(app: ElectronApplication, page: Page): Promise<void> {
   await clickMenu(app, ['视图', '设置…'])
-  await expect(page.locator('.typo-settings')).toBeVisible()
+  await expect(page.locator('.mosu-settings')).toBeVisible()
 }
 
 /** 设置面板里某一行的控件。 */
 function control(page: Page, label: string) {
   return page
-    .locator('.typo-settings__row')
+    .locator('.mosu-settings__row')
     .filter({ hasText: label })
-    .locator('.typo-settings__control')
+    .locator('.mosu-settings__control')
 }
 
 /** 顶层菜单的标签，按顺序。 */
@@ -40,7 +40,7 @@ async function menuLabels(app: ElectronApplication): Promise<string[]> {
  */
 function languageSelect(page: Page) {
   return page
-    .locator('.typo-settings__row select')
+    .locator('.mosu-settings__row select')
     .filter({ has: page.locator('option[value="ja"]') })
 }
 
@@ -53,14 +53,14 @@ test('换成英文之后，面板、状态栏、原生菜单一起变', async ({
   await openSettings(app, page)
 
   // 前提：现在是中文。不确认这一步的话，「变成英文」可能只是它本来就是英文
-  await expect(page.locator('.typo-settings__title')).toHaveText('设置')
+  await expect(page.locator('.mosu-settings__title')).toHaveText('设置')
   expect(await menuLabels(app)).toContain('视图')
 
   await switchTo(page, 'en')
 
   // 1. 面板自己重画了 —— 用户就在这个面板里操作，标题变了内容没变会让人以为没生效
-  await expect(page.locator('.typo-settings__title')).toHaveText('Settings')
-  await expect(page.locator('.typo-settings__row').filter({ hasText: 'Theme' })).toBeVisible()
+  await expect(page.locator('.mosu-settings__title')).toHaveText('Settings')
+  await expect(page.locator('.mosu-settings__row').filter({ hasText: 'Theme' })).toBeVisible()
 
   // 2. 原生菜单跟着重建。这条最容易漏：菜单在 main 进程，跟面板隔着一次 IPC
   await expect.poll(() => menuLabels(app)).toContain('View')
@@ -86,7 +86,7 @@ test('语言列表用各语言自己的名字，且「跟随系统」排在最�
 })
 
 test('日文界面下编辑区里的文案也跟着变', async ({ app, page }) => {
-  // 编辑区在 @typo/editor 里，它不认识我们的文案表（原则 P3），文案是注入的 ——
+  // 编辑区在 @mosu/editor 里，它不认识我们的文案表（原则 P3），文案是注入的 ——
   // 这条正是验那条注入通路真的接上了
   await resetDoc(page, '')
   await openSettings(app, page)
@@ -102,7 +102,7 @@ test('日文界面下编辑区里的文案也跟着变', async ({ app, page }) =
   await page.keyboard.press('Enter')
   await page.keyboard.type('- [ ] やること')
   await page.keyboard.press('ControlOrMeta+Home')
-  await expect(page.locator(`${ACTIVE_PAGE} .cm-typo-task`)).toHaveAttribute(
+  await expect(page.locator(`${ACTIVE_PAGE} .cm-mosu-task`)).toHaveAttribute(
     'aria-label',
     '未完了',
   )

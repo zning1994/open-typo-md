@@ -17,7 +17,7 @@ import type { ElectronApplication } from '@playwright/test'
 let dir: string
 
 test.beforeEach(async () => {
-  dir = await mkdtemp(path.join(tmpdir(), 'typo-export-'))
+  dir = await mkdtemp(path.join(tmpdir(), 'mosu-export-'))
 })
 
 test.afterEach(async () => {
@@ -57,14 +57,14 @@ test('当前主题的配色被写进导出产物', async ({ app, page }) => {
   await resetDoc(page, '正文')
   const html = await exportTo(app, path.join(dir, 'themed.html'))
 
-  expect(html).toContain('--typo-bg:')
-  expect(html).toContain('--typo-fg:')
+  expect(html).toContain('--mosu-bg:')
+  expect(html).toContain('--mosu-fg:')
 })
 
 test('公式带上 KaTeX 样式，且字体是内联的', async ({ app, page }) => {
   // 字体不内联的话，公式在收件人机器上是一堆方框
   await resetDoc(page, '公式 $E = mc^2$ 在这\n\n第二段')
-  await expect(page.locator('.cm-typo-math .katex')).toHaveCount(1, { timeout: 20_000 })
+  await expect(page.locator('.cm-mosu-math .katex')).toHaveCount(1, { timeout: 20_000 })
 
   const html = await exportTo(app, path.join(dir, 'math.html'))
   expect(html).toContain('katex')
@@ -85,11 +85,11 @@ test('没有公式的文档不背 KaTeX 那几 MB', async ({ app, page }) => {
 
 test('mermaid 图表导出成内联 SVG', async ({ app, page }) => {
   await resetDoc(page, '前文\n\n```mermaid\ngraph TD\nA-->B\n```\n\n后文')
-  await expect(page.locator('.cm-typo-mermaid svg')).toHaveCount(1, { timeout: 30_000 })
+  await expect(page.locator('.cm-mosu-mermaid svg')).toHaveCount(1, { timeout: 30_000 })
 
   const html = await exportTo(app, path.join(dir, 'diagram.html'))
   expect(html).toContain('<svg')
-  expect(html).toContain('typo-diagram')
+  expect(html).toContain('mosu-diagram')
 })
 
 test('图片转成 data URI —— 自包含的关键一环', async ({ app, page }) => {
@@ -102,7 +102,7 @@ test('图片转成 data URI —— 自包含的关键一环', async ({ app, page
   await writeFile(docPath, '![图](a.png)\n', 'utf8')
 
   const before = page.context().pages().length
-  await page.evaluate((p) => window.typo.window.create(p), docPath)
+  await page.evaluate((p) => window.mosu.window.create(p), docPath)
   await expect.poll(() => page.context().pages().length).toBeGreaterThan(before)
   const doc = page.context().pages().at(-1)!
   await doc.waitForSelector('.cm-content', { state: 'visible' })

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createTranslator, formatMessage, matchLocale } from '@typo/i18n'
+import { createTranslator, formatMessage, matchLocale } from '@mosu/i18n'
 
 describe('变量替换', () => {
   it('替换命名占位符', () => {

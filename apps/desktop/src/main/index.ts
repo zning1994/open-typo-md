@@ -16,7 +16,7 @@ import {
   session,
   shell,
 } from 'electron'
-import { ConflictError, UnsupportedEncodingError } from '@typo/plugin-api'
+import { ConflictError, UnsupportedEncodingError } from '@mosu/plugin-api'
 import { CHANNELS, EVENTS, type IpcFailure } from '../shared/channels.js'
 import { APP_SCHEME_PRIVILEGES, registerAppHandler } from './app-protocol.js'
 import { ASSET_SCHEME_PRIVILEGES, registerAssetHandler } from './asset-protocol.js'
@@ -61,17 +61,17 @@ protocol.registerSchemesAsPrivileged([ASSET_SCHEME_PRIVILEGES, APP_SCHEME_PRIVIL
 function toFailure(error: unknown): IpcFailure {
   if (error instanceof ConflictError) {
     return {
-      __typoError: true,
+      __mosuError: true,
       name: 'ConflictError',
       message: error.message,
       data: { path: error.path, diskHash: error.diskHash },
     }
   }
   if (error instanceof UnsupportedEncodingError) {
-    return { __typoError: true, name: 'UnsupportedEncodingError', message: error.message }
+    return { __mosuError: true, name: 'UnsupportedEncodingError', message: error.message }
   }
   return {
-    __typoError: true,
+    __mosuError: true,
     name: 'Error',
     message: error instanceof Error ? error.message : String(error),
   }
@@ -104,16 +104,16 @@ function applyContentSecurityPolicy(): void {
     DEV_SERVER_URL ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'" : "script-src 'self'",
     "style-src 'self' 'unsafe-inline'",
     // 注意：不含 http(s) —— 远程图片默认不加载，避免文档变成追踪信标
-    'img-src typo-asset: data: blob:',
+    'img-src mosu-asset: data: blob:',
     "font-src 'self' data:",
-    // `typo-asset:` 必须在 connect-src 里，不只在 img-src 里：
+    // `mosu-asset:` 必须在 connect-src 里，不只在 img-src 里：
     // 导出「自包含单文件」时要 **fetch** 图片再转 data URI，而 fetch 归
     // connect-src 管。少了它，导出的产物里图片仍是相对路径 —— 而且是**静默**的，
     // 因为 fetch 失败被当成「拿不到就保留原路径」的正常降级。
     // 不扩大权限：这个协议的路径白名单在 main 侧照常生效。
     DEV_SERVER_URL
-      ? "connect-src 'self' typo-asset: ws: http://localhost:*"
-      : "connect-src 'self' typo-asset:",
+      ? "connect-src 'self' mosu-asset: ws: http://localhost:*"
+      : "connect-src 'self' mosu-asset:",
     "form-action 'none'",
     "frame-src 'none'",
     "object-src 'none'",

@@ -16,7 +16,7 @@ import type { ElectronApplication, Page } from '@playwright/test'
 let dir: string
 
 test.beforeEach(async () => {
-  dir = await mkdtemp(path.join(tmpdir(), 'typo-settings-'))
+  dir = await mkdtemp(path.join(tmpdir(), 'mosu-settings-'))
 })
 
 test.afterEach(async () => {
@@ -25,30 +25,30 @@ test.afterEach(async () => {
 
 async function openSettings(app: ElectronApplication, page: Page): Promise<void> {
   await clickMenu(app, ['视图', '设置…'])
-  await expect(page.locator('.typo-settings')).toBeVisible()
+  await expect(page.locator('.mosu-settings')).toBeVisible()
 }
 
 /** 面板里某一行的控件。 */
 function control(page: Page, label: string) {
   return page
-    .locator('.typo-settings__row')
+    .locator('.mosu-settings__row')
     .filter({ hasText: label })
-    .locator('.typo-settings__control')
+    .locator('.mosu-settings__control')
 }
 
 test('Esc 与点遮罩都能关，关掉之后焦点回编辑器', async ({ app, page }) => {
   await resetDoc(page, '正文')
   await openSettings(app, page)
   await page.keyboard.press('Escape')
-  await expect(page.locator('.typo-settings')).toBeHidden()
+  await expect(page.locator('.mosu-settings')).toBeHidden()
 
   // 焦点丢在 body 上的话，用户下一次按键就没反应
   await page.keyboard.type('甲')
   expect(await docText(page)).toContain('甲')
 
   await openSettings(app, page)
-  await page.locator('.typo-settings').click({ position: { x: 5, y: 5 } })
-  await expect(page.locator('.typo-settings')).toBeHidden()
+  await page.locator('.mosu-settings').click({ position: { x: 5, y: 5 } })
+  await expect(page.locator('.mosu-settings')).toBeHidden()
   await resetDoc(page)
 })
 
@@ -56,7 +56,7 @@ test('改主题当场生效', async ({ app, page }) => {
   await openSettings(app, page)
   await control(page, '主题').selectOption('dark')
 
-  await expect(page.locator('html')).toHaveAttribute('data-typo-theme', 'dark')
+  await expect(page.locator('html')).toHaveAttribute('data-mosu-theme', 'dark')
   await control(page, '主题').selectOption('auto')
   await page.keyboard.press('Escape')
 })
@@ -67,7 +67,7 @@ test('恢复默认值把改动都收回去', async ({ app, page }) => {
   await control(page, '横向').check()
   await expect(control(page, '纸张')).toHaveValue('Legal')
 
-  await page.locator('.typo-settings__reset').click()
+  await page.locator('.mosu-settings__reset').click()
   await expect(control(page, '纸张')).toHaveValue('A4')
   await expect(control(page, '横向')).not.toBeChecked()
   await page.keyboard.press('Escape')
@@ -81,7 +81,7 @@ test('页边距超出范围时被夹住，输入框跟着回显真实值', async
 
   // 夹到上限而不是拒绝 —— 但输入框里不能留着那个假数字
   await expect(margin).toHaveValue('3')
-  await page.locator('.typo-settings__reset').click()
+  await page.locator('.mosu-settings__reset').click()
   await page.keyboard.press('Escape')
 })
 
@@ -117,7 +117,7 @@ test('纸张设置真的传到了打印那一侧 —— 换成横向后页面变
   expect(landscapeW).toBeGreaterThan(landscapeH)
 
   await openSettings(app, page)
-  await page.locator('.typo-settings__reset').click()
+  await page.locator('.mosu-settings__reset').click()
   await page.keyboard.press('Escape')
   await resetDoc(page)
 })
@@ -137,7 +137,7 @@ test('默认视图模式只影响新标签，不动已经开着的', async ({ ap
   await expect(page.locator('#status-mode')).toHaveAttribute('aria-pressed', 'true')
 
   await openSettings(app, page)
-  await page.locator('.typo-settings__reset').click()
+  await page.locator('.mosu-settings__reset').click()
   await page.keyboard.press('Escape')
   await clickMenu(app, ['文件', '关闭标签页'])
   await resetDoc(page)

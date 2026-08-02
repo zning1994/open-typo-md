@@ -10,9 +10,9 @@ export default defineConfig({
   base: './',
   resolve: {
     alias: {
-      '@typo/plugin-api': pkg('plugin-api'),
-      '@typo/markdown': pkg('markdown'),
-      '@typo/editor': pkg('editor'),
+      '@mosu/plugin-api': pkg('plugin-api'),
+      '@mosu/markdown': pkg('markdown'),
+      '@mosu/editor': pkg('editor'),
     },
   },
   build: {

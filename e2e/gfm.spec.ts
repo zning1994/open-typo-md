@@ -12,7 +12,7 @@ test('复选框点一下就勾上，改的是源码里的 [ ]', async ({ page })
   await page.keyboard.type('- [ ] 待办事项\n')
   await page.keyboard.type('结尾')
 
-  await page.locator('.cm-typo-task').first().click()
+  await page.locator('.cm-mosu-task').first().click()
 
   expect(await docText(page)).toContain('- [x] 待办事项')
 })
@@ -22,7 +22,7 @@ test('再点一下取消勾选', async ({ page }) => {
   await page.keyboard.type('- [x] 已完成\n')
   await page.keyboard.type('结尾')
 
-  await page.locator('.cm-typo-task').first().click()
+  await page.locator('.cm-mosu-task').first().click()
   expect(await docText(page)).toContain('- [ ] 已完成')
 })
 
@@ -31,7 +31,7 @@ test('勾选可以撤销 —— 走的是普通 transaction，不是 widget 私�
   await page.keyboard.type('- [ ] 待办\n')
   await page.keyboard.type('结尾')
 
-  await page.locator('.cm-typo-task').first().click()
+  await page.locator('.cm-mosu-task').first().click()
   expect(await docText(page)).toContain('- [x] 待办')
 
   await page.locator('.cm-content').click()
@@ -59,7 +59,7 @@ test('多个任务项各点各的，不会串位', async ({ page }) => {
   await page.keyboard.press('Enter')
   await page.keyboard.type('丙')
 
-  await page.locator('.cm-typo-task').nth(1).click()
+  await page.locator('.cm-mosu-task').nth(1).click()
 
   expect(await docText(page)).toBe('- [ ] 甲\n- [x] 乙\n- [ ] 丙')
 })
@@ -71,9 +71,9 @@ test('点复选框不会把光标挪进标记里导致它当场消失', async ({
   await page.keyboard.type('- [ ] 待办\n')
   await page.keyboard.type('结尾')
 
-  const box = page.locator('.cm-typo-task').first()
+  const box = page.locator('.cm-mosu-task').first()
   await box.click()
-  await expect(page.locator('.cm-typo-task')).toHaveCount(1)
+  await expect(page.locator('.cm-mosu-task')).toHaveCount(1)
   await box.click()
 
   expect(await docText(page)).toContain('- [ ] 待办')
@@ -122,24 +122,24 @@ test.describe('数学公式', () => {
     await resetDoc(page, '质能方程 $E = mc^2$ 很有名\n\n第二段')
 
     // KaTeX 是懒加载的，第一次要等 chunk 下来
-    await expect(page.locator('.cm-typo-math .katex')).toHaveCount(1, { timeout: 15_000 })
-    await expect(page.locator('.cm-typo-math')).not.toHaveClass(/--pending/)
+    await expect(page.locator('.cm-mosu-math .katex')).toHaveCount(1, { timeout: 15_000 })
+    await expect(page.locator('.cm-mosu-math')).not.toHaveClass(/--pending/)
   })
 
   test('块级公式整块渲染，居中', async ({ page }) => {
     await resetDoc(page, '前文\n\n$$\n\\int_0^1 x\\,dx\n$$\n\n后文')
 
-    const block = page.locator('.cm-typo-math--block')
+    const block = page.locator('.cm-mosu-math--block')
     await expect(block).toHaveCount(1, { timeout: 15_000 })
     expect(await block.evaluate((el) => getComputedStyle(el).textAlign)).toBe('center')
   })
 
   test('光标进入公式时还原成源码', async ({ page }) => {
     await resetDoc(page, '公式 $a + b$ 结束\n\n第二段')
-    await expect(page.locator('.cm-typo-math .katex')).toHaveCount(1, { timeout: 15_000 })
+    await expect(page.locator('.cm-mosu-math .katex')).toHaveCount(1, { timeout: 15_000 })
 
-    await page.locator('.cm-typo-math').click()
-    await expect(page.locator('.cm-typo-math')).toHaveCount(0)
+    await page.locator('.cm-mosu-math').click()
+    await expect(page.locator('.cm-mosu-math')).toHaveCount(0)
     expect(await docText(page)).toContain('$a + b$')
   })
 
@@ -147,8 +147,8 @@ test.describe('数学公式', () => {
     // throwOnError: false —— 用户看到的是自己写的东西加一个错误提示
     await resetDoc(page, '错误公式 $\\frac{1}$ 在这\n\n第二段')
 
-    await expect(page.locator('.cm-typo-math')).toHaveCount(1, { timeout: 15_000 })
-    await expect(page.locator('.cm-typo-math')).not.toBeEmpty()
+    await expect(page.locator('.cm-mosu-math')).toHaveCount(1, { timeout: 15_000 })
+    await expect(page.locator('.cm-mosu-math')).not.toBeEmpty()
   })
 
   test('源码保真：公式一个字节都没变', async ({ page }) => {
@@ -161,7 +161,7 @@ test.describe('数学公式', () => {
 
   test('货币金额不会被渲染成公式', async ({ page }) => {
     await resetDoc(page, '我花了 $5 买了 $10 的东西\n\n第二段')
-    await expect(page.locator('.cm-typo-math')).toHaveCount(0)
+    await expect(page.locator('.cm-mosu-math')).toHaveCount(0)
   })
 })
 
@@ -171,16 +171,16 @@ test.describe('Mermaid 图表', () => {
   test('渲染成 SVG', async ({ page }) => {
     await resetDoc(page, DIAGRAM)
     // mermaid 近 3MB，第一次要等 chunk 下来
-    await expect(page.locator('.cm-typo-mermaid svg')).toHaveCount(1, { timeout: 30_000 })
-    await expect(page.locator('.cm-typo-mermaid')).not.toHaveClass(/--pending/)
+    await expect(page.locator('.cm-mosu-mermaid svg')).toHaveCount(1, { timeout: 30_000 })
+    await expect(page.locator('.cm-mosu-mermaid')).not.toHaveClass(/--pending/)
   })
 
   test('光标进块时还原成源码', async ({ page }) => {
     await resetDoc(page, DIAGRAM)
-    await expect(page.locator('.cm-typo-mermaid svg')).toHaveCount(1, { timeout: 30_000 })
+    await expect(page.locator('.cm-mosu-mermaid svg')).toHaveCount(1, { timeout: 30_000 })
 
-    await page.locator('.cm-typo-mermaid').click()
-    await expect(page.locator('.cm-typo-mermaid')).toHaveCount(0)
+    await page.locator('.cm-mosu-mermaid').click()
+    await expect(page.locator('.cm-mosu-mermaid')).toHaveCount(0)
     expect(await docText(page)).toContain('```mermaid')
   })
 
@@ -188,11 +188,11 @@ test.describe('Mermaid 图表', () => {
     // suppressErrorRendering —— 否则改一次错一次，页面底部会攒一堆孤儿元素
     await resetDoc(page, '前文\n\n```mermaid\n这不是合法的图\n```\n\n后文')
 
-    const broken = page.locator('.cm-typo-mermaid--broken')
+    const broken = page.locator('.cm-mosu-mermaid--broken')
     await expect(broken).toHaveCount(1, { timeout: 30_000 })
     await expect(broken).toContainText('这不是合法的图')
     // body 上没有多出来的 mermaid 元素
-    expect(await page.locator('body > [id^="typo-mermaid"]').count()).toBe(0)
+    expect(await page.locator('body > [id^="mosu-mermaid"]').count()).toBe(0)
   })
 
   test('源码保真：图表一个字节都没变', async ({ page }) => {
@@ -206,7 +206,7 @@ test.describe('Mermaid 图表', () => {
 
   test('普通代码块不受影响', async ({ page }) => {
     await resetDoc(page, '前文\n\n```js\nconst a = 1\n```\n\n后文')
-    await expect(page.locator('.cm-typo-mermaid')).toHaveCount(0)
-    await expect(page.locator('.cm-typo-code-block').first()).toBeVisible()
+    await expect(page.locator('.cm-mosu-mermaid')).toHaveCount(0)
+    await expect(page.locator('.cm-mosu-code-block').first()).toBeVisible()
   })
 })

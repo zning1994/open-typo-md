@@ -9,7 +9,7 @@ import { mkdtemp, readFile, rm, stat, symlink, writeFile } from 'node:fs/promise
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { ConflictError, UnsupportedEncodingError, type TextFileMeta } from '@typo/plugin-api'
+import { ConflictError, UnsupportedEncodingError, type TextFileMeta } from '@mosu/plugin-api'
 import {
   MAX_ATTACHMENT_BYTES,
   hashBytes,
@@ -33,7 +33,7 @@ let dir: string
 
 beforeEach(async () => {
   resetGrantsForTest()
-  dir = await mkdtemp(path.join(tmpdir(), 'typo-test-'))
+  dir = await mkdtemp(path.join(tmpdir(), 'mosu-test-'))
   grantDirectory(dir)
 })
 
@@ -176,7 +176,7 @@ describe('路径白名单', () => {
   it('指向白名单外部的符号链接不能绕过校验', async () => {
     resetGrantsForTest()
     grantDirectory(dir)
-    const outside = await mkdtemp(path.join(tmpdir(), 'typo-outside-'))
+    const outside = await mkdtemp(path.join(tmpdir(), 'mosu-outside-'))
     try {
       await writeFile(path.join(outside, 'secret.txt'), '机密', 'utf8')
       const link = file('link.md')
@@ -248,7 +248,7 @@ describe('附件落盘', () => {
   })
 
   it('未授权目录一律拒绝 —— 白名单是 main 侧唯一可信的门', async () => {
-    const outside = await mkdtemp(path.join(tmpdir(), 'typo-outside-'))
+    const outside = await mkdtemp(path.join(tmpdir(), 'mosu-outside-'))
     try {
       await expect(saveAttachment(outside, 'image/png', PNG)).rejects.toThrow('未获授权')
     } finally {
@@ -263,7 +263,7 @@ describe('附件落盘', () => {
 
   it('assets 是指向白名单外的符号链接时当场拒绝', async () => {
     // 先建目录再发现越权就晚了 —— 那时文件已经写出去了
-    const outside = await mkdtemp(path.join(tmpdir(), 'typo-outside-'))
+    const outside = await mkdtemp(path.join(tmpdir(), 'mosu-outside-'))
     try {
       await symlink(outside, path.join(dir, 'assets'), 'dir')
       await expect(saveAttachment(dir, 'image/png', PNG)).rejects.toThrow('未获授权')

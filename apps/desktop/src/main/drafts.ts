@@ -60,7 +60,7 @@ export async function writeDraft(key: string, text: string, meta: DraftMeta): Pr
     await writeFile(path.join(dir, 'meta.json'), JSON.stringify(meta), 'utf8')
   } catch (error) {
     // 见文件头：草稿是保险，不是主线
-    console.warn('[typo] 草稿写入失败：', error)
+    console.warn('[mosu] 草稿写入失败：', error)
   }
 }
 
@@ -68,7 +68,7 @@ export async function dropDraft(key: string): Promise<void> {
   try {
     await rm(path.join(draftsRoot(), draftId(key)), { recursive: true, force: true })
   } catch (error) {
-    console.warn('[typo] 草稿清理失败：', error)
+    console.warn('[mosu] 草稿清理失败：', error)
   }
 }
 
@@ -141,6 +141,6 @@ export async function dropDraftById(id: string): Promise<void> {
   try {
     await rm(path.join(draftsRoot(), id), { recursive: true, force: true })
   } catch (error) {
-    console.warn('[typo] 草稿清理失败：', error)
+    console.warn('[mosu] 草稿清理失败：', error)
   }
 }

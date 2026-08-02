@@ -30,7 +30,7 @@ import { syntaxTree } from '@codemirror/language'
 import type { SyntaxNode } from '@lezer/common'
 import { EditorSelection, EditorState, type Extension } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
-import { isCodeContext } from '@typo/markdown'
+import { isCodeContext } from '@mosu/markdown'
 
 /**
  * 只包裹、不补全的字符。
@@ -98,7 +98,7 @@ const wrapSelection = EditorView.inputHandler.of((view, from, to, text) => {
         range: EditorSelection.range(range.from + marker.length, range.to + marker.length),
       }
     }),
-    { scrollIntoView: true, userEvent: 'input.typo.wrap' },
+    { scrollIntoView: true, userEvent: 'input.mosu.wrap' },
   )
   return true
 })
