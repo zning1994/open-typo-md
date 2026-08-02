@@ -151,6 +151,16 @@ fork 的 PR 拿不到（必须在 workflow 里显式限制）。
 只在 `docs/**`、`README.md` 或站点配置变动时触发：每次改代码都重新部署一遍站点
 纯属浪费，也会让部署历史里全是与站点无关的记录。
 
+**自定义域名** `typo.ohgiantai.com`（跟 `appId` 的 `com.ohgiantai.typo` 同源）。
+两处必须一致，改一处就得改另一处：
+
+- `docs/public/CNAME` —— VitePress 把 `public/` 原样拷进产物根目录，
+  GitHub Pages 读它来配置域名；
+- `docs/.vitepress/config.ts` 里的 `SITE` 与 `base` —— 自定义域名下站点挂在
+  域名根，`base` 必须是 `/`。退回 `<user>.github.io/<repo>/` 时要改回
+  `/open-typo-md/`，**否则所有资源 404，而表现是「页面出来了但一片空白」**，
+  不容易一眼看出是 base 的问题。
+
 **站点定位是设计文档，不是用户手册。** 这是刻意的：现在最值得读的就是那些取舍
 与被推翻的结论，而功能清单 README 里已经有了。
 

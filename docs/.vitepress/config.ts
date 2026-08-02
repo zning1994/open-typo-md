@@ -18,8 +18,18 @@
  */
 import { defineConfig } from 'vitepress'
 
-/** 仓库名。GitHub Pages 部署在 `<user>.github.io/<repo>/` 下，base 必须带上它。 */
 const REPO = 'open-typo-md'
+const GITHUB = `https://github.com/zning1994/${REPO}`
+
+/**
+ * 站点域名。**必须跟 `docs/public/CNAME` 里那一行一致。**
+ *
+ * 用自定义域名时站点挂在域名根下，所以 `base` 是 `/`；如果哪天退回
+ * `<user>.github.io/<repo>/`，`base` 要改成 `/open-typo-md/`，否则所有
+ * 资源都会 404 —— 而那个失败的样子是「页面出来了但一片空白」，
+ * 不容易一眼看出是 base 的问题。
+ */
+const SITE = 'https://typo.ohgiantai.com'
 
 const DESIGN = [
   ['00-overview', '00 · 总览'],
@@ -45,7 +55,8 @@ export default defineConfig({
   lang: 'zh-CN',
   title: 'Brainforge Typo',
   description: '开源的 Markdown 所见即所得编辑器 —— 无分屏、无预览窗格，写下的就是看到的。',
-  base: `/${REPO}/`,
+  base: '/',
+  sitemap: { hostname: SITE },
   lastUpdated: true,
   cleanUrls: true,
 
@@ -53,6 +64,7 @@ export default defineConfig({
     ['meta', { name: 'theme-color', content: '#0969da' }],
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:title', content: 'Brainforge Typo' }],
+    ['meta', { property: 'og:url', content: SITE }],
     [
       'meta',
       {
@@ -67,10 +79,7 @@ export default defineConfig({
       { text: '设计文档', link: '/design/00-overview' },
       { text: '架构决策', link: '/adr/0001-desktop-shell' },
       { text: '路线图', link: '/design/08-roadmap' },
-      {
-        text: '下载',
-        link: `https://github.com/zning1994/${REPO}/releases`,
-      },
+      { text: '下载', link: `${GITHUB}/releases` },
     ],
 
     sidebar: {
@@ -98,10 +107,10 @@ export default defineConfig({
       ],
     },
 
-    socialLinks: [{ icon: 'github', link: `https://github.com/zning1994/${REPO}` }],
+    socialLinks: [{ icon: 'github', link: GITHUB }],
 
     editLink: {
-      pattern: `https://github.com/zning1994/${REPO}/edit/main/docs/:path`,
+      pattern: `${GITHUB}/edit/main/docs/:path`,
       text: '在 GitHub 上编辑此页',
     },
 

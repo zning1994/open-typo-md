@@ -49,26 +49,52 @@ jobs:
       - name: 检查与单元测试
         run: pnpm verify
 
-      - name: 打包并上传到 Release 草稿
-        # 公证只在 macOS 上、且确实配了凭据时才打开 ——
-        # 没有凭据却要求公证的话，electron-builder 会直接失败，
-        # 而「没有证书」是这个项目当前的正常状态，不该让发布挂掉
+      # 打包分成两步，不是为了好看 —— 是因为 **macOS 与 Windows 的签名证书完全
+      # 不是一回事**，而 electron-builder 认的是同一个环境变量名 `CSC_LINK`。
+      #
+      # 合成一步的话，仓库里存一份 macOS 的 .p12，Windows 作业会拿它去做
+      # Authenticode 签名，然后以一个没人看得懂的错误挂掉。分开之后，
+      # 两种证书各走各的，谁也漏不到对方那边。
+      - name: 打包并上传到 Release 草稿（macOS）
+        if: runner.os == 'macOS'
+        # 公证只在确实配了凭据时才打开 —— 没有凭据却要求公证的话，
+        # electron-builder 会直接失败，而「还没有证书」是这个项目的正常状态
         run: >-
           pnpm --filter @typo/desktop exec electron-builder
           --config electron-builder.yml --publish always
-          ${{ (runner.os == 'macOS' && secrets.APPLE_TEAM_ID != '') && '-c.mac.notarize=true' || '' }}
+          ${{ secrets.APPLE_TEAM_ID != '' && '-c.mac.notarize=true' || '' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # 代码签名：配置了证书就用，没配就打未签名包。
-          # 正式发布必须配齐（docs/design/07 §6）：
-          #   macOS — CSC_LINK / CSC_KEY_PASSWORD + APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID
-          #   Windows — CSC_LINK / CSC_KEY_PASSWORD
+          # Developer ID Application 证书导出的 .p12，base64 之后存进来
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          # 公证凭据。三个都齐了才会真的去公证（见上面那个开关）
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # 没配证书时关掉钥匙串自动搜索，让「跳过签名」成为确定行为
           CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.CSC_LINK != '' }}
+
+      - name: 打包并上传到 Release 草稿（Windows）
+        if: runner.os == 'Windows'
+        run: >-
+          pnpm --filter @typo/desktop exec electron-builder
+          --config electron-builder.yml --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Authenticode 证书，跟 macOS 那张是两码事，所以用**另一对** secret 名
+          CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.WIN_CSC_LINK != '' }}
+
+      - name: 打包并上传到 Release 草稿（Linux）
+        if: runner.os == 'Linux'
+        # Linux 没有代码签名这回事（AppImage 可以签，但生态里几乎没人验）
+        run: >-
+          pnpm --filter @typo/desktop exec electron-builder
+          --config electron-builder.yml --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # 产物到底签没签名，必须在 Actions 页面上一眼看得见。
       #
@@ -77,8 +103,14 @@ jobs:
       - name: 记录签名状态
         shell: bash
         run: |
-          if [ "${{ runner.os }}" != "macOS" ]; then
-            echo "- **${{ runner.os }}**：签名不适用" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            echo "- **Linux**：签名不适用" >> "$GITHUB_STEP_SUMMARY"
+          elif [ "${{ runner.os }}" = "Windows" ]; then
+            if [ -z "${{ secrets.WIN_CSC_LINK }}" ]; then
+              echo "- **Windows**：⚠️ 未签名。SmartScreen 会提示「已保护你的电脑」，用户需点「更多信息 → 仍要运行」。" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "- **Windows**：✅ 已用 Authenticode 证书签名。" >> "$GITHUB_STEP_SUMMARY"
+            fi
           elif [ -z "${{ secrets.CSC_LINK }}" ]; then
             echo "- **macOS**：⚠️ 未签名（仅 ad-hoc）。用户首次打开会被 Gatekeeper 拦下，需在「系统设置 → 隐私与安全性」里放行。" >> "$GITHUB_STEP_SUMMARY"
           elif [ -z "${{ secrets.APPLE_TEAM_ID }}" ]; then
