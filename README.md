@@ -1,5 +1,7 @@
 # Brainforge Typo
 
+**简体中文** · [English](README.en.md) · [日本語](README.ja.md)
+
 一个开源的 Markdown 「所见即所得」编辑器 —— 无分屏、无预览窗格，写下的就是看到的。
 
 > **状态：M2、M3、M4 完成，M4.5「硬骨头」六条全部落地**。
@@ -23,8 +25,8 @@
 不复用其代码、资源或界面素材，只借鉴「无缝实时预览」这一交互范式。
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/public/shots/hero-dark.png">
-  <img src="docs/public/shots/hero-light.png" alt="Brainforge Typo 编辑一篇带表格、任务列表与数学公式的文档">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/public/shots/zh/hero-dark.png">
+  <img src="docs/public/shots/zh/hero-light.png" alt="Brainforge Typo 编辑一篇带表格、任务列表与数学公式的文档">
 </picture>
 
 上面这张图是**脚本跑真应用拍的**（`pnpm screenshots`），不是设计稿 ——
@@ -35,7 +37,7 @@
 
 | 光标不在里面 | 光标进去 |
 | --- | --- |
-| ![只有排版](docs/public/shots/reveal-before.png) | ![星号就地现身](docs/public/shots/reveal-after.png) |
+| ![只有排版](docs/public/shots/zh/reveal-before.png) | ![星号就地现身](docs/public/shots/zh/reveal-after.png) |
 
 ## 核心设计取向
 

@@ -2,46 +2,33 @@
 layout: home
 
 hero:
-  name: Brainforge Typo
-  text: 写下的就是看到的
-  tagline: 开源的 Markdown 所见即所得编辑器。无分屏，无预览窗格，只有一个编辑区。
+  name: "Brainforge Typo"
+  text: "写下的就是看到的"
+  tagline: "开源的 Markdown 所见即所得编辑器。无分屏，无预览窗格，只有一个编辑区。"
   actions:
     - theme: brand
-      text: 看设计文档
+      text: "看设计文档"
       link: /design/00-overview
     - theme: alt
-      text: GitHub
+      text: "GitHub"
       link: https://github.com/zning1994/open-typo-md
     - theme: alt
-      text: 路线图
+      text: "路线图"
       link: /design/08-roadmap
 
 features:
   - title: 源码优先，往返零损耗
-    details: 编辑器缓冲区里存的就是磁盘上那份 Markdown 文本，没有中间私有模型。打开再保存，文件逐字节不变 —— 包括编码、换行风格、你原本用的是 * 还是 _。
+    details: "编辑器缓冲区里存的就是磁盘上那份 Markdown 文本，没有中间私有模型。打开再保存，文件逐字节不变 —— 包括编码、换行风格、你原本用的是 * 还是 _。"
   - title: 光标进入才显源码
-    details: 标题、粗体、链接、图片平时都以最终形态呈现；光标走进某个元素，它的 Markdown 标记才就地显形供你编辑。中日韩输入法在装饰区域内正常工作，有专门的回归用例守着。
+    details: "标题、粗体、链接、图片平时都以最终形态呈现；光标走进某个元素，它的 Markdown 标记才就地显形供你编辑。中日韩输入法在装饰区域内正常工作，有专门的回归用例守着。"
   - title: 本地优先，不锁定数据
-    details: 工作区就是一个普通文件夹。不需要账号，不需要同步服务。设置文件是明文 JSON，摆在那里让你直接改。
+    details: "工作区就是一个普通文件夹。不需要账号，不需要同步服务。设置文件是明文 JSON，摆在那里让你直接改。"
   - title: 内核可以脱离 Electron
-    details: 编辑器内核是纯 Web 库，不 import 任何 Node/Electron API，宿主能力全部靠注入。浏览器或别的壳都能复用。
+    details: "编辑器内核是纯 Web 库，不 import 任何 Node/Electron API，宿主能力全部靠注入。浏览器或别的壳都能复用。"
 ---
 
-<style>
-/* 站点的深浅色是靠 <html class="dark"> 切的，不是 prefers-color-scheme，
-   所以两张图各挂一个类，由 CSS 决定谁露面。 */
-.shot { border-radius: 10px; border: 1px solid var(--vp-c-divider); overflow: hidden; }
-.shot img { display: block; width: 100%; }
-.shot-dark { display: none; }
-.dark .shot-light { display: none; }
-.dark .shot-dark { display: block; }
-.shot-pair { display: grid; gap: 16px; margin: 24px 0; }
-@media (min-width: 768px) { .shot-pair { grid-template-columns: 1fr 1fr; } }
-.shot-caption { margin-top: 8px; font-size: 13px; color: var(--vp-c-text-2); }
-</style>
-
-<div class="shot shot-light"><img src="/shots/hero-light.png" alt="Brainforge Typo 编辑一篇带表格、任务列表与数学公式的文档" /></div>
-<div class="shot shot-dark"><img src="/shots/hero-dark.png" alt="Brainforge Typo 的深色主题" /></div>
+<div class="shot shot-light"><img src="/shots/zh/hero-light.png" alt="Brainforge Typo 编辑一篇带表格、任务列表与数学公式的文档" /></div>
+<div class="shot shot-dark"><img src="/shots/zh/hero-dark.png" alt="Brainforge Typo 的深色主题" /></div>
 
 <p class="shot-caption">图是脚本跑真应用拍的（<code>pnpm screenshots</code>），不是设计稿 ——
 表格的列宽、公式的排版、下面那张流程图，都是产品自己算出来的。</p>
@@ -54,11 +41,11 @@ features:
 
 <div class="shot-pair">
   <div>
-    <div class="shot"><img src="/shots/reveal-before.png" alt="光标不在段落里时，加粗文字只显示排版效果" /></div>
+    <div class="shot"><img src="/shots/zh/reveal-before.png" alt="光标不在段落里时，加粗文字只显示排版效果" /></div>
     <p class="shot-caption">光标不在里面 —— 只有排版</p>
   </div>
   <div>
-    <div class="shot"><img src="/shots/reveal-after.png" alt="光标进入后，加粗的两侧显形出星号标记" /></div>
+    <div class="shot"><img src="/shots/zh/reveal-after.png" alt="光标进入后，加粗的两侧显形出星号标记" /></div>
     <p class="shot-caption">光标进去 —— <code>**</code> 就地现身</p>
   </div>
 </div>
@@ -68,7 +55,7 @@ features:
 代码块按语言高亮且不跟随散文折行；公式走 KaTeX；` ```mermaid ` 围栏直接出图。
 全部懒加载 —— 不用这些功能的文档不会为它们付出启动成本。
 
-<div class="shot"><img src="/shots/blocks-light.png" alt="代码块按 TypeScript 高亮，下方是一张 mermaid 流程图" /></div>
+<div class="shot"><img src="/shots/zh/blocks-light.png" alt="代码块按 TypeScript 高亮，下方是一张 mermaid 流程图" /></div>
 
 ## 现在是什么状态
 

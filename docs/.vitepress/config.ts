@@ -8,15 +8,17 @@
  * 与其另起一个 `site/` 再把它们复制或软链过去，不如让站点直接长在原地 ——
  * 少一份会漂移的副本，README 里那些指向 `docs/…` 的链接在 GitHub 上也照常有效。
  *
- * 代价是 `docs/` 里多出 `index.md` 与 `.vitepress/`。可以接受。
+ * ## 多语言：落地页翻，设计文档暂不翻
  *
- * ## 站点定位
+ * 这是刻意的取舍，不是没做完。设计文档有九篇加五份 ADR，而且**还在随着开发
+ * 变动**（今天就改了四处）—— 翻译一份会漂移的长文档，代价不是翻一次，
+ * 是此后每次改动都要翻三次。落地页不一样：它变得慢，而且是决定「要不要继续
+ * 看下去」的那一页。
  *
- * 首页面向「要不要用它」，其余全部是**设计文档**而不是用户手册。
- * 这是刻意的：这个项目现在最值得看的东西就是那些取舍，
- * 而功能清单 README 里已经有了。等真有了用户手册再单开一档。
+ * 所以 `/en/` 与 `/ja/` 只有落地页，并在页面上**明说**设计文档是中文的。
+ * 加一种语言 = 加一个 `LOCALES` 条目 + 一份落地页 + 一份样例文档（截图用）。
  */
-import { defineConfig } from 'vitepress'
+import { defineConfig, type DefaultTheme, type LocaleConfig } from 'vitepress'
 
 const REPO = 'open-typo-md'
 const GITHUB = `https://github.com/zning1994/${REPO}`
@@ -52,81 +54,184 @@ const ADR = [
   ['0005-windows-and-tabs', '0005 · 窗口与标签'],
 ] as const
 
+/** 中文站的侧栏 —— 设计文档与 ADR 互为折叠的第二组，两边都能一眼跳过去。 */
+const zhSidebar: DefaultTheme.Sidebar = {
+  '/design/': [
+    { text: '设计文档', items: DESIGN.map(([s, text]) => ({ text, link: `/design/${s}` })) },
+    {
+      text: '架构决策记录',
+      collapsed: true,
+      items: ADR.map(([s, text]) => ({ text, link: `/adr/${s}` })),
+    },
+  ],
+  '/adr/': [
+    { text: '架构决策记录', items: ADR.map(([s, text]) => ({ text, link: `/adr/${s}` })) },
+    {
+      text: '设计文档',
+      collapsed: true,
+      items: DESIGN.map(([s, text]) => ({ text, link: `/design/${s}` })),
+    },
+  ],
+}
+
+/**
+ * 各语言共用的那部分主题配置。
+ *
+ * 抽出来是因为 `editLink.pattern` 之类的东西每加一种语言就要重复一遍，
+ * 而重复的配置迟早会漂移 —— 典型症状是「英文站的编辑链接指向了半年前的路径」。
+ */
+function themeFor(labels: {
+  edit: string
+  outline: string
+  prev: string
+  next: string
+  updated: string
+  theme: string
+  toTop: string
+  menu: string
+  footer: string
+}): DefaultTheme.Config {
+  return {
+    socialLinks: [{ icon: 'github', link: GITHUB }],
+    editLink: { pattern: `${GITHUB}/edit/main/docs/:path`, text: labels.edit },
+    outline: { level: [2, 3], label: labels.outline },
+    docFooter: { prev: labels.prev, next: labels.next },
+    lastUpdatedText: labels.updated,
+    darkModeSwitchLabel: labels.theme,
+    returnToTopLabel: labels.toTop,
+    sidebarMenuLabel: labels.menu,
+    footer: {
+      message: labels.footer,
+      copyright: 'Copyright © 2026 Brainforge Typo Contributors',
+    },
+  }
+}
+
+const LOCALES: LocaleConfig<DefaultTheme.Config> = {
+  root: {
+    label: '简体中文',
+    lang: 'zh-CN',
+    description: '开源的 Markdown 所见即所得编辑器 —— 无分屏、无预览窗格，写下的就是看到的。',
+    themeConfig: {
+      ...themeFor({
+        edit: '在 GitHub 上编辑此页',
+        outline: '本页目录',
+        prev: '上一篇',
+        next: '下一篇',
+        updated: '最后更新',
+        theme: '主题',
+        toTop: '回到顶部',
+        menu: '目录',
+        footer: 'MIT 许可发布。与 Typora 无关联，是一个独立实现。',
+      }),
+      nav: [
+        { text: '设计文档', link: '/design/00-overview' },
+        { text: '架构决策', link: '/adr/0001-desktop-shell' },
+        { text: '路线图', link: '/design/08-roadmap' },
+        { text: '下载', link: `${GITHUB}/releases` },
+      ],
+      sidebar: zhSidebar,
+    },
+  },
+
+  en: {
+    label: 'English',
+    lang: 'en-US',
+    link: '/en/',
+    description:
+      'An open-source WYSIWYG Markdown editor — no split pane, no preview pane. What you type is what you see.',
+    themeConfig: {
+      ...themeFor({
+        edit: 'Edit this page on GitHub',
+        outline: 'On this page',
+        prev: 'Previous',
+        next: 'Next',
+        updated: 'Last updated',
+        theme: 'Appearance',
+        toTop: 'Back to top',
+        menu: 'Menu',
+        footer: 'Released under the MIT License. Not affiliated with Typora.',
+      }),
+      nav: [
+        { text: 'Design docs (Chinese)', link: '/design/00-overview' },
+        { text: 'Roadmap (Chinese)', link: '/design/08-roadmap' },
+        { text: 'Download', link: `${GITHUB}/releases` },
+      ],
+    },
+  },
+
+  ja: {
+    label: '日本語',
+    lang: 'ja-JP',
+    link: '/ja/',
+    description:
+      'オープンソースの WYSIWYG Markdown エディタ。分割ビューもプレビューペインもなく、書いたものがそのまま見えます。',
+    themeConfig: {
+      ...themeFor({
+        edit: 'GitHub でこのページを編集',
+        outline: 'このページの内容',
+        prev: '前へ',
+        next: '次へ',
+        updated: '最終更新',
+        theme: '外観',
+        toTop: 'トップへ戻る',
+        menu: 'メニュー',
+        footer: 'MIT ライセンスで公開。Typora とは無関係です。',
+      }),
+      nav: [
+        { text: '設計ドキュメント（中国語）', link: '/design/00-overview' },
+        { text: 'ロードマップ（中国語）', link: '/design/08-roadmap' },
+        { text: 'ダウンロード', link: `${GITHUB}/releases` },
+      ],
+    },
+  },
+}
+
 export default defineConfig({
-  lang: 'zh-CN',
   title: 'Brainforge Typo',
-  description: '开源的 Markdown 所见即所得编辑器 —— 无分屏、无预览窗格，写下的就是看到的。',
   base: '/',
   sitemap: { hostname: SITE },
   lastUpdated: true,
   cleanUrls: true,
+  locales: LOCALES,
 
   head: [
     ['meta', { name: 'theme-color', content: '#0969da' }],
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:title', content: 'Brainforge Typo' }],
     ['meta', { property: 'og:url', content: SITE }],
-    [
-      'meta',
-      {
-        property: 'og:description',
-        content: '开源的 Markdown 所见即所得编辑器。源码优先，往返零损耗。',
-      },
-    ],
+    ['meta', { property: 'og:image', content: `${SITE}/shots/en/hero-light.png` }],
   ],
 
   themeConfig: {
-    nav: [
-      { text: '设计文档', link: '/design/00-overview' },
-      { text: '架构决策', link: '/adr/0001-desktop-shell' },
-      { text: '路线图', link: '/design/08-roadmap' },
-      { text: '下载', link: `${GITHUB}/releases` },
-    ],
-
-    sidebar: {
-      '/design/': [
-        {
-          text: '设计文档',
-          items: DESIGN.map(([slug, text]) => ({ text, link: `/design/${slug}` })),
+    search: {
+      provider: 'local',
+      options: {
+        locales: {
+          root: {
+            translations: {
+              button: { buttonText: '搜索', buttonAriaLabel: '搜索' },
+              modal: {
+                displayDetails: '展开',
+                resetButtonTitle: '清空',
+                noResultsText: '没有找到',
+                footer: { selectText: '选择', navigateText: '切换', closeText: '关闭' },
+              },
+            },
+          },
+          ja: {
+            translations: {
+              button: { buttonText: '検索', buttonAriaLabel: '検索' },
+              modal: {
+                displayDetails: '詳細を表示',
+                resetButtonTitle: 'クリア',
+                noResultsText: '見つかりませんでした',
+                footer: { selectText: '選択', navigateText: '移動', closeText: '閉じる' },
+              },
+            },
+          },
         },
-        {
-          text: '架构决策记录',
-          collapsed: true,
-          items: ADR.map(([slug, text]) => ({ text, link: `/adr/${slug}` })),
-        },
-      ],
-      '/adr/': [
-        {
-          text: '架构决策记录',
-          items: ADR.map(([slug, text]) => ({ text, link: `/adr/${slug}` })),
-        },
-        {
-          text: '设计文档',
-          collapsed: true,
-          items: DESIGN.map(([slug, text]) => ({ text, link: `/design/${slug}` })),
-        },
-      ],
+      },
     },
-
-    socialLinks: [{ icon: 'github', link: GITHUB }],
-
-    editLink: {
-      pattern: `${GITHUB}/edit/main/docs/:path`,
-      text: '在 GitHub 上编辑此页',
-    },
-
-    outline: { level: [2, 3], label: '本页目录' },
-    docFooter: { prev: '上一篇', next: '下一篇' },
-    lastUpdatedText: '最后更新',
-    darkModeSwitchLabel: '主题',
-    returnToTopLabel: '回到顶部',
-    sidebarMenuLabel: '目录',
-
-    footer: {
-      message: 'MIT 许可发布。与 Typora 无关联，是一个独立实现。',
-      copyright: 'Copyright © 2026 Brainforge Typo Contributors',
-    },
-
-    search: { provider: 'local' },
   },
 })

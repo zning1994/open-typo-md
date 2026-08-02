@@ -1,0 +1,50 @@
+/**
+ * 三份落地页共用的截图样式。
+ *
+ * 抽成主题 CSS 而不是每页写一遍 `<style>`：那样每加一种语言就多一份拷贝，
+ * 而拷贝迟早会漂移 —— 典型症状是「英文页的图有圆角，日文页的没有」。
+ */
+
+.shot {
+  border-radius: 10px;
+  border: 1px solid var(--vp-c-divider);
+  overflow: hidden;
+}
+
+.shot img {
+  display: block;
+  width: 100%;
+}
+
+/* 站点的深浅色是靠 `<html class="dark">` 切的，不是 prefers-color-scheme，
+   所以两张图各挂一个类，由 CSS 决定谁露面 */
+.shot-dark {
+  display: none;
+}
+
+.dark .shot-light {
+  display: none;
+}
+
+.dark .shot-dark {
+  display: block;
+}
+
+/* 「光标进入即显源码」的前后对比：窄屏上下叠，宽屏并排 —— 并排才看得出差别 */
+.shot-pair {
+  display: grid;
+  gap: 16px;
+  margin: 24px 0;
+}
+
+@media (min-width: 768px) {
+  .shot-pair {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.shot-caption {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--vp-c-text-2);
+}

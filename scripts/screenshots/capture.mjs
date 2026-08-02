@@ -15,9 +15,18 @@
  *     pnpm screenshots            # macOS / Windows
  *     xvfb-run -a pnpm screenshots  # Linux（需要一个显示环境）
  *
- * 产物写进 `docs/public/shots/`，VitePress 会把它们原样发到站点根下。
+ * 产物写进 `docs/public/shots/<语言>/`，VitePress 会把它们原样发到站点根下。
  * **图是提交进仓库的**：让 Pages 的构建去跑一遍 Electron 太重，
  * 而这些图的更新频率远低于代码。
+ *
+ * ## 每种界面语言各拍一套
+ *
+ * 一个英文落地页配一张中文截图，读者第一眼看到的是「这个项目没做完」。
+ * 样例文档按语言各写一份（`sample.<lang>.md`），脚本挨个跑一遍。
+ * 加一种语言 = 加一份样例文档 + 在 `LANGS` 里加一行，不用改逻辑。
+ *
+ * **样例文档不是机器翻译的**：里面那句「光标进入即显源码」的说明是要被截进
+ * 对比图里的，译得别扭的话，那张图就白拍了。
  */
 import { mkdir, rm, writeFile, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -29,6 +38,19 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(here, '../..')
 const appRoot = path.join(repoRoot, 'apps/desktop')
 const outDir = path.join(repoRoot, 'docs/public/shots')
+
+/**
+ * 要拍哪几种语言。
+ *
+ * `reveal` 是「光标进入即显源码」那组对比图，得指定**在哪一段、点哪个词**上演示 ——
+ * 每种语言的措辞不同，所以这两个定位串跟着语言走。写成整句里的一小截，
+ * 而不是整句：整句里任何一个标点改了都会找不到。
+ */
+const LANGS = [
+  { id: 'zh', paragraph: '编辑器缓冲区里存的就是', section: '管线' },
+  { id: 'en', paragraph: 'the editor buffer holds exactly', section: 'Pipeline' },
+  { id: 'ja', paragraph: 'エディタのバッファには', section: 'パイプライン' },
+]
 
 /** 窗口内容区尺寸（CSS 像素）。截出来的 PNG 是它的两倍，见 SCALE。 */
 const WIDTH = 1280
@@ -90,134 +112,150 @@ async function setTheme(app, page, id, label) {
   await page.waitForTimeout(200)
 }
 
-async function shoot(page, name, options = {}) {
-  const file = path.join(outDir, `${name}.png`)
+async function shoot(page, lang, name, options = {}) {
+  const file = path.join(outDir, lang, `${name}.png`)
   await page.screenshot({ path: file, ...options })
   console.log(`  ✓ ${path.relative(repoRoot, file)}`)
 }
 
-async function main() {
-  const userDataDir = path.join(tmpdir(), `typo-shots-${Date.now()}`)
-  await mkdir(outDir, { recursive: true })
+/** 拍完一种语言的全套图。应用已经打开了对应的样例文档。 */
+async function shootLang(app, page, lang) {
+  await waitFor(page, '.cm-content', '编辑区')
 
-  // 样例文档拷进临时目录再打开：直接开仓库里那份的话，应用会把它记进
-  // 「最近打开」与会话，还可能因为截图期间的误操作改到它
-  const workDir = path.join(userDataDir, 'doc')
-  await mkdir(workDir, { recursive: true })
-  const docPath = path.join(workDir, '装饰即渲染.md')
-  await writeFile(docPath, await readFile(path.join(here, 'sample.md'), 'utf8'), 'utf8')
+  // 插入符在闪。不冻住它的话，同一条命令跑两次会得到两张不同的图 ——
+  // 而「重跑一次产出不同结果」会让截图的 diff 完全没法看。
+  // 只关掉动画，不隐藏光标：光标本身是「显形」那两张图要说明的东西。
+  await page.addStyleTag({ content: '.cm-cursorLayer { animation: none !important; }' })
 
-  console.log('启动应用…')
-  const app = await electron.launch({
-    args: [
-      appRoot,
-      docPath,
-      `--user-data-dir=${userDataDir}`,
-      `--force-device-scale-factor=${SCALE}`,
-      '--no-sandbox',
-      '--disable-gpu',
-      '--disable-dev-shm-usage',
-    ],
-    env: { ...process.env, NODE_ENV: 'test' },
+  // —— 第一屏：标题、正文、表格、任务列表、公式 ——
+  //
+  // 公式是懒加载的，等它渲染完再拍
+  await waitFor(page, '.cm-typo-math .katex', 'KaTeX 公式')
+  await toTop(page)
+
+  await setTheme(app, page, 'light', '浅色')
+  await shoot(page, lang.id, 'hero-light')
+
+  await setTheme(app, page, 'dark', '深色')
+  await shoot(page, lang.id, 'hero-dark')
+
+  // —— 第二屏：代码高亮与 mermaid ——
+  //
+  // **必须先滚过去再等**：CodeMirror 只渲染视口内的行，装饰引擎也只对可见区
+  // 算装饰 —— 图表在视口外时那个 SVG 根本不存在，干等只会超时。
+  await setTheme(app, page, 'light', '浅色')
+  await page.keyboard.press('ControlOrMeta+End')
+  await waitFor(page, '.cm-typo-mermaid svg', 'Mermaid 图表')
+
+  // 定位到那一节的标题，而**不是靠滚动距离猜**。猜距离的写法一改文档就错位，
+  // 而且错位了 CI 也不会告诉你 —— 图还是能出，只是拍歪了。
+  // 按元素定位则要么对，要么当场报错。
+  const heading = page.locator('.cm-line', { hasText: lang.section }).first()
+  if ((await heading.count()) === 0) {
+    throw new Error(`[${lang.id}] 样例文档里找不到「${lang.section}」这一节`)
+  }
+  await heading.evaluate((el) => el.scrollIntoView({ block: 'start' }))
+  // 标题顶着视口边缘不好看，往上让出一点
+  await page.mouse.wheel(0, -48)
+  await page.waitForTimeout(400)
+
+  // 滚到文档末尾时编辑区底下有一大片留白（`padding-bottom: 40vh`，为了让最后
+  // 一行也能停在舒服的位置）。按 mermaid 图的实际底边裁掉它 —— 写死一个高度
+  // 的话，样例文档一改就又留白或者又切掉半张图
+  const diagram = await page.locator('.cm-typo-mermaid').first().boundingBox()
+  if (!diagram) throw new Error(`[${lang.id}] 找不到图表，没法决定裁到哪儿`)
+  await shoot(page, lang.id, 'blocks-light', {
+    clip: { x: 0, y: 0, width: WIDTH, height: Math.ceil(diagram.y + diagram.height + 40) },
   })
 
-  try {
-    const page = await app.firstWindow()
+  // —— 「光标进入即显源码」：只能靠对比图说明 ——
+  await toTop(page)
 
-    await app.evaluate(
-      ({ BrowserWindow }, size) => {
-        const win = BrowserWindow.getAllWindows()[0]
-        win?.setContentSize(size.width, size.height)
-      },
-      { width: WIDTH, height: HEIGHT },
-    )
+  const paragraph = page.locator('.cm-line', { hasText: lang.paragraph }).first()
+  const box = await paragraph.boundingBox()
+  if (!box) throw new Error(`[${lang.id}] 找不到用来演示显形的那一段（「${lang.paragraph}」）`)
 
-    await waitFor(page, '.cm-content', '编辑区')
-
-    // 插入符在闪。不冻住它的话，同一条命令跑两次会得到两张不同的图 ——
-    // 而「重跑一次产出不同结果」会让截图的 diff 完全没法看。
-    // 只关掉动画，不隐藏光标：光标本身是「显形」那两张图要说明的东西。
-    await page.addStyleTag({
-      content: '.cm-cursorLayer { animation: none !important; }',
-    })
-
-    console.log('拍摄…')
-    // —— 第一屏：标题、正文、表格、任务列表、公式 ——
-    //
-    // 公式是懒加载的，等它渲染完再拍
-    await waitFor(page, '.cm-typo-math .katex', 'KaTeX 公式')
-    await toTop(page)
-
-    await setTheme(app, page, 'light', '浅色')
-    await shoot(page, 'hero-light')
-
-    await setTheme(app, page, 'dark', '深色')
-    await shoot(page, 'hero-dark')
-
-    // —— 第二屏：代码高亮与 mermaid ——
-    //
-    // **必须先滚过去再等**：CodeMirror 只渲染视口内的行，装饰引擎也只对可见区
-    // 算装饰 —— 图表在视口外时那个 SVG 根本不存在，干等只会超时。
-    await setTheme(app, page, 'light', '浅色')
-    await page.keyboard.press('ControlOrMeta+End')
-    await waitFor(page, '.cm-typo-mermaid svg', 'Mermaid 图表')
-
-    // 定位到「管线」那一节的标题，而**不是靠滚动距离猜**。
-    // 猜距离的写法一改文档就错位，而且错位了 CI 也不会告诉你 —— 图还是能出，
-    // 只是拍歪了。按元素定位则要么对，要么当场报错。
-    await page
-      .locator('.cm-line', { hasText: '管线' })
-      .first()
-      .evaluate((el) => el.scrollIntoView({ block: 'start' }))
-    // 标题顶着视口边缘不好看，往上让出一点
-    await page.mouse.wheel(0, -48)
-    await page.waitForTimeout(400)
-
-    // 滚到文档末尾时编辑区底下有一大片留白（`padding-bottom: 40vh`，为了让最后
-    // 一行也能停在舒服的位置）。按 mermaid 图的实际底边裁掉它 —— 写死一个高度
-    // 的话，样例文档一改就又留白或者又切掉半张图
-    const diagram = await page.locator('.cm-typo-mermaid').first().boundingBox()
-    if (!diagram) throw new Error('找不到图表，没法决定裁到哪儿')
-    await shoot(page, 'blocks-light', {
-      clip: { x: 0, y: 0, width: WIDTH, height: Math.ceil(diagram.y + diagram.height + 40) },
-    })
-
-    // —— 「光标进入即显源码」：只能靠对比图说明 ——
-    await toTop(page)
-
-    const paragraph = page.locator('.cm-line', { hasText: '编辑器缓冲区里存的就是' }).first()
-    const box = await paragraph.boundingBox()
-    if (!box) throw new Error('找不到用来演示显形的那一段')
-
-    // 上下各留一点余量，宽度取正文栏
-    const clip = {
-      x: Math.max(0, box.x - 24),
-      y: Math.max(0, box.y - 16),
-      width: Math.min(WIDTH - Math.max(0, box.x - 24), box.width + 48),
-      height: box.height + 32,
-    }
-
-    await shoot(page, 'reveal-before', { clip })
-
-    // 点进那句加粗文字里，`**` 就地显形
-    await paragraph.locator('.cm-typo-strong').first().click()
-    await page.waitForFunction(
-      () => document.querySelector('.cm-typo-mark') !== null,
-      undefined,
-      { timeout: 10_000 },
-    )
-    await shoot(page, 'reveal-after', { clip })
-
-    console.log('完成。')
-  } finally {
-    await app.evaluate(({ app: electronApp }) => electronApp.exit(0)).catch(() => undefined)
-    await rm(userDataDir, { recursive: true, force: true, maxRetries: 10 }).catch(
-      () => undefined,
-    )
+  // 上下各留一点余量，宽度取正文栏
+  const clip = {
+    x: Math.max(0, box.x - 24),
+    y: Math.max(0, box.y - 16),
+    width: Math.min(WIDTH - Math.max(0, box.x - 24), box.width + 48),
+    height: box.height + 32,
   }
+
+  await shoot(page, lang.id, 'reveal-before', { clip })
+
+  // 点进那句加粗文字里，`**` 就地显形
+  await paragraph.locator('.cm-typo-strong').first().click()
+  await page.waitForFunction(
+    () => document.querySelector('.cm-typo-mark') !== null,
+    undefined,
+    {
+      timeout: 10_000,
+    },
+  )
+  await shoot(page, lang.id, 'reveal-after', { clip })
 }
 
-main().catch((error) => {
+/**
+ * 每种语言**重开一次应用**，而不是在同一个窗口里换文档。
+ *
+ * 换文档要么走「打开文件」（会动到会话与最近打开），要么整片替换内容
+ * （撤销栈里留着一次巨大的替换，而截图里的状态栏会把它暴露出来）。
+ * 重开一次是几秒的事，换来的是每一套图都从同样干净的状态开始。
+ */
+async function shootAll() {
+  await mkdir(outDir, { recursive: true })
+
+  for (const lang of LANGS) {
+    const userDataDir = path.join(tmpdir(), `typo-shots-${lang.id}-${Date.now()}`)
+    await mkdir(path.join(outDir, lang.id), { recursive: true })
+
+    // 样例文档拷进临时目录再打开：直接开仓库里那份的话，应用会把它记进
+    // 「最近打开」与会话，还可能因为截图期间的误操作改到它
+    const workDir = path.join(userDataDir, 'doc')
+    await mkdir(workDir, { recursive: true })
+    const source = await readFile(path.join(here, `sample.${lang.id}.md`), 'utf8')
+    // 文件名会出现在状态栏里，所以取样例文档自己的一级标题
+    const title = (/^#\s+(.+)$/m.exec(source)?.[1] ?? lang.id).trim()
+    const docPath = path.join(workDir, `${title}.md`)
+    await writeFile(docPath, source, 'utf8')
+
+    console.log(`[${lang.id}] 启动应用…`)
+    const app = await electron.launch({
+      args: [
+        appRoot,
+        docPath,
+        `--user-data-dir=${userDataDir}`,
+        `--force-device-scale-factor=${SCALE}`,
+        '--no-sandbox',
+        '--disable-gpu',
+        '--disable-dev-shm-usage',
+      ],
+      env: { ...process.env, NODE_ENV: 'test' },
+    })
+
+    try {
+      const page = await app.firstWindow()
+      await app.evaluate(
+        ({ BrowserWindow }, size) => {
+          BrowserWindow.getAllWindows()[0]?.setContentSize(size.width, size.height)
+        },
+        { width: WIDTH, height: HEIGHT },
+      )
+      await shootLang(app, page, lang)
+    } finally {
+      await app.evaluate(({ app: electronApp }) => electronApp.exit(0)).catch(() => undefined)
+      await rm(userDataDir, { recursive: true, force: true, maxRetries: 10 }).catch(
+        () => undefined,
+      )
+    }
+  }
+
+  console.log('完成。')
+}
+
+shootAll().catch((error) => {
   console.error(`截图失败：${error.message}`)
   if (process.platform === 'linux' && !process.env['DISPLAY']) {
     console.error('Linux 上需要一个显示环境，试试：xvfb-run -a pnpm screenshots')
