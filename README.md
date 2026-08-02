@@ -147,6 +147,10 @@ Developer ID 证书 + 公证，那是 M6 的内容。）
 
 **Windows** —— SmartScreen 提示「Windows 已保护你的电脑」，点「更多信息」→「仍要运行」。
 
+（Windows 这一关**刻意先不解决**：跟 macOS 不同，签了名也不代表不弹窗 ——
+普通证书要靠安装量积累「声誉」，立刻生效的 EV 证书又贵、还得配云签名服务。
+账算不过来，理由见 [07 §6.2](docs/design/07-quality.md)。）
+
 **Linux** —— AppImage 需要先加执行权限：
 
 ```bash

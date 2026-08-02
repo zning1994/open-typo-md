@@ -138,15 +138,47 @@ fork 的 PR 拿不到（必须在 workflow 里显式限制）。
   这两样已经配好了，但如果将来引入了原生模块（`.node`），它必须**单独签名**，
   否则公证日志里会报 “The binary is not signed with a valid Developer ID
   certificate”。目前三个进程的产物都是自包含 JS，没有这个问题。
-- **Windows 的 SmartScreen 是另一套**，靠 Authenticode 证书（OV 便宜但要攒
-  信誉，EV 立刻生效但更贵）。`CSC_LINK` / `CSC_KEY_PASSWORD` 在 Windows 作业里
-  同名复用，配上即可。
 
 **只讲流水线怎么搭。走哪条分发路线、代价是什么，在 [09 分发](09-distribution.md)** ——
 包括 Mac App Store 那条路上的架构冲突（App Sandbox 跟会话恢复、附件写盘、文件
 监听三处正面撞车），以及为什么现在还不该收费。
 
-### 6.2 官网 / 文档站
+### 6.2 Windows 签名：为什么现在先不做
+
+SmartScreen（「Windows 已保护你的电脑」）跟 Gatekeeper 是同一类问题，
+但**解除拦截的条件完全不同**，而这个差别决定了投入产出：
+
+| | macOS | Windows |
+| --- | --- | --- |
+| 签名之后 | 还要公证，公证完**立刻**双击即开 | 签了名**不代表不弹窗** |
+| 生效方式 | 确定性的 | 靠**声誉**积累 —— 安装量够多了才不弹 |
+
+**OV 证书签完，SmartScreen 照样弹**，要等签名积累够安装量；只有 **EV 证书**
+立刻获得声誉。对一个还没有用户的项目，OV 等于花了钱还是弹窗 ——
+而「等安装量」的前提是有人愿意穿过弹窗去装。
+
+**而且 macOS 那套「p12 塞进 secret」的路子在 Windows 上已经不成立。**
+CA/浏览器论坛从 2023 年 6 月起要求所有代码签名私钥存在硬件里（HSM / USB 令牌），
+OV、EV 都一样 —— GitHub 托管的 runner 插不了 U 盘。现在可行的只有两类：
+
+- **云签名服务**（Azure Trusted Signing、DigiCert KeyLocker、SSL.com eSigner）：
+  私钥在服务商的 HSM 里，给一个能从 CI 调的签名接口。其中 Azure Trusted Signing
+  便宜得多，但**资格条件要按当下的官方条款确认**（对组织成立年限有过要求，
+  个人开发者的政策变过）。
+- **Certum 的开源证书**：对开源项目价格很低，但发的是实体卡，
+  意味着只能在本机签，或者搭一台自托管 runner。
+
+**结论：先不买。** macOS 那 99 美元/年换来的是确定的「双击即开」，值；
+Windows 这边花更多钱，OV 换不来立刻不弹窗，EV 又贵还得配云签名 ——
+而现在没有用户，声誉积累无从谈起。用户点两下「更多信息 → 仍要运行」能装，
+README 里写清楚了。等真有下载量、或者开始收费，再回头算这笔账。
+
+`release.yml` 里给 Windows 留的 `WIN_CSC_LINK` / `WIN_CSC_KEY_PASSWORD`
+是**经典 p12 那条路**的接口。走云签名的话这两个变量用不上，
+要换成各家的签名钩子（electron-builder 支持自定义 `sign` 脚本）——
+等真选了服务商再改，现在写死反而是负担。
+
+### 6.3 官网 / 文档站
 
 `docs/` 目录**本身**就是站点源码（VitePress），由 `.github/workflows/pages.yml`
 发到 GitHub Pages。不另建一个 `site/` 再把文档复制过去 —— 那会多出一份必然
@@ -172,7 +204,7 @@ fork 的 PR 拿不到（必须在 workflow 里显式限制）。
 里有个没闭合的代码围栏，导致从 §6.3 到文件末尾整段被当成代码块 ——
 GitHub 上一直也是这么渲染的，没人发现。**多一个渲染器就多一双眼睛。**
 
-### 6.3 截图是脚本拍的，不是手工截的
+### 6.4 截图是脚本拍的，不是手工截的
 
 `pnpm screenshots`（Linux 上 `xvfb-run -a pnpm screenshots`）跑一遍真应用，
 把官网与 README 用的图拍进 `docs/public/shots/`。
@@ -195,7 +227,7 @@ GitHub 上一直也是这么渲染的，没人发现。**多一个渲染器就�
 - **图提交进仓库**：让 Pages 的构建去跑一遍 Electron 太重，而图的更新频率
   远低于代码。
 
-### 6.4 CI 产物是 zip，Release 产物不是
+### 6.5 CI 产物是 zip，Release 产物不是
 
 Actions 页面上下载到的永远是 zip —— 那是 `actions/upload-artifact` 的固有行为
 （GitHub 一律把产物打包），跟我们的配置无关，也改不掉。所以 CI 里那几个
@@ -214,7 +246,7 @@ Release 走的是 `electron-builder --publish always`，它把 `.dmg` / `.exe` /
 套同一个全局 `artifactName` 会解析成同一个文件名，后打的覆盖先打的。
 CI 只打 nsis，所以它一直藏着。现在 `portable` 有自己的命名模板。
 
-### 6.5 为什么发布作业是串行的
+### 6.6 为什么发布作业是串行的
 
 三个平台都带 `--publish always`，而草稿 release 的语义是「没有就建一个」。
 并发时三个作业会同时发现「没有」，于是各建一个 —— 产物散落在两三个草稿里，
