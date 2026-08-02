@@ -134,6 +134,8 @@ export function buildMenu(actions: MenuActions, bindings: BindingMap = DEFAULT_B
       label: '视图',
       submenu: [
         item('源码模式', 'view.toggleSource'),
+        item('专注模式', 'view.toggleFocus'),
+        item('打字机模式', 'view.toggleTypewriter'),
         item('文件树', 'view.toggleFiles'),
         item('下一个标签页', 'view.nextTab'),
         item('上一个标签页', 'view.prevTab'),

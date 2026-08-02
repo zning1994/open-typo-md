@@ -74,6 +74,8 @@ export type MenuCommand =
   | 'view.nextTab'
   | 'view.prevTab'
   | 'view.toggleSource'
+  | 'view.toggleFocus'
+  | 'view.toggleTypewriter'
   | 'view.toggleOutline'
   | 'view.commandPalette'
   | 'view.settings'

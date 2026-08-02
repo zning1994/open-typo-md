@@ -184,6 +184,10 @@ export const DEFAULT_BINDINGS: Partial<Record<MenuCommand, string>> = {
   'view.nextTab': 'Ctrl+Tab',
   'view.prevTab': 'Ctrl+Shift+Tab',
   'view.toggleSource': 'Mod+/',
+  // 专注 / 打字机走功能键：⌘ 打头的两键组合已经被格式命令占满了，
+  // 而这两个模式是「开一次写一小时」的东西，不需要顺手到那个程度
+  'view.toggleFocus': 'F8',
+  'view.toggleTypewriter': 'F9',
   'view.toggleOutline': 'Mod+Shift+E',
   'view.commandPalette': 'Mod+Shift+P',
   'view.settings': 'Mod+,',

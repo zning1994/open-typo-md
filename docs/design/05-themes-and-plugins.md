@@ -36,7 +36,7 @@ Typora 生态最有价值的资产就是社区主题。要复制这个效果，�
   /* 编辑器专属 */
   --typo-marker-fg: #b0b6bd;      /* 显形的 Markdown 标记 */
   --typo-cursor: var(--typo-fg);
-  --typo-focus-dim: 0.35;          /* 专注模式下非当前段的不透明度 */
+  --typo-focus-dim: 0.35;          /* 专注模式下非当前块的不透明度 */
 }
 ```
 

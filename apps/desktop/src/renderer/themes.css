@@ -49,6 +49,7 @@
   --typo-marker-fg: #b0b6bd; /* 显形中的 Markdown 标记 */
   --typo-cursor: #24292f;
   --typo-status-bg: #f6f8fa;
+  --typo-focus-dim: 0.35; /* 专注模式下非当前块的不透明度 */
 
   /* 代码高亮 token */
   --typo-string-fg: #0a3069;
@@ -131,6 +132,9 @@
   --typo-marker-fg: #a0a0a0;
   --typo-cursor: #ffffff;
   --typo-status-bg: #101010;
+  /* 高对比主题下不能真的把文字压到 0.35 —— 那等于把刚保证的对比度又拿掉。
+     0.7 仍然看得出「哪一块是当前块」，同时非当前块依然可读 */
+  --typo-focus-dim: 0.7;
   --typo-string-fg: #9cffb0;
   --typo-number-fg: #9fd0ff;
   --typo-type-fg: #ffd479;

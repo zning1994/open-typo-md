@@ -40,6 +40,8 @@ describe('默认值', () => {
     const store = await load({
       'editor.sourceModeByDefault': true,
       'editor.renderInlineHtml': false,
+      'editor.focusMode': true,
+      'editor.typewriterMode': true,
       'export.pdf.pageSize': 'Letter',
       'export.pdf.landscape': true,
       'export.pdf.marginInch': 1.25,
@@ -47,6 +49,8 @@ describe('默认值', () => {
     expect(store.all()).toEqual({
       sourceModeByDefault: true,
       renderInlineHtml: false,
+      focusMode: true,
+      typewriterMode: true,
       pdfPageSize: 'Letter',
       pdfLandscape: true,
       pdfMarginInch: 1.25,

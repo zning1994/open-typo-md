@@ -28,6 +28,16 @@ export interface Preferences {
   sourceModeByDefault: boolean
   /** 渲染文档里的行内 HTML（`<b>` `<sup>` `<kbd>` 那几个）。 */
   renderInlineHtml: boolean
+  /**
+   * 专注模式：当前块以外的内容变暗。
+   *
+   * 跟 `sourceModeByDefault` 不同，这个是**全局**的、立刻对所有标签生效 ——
+   * 源码模式是「这一篇怎么看」，而专注 / 打字机是「我现在处在什么工作状态」，
+   * 它不该因为切了个标签就消失。
+   */
+  focusMode: boolean
+  /** 打字机模式：当前行常驻视口中央。同样是全局的。 */
+  typewriterMode: boolean
   /** 导出 PDF 的纸张。 */
   pdfPageSize: PageSize
   /** 导出 PDF 用横向。 */
@@ -39,6 +49,8 @@ export interface Preferences {
 export const DEFAULT_PREFERENCES: Preferences = {
   sourceModeByDefault: false,
   renderInlineHtml: true,
+  focusMode: false,
+  typewriterMode: false,
   pdfPageSize: 'A4',
   pdfLandscape: false,
   // 跟 Word 的默认值接近，打出来不至于顶到纸边
@@ -53,6 +65,8 @@ const MARGIN_MAX = 3
 const KEYS: Record<keyof Preferences, string> = {
   sourceModeByDefault: 'editor.sourceModeByDefault',
   renderInlineHtml: 'editor.renderInlineHtml',
+  focusMode: 'editor.focusMode',
+  typewriterMode: 'editor.typewriterMode',
   pdfPageSize: 'export.pdf.pageSize',
   pdfLandscape: 'export.pdf.landscape',
   pdfMarginInch: 'export.pdf.marginInch',
@@ -69,6 +83,8 @@ const VALIDATORS: {
 } = {
   sourceModeByDefault: (value) => (typeof value === 'boolean' ? value : null),
   renderInlineHtml: (value) => (typeof value === 'boolean' ? value : null),
+  focusMode: (value) => (typeof value === 'boolean' ? value : null),
+  typewriterMode: (value) => (typeof value === 'boolean' ? value : null),
   pdfPageSize: (value) =>
     typeof value === 'string' && (PAGE_SIZES as readonly string[]).includes(value)
       ? (value as PageSize)

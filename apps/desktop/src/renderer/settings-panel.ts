@@ -205,6 +205,18 @@ export class SettingsPanel {
           (value) => this.options.preferences.set('sourceModeByDefault', value),
         ),
         this.checkRow(
+          '专注模式',
+          prefs.focusMode,
+          '光标所在的段落之外全部变暗；跟源码模式互不冲突',
+          (value) => this.options.preferences.set('focusMode', value),
+        ),
+        this.checkRow(
+          '打字机模式',
+          prefs.typewriterMode,
+          '当前行常驻视口中央。拖选时不跟随，免得跟鼠标抢滚动条',
+          (value) => this.options.preferences.set('typewriterMode', value),
+        ),
+        this.checkRow(
           '渲染行内 HTML',
           prefs.renderInlineHtml,
           '只认不带属性的 <b> <em> <u> <s> <sub> <sup> <kbd> <mark> <br>，其余按原文显示',

@@ -35,6 +35,7 @@ import { linkInteraction } from './links.js'
 import { livePreview } from './live-preview/index.js'
 import { richTextPaste } from './paste.js'
 import { typoTheme } from './theme.js'
+import { WritingModes } from './writing-modes.js'
 
 export interface EditorStats {
   words: number
@@ -50,6 +51,8 @@ export interface EditorStatus {
   stats: EditorStats
   headingLevel: number
   sourceMode: boolean
+  focusMode: boolean
+  typewriterMode: boolean
 }
 
 export interface TypoEditorOptions {
@@ -64,6 +67,10 @@ export interface TypoEditorOptions {
   /** 存图失败时的提示途径。 */
   onImageError?: (error: Error, name: string) => void
   sourceMode?: boolean
+  /** 专注模式：当前块以外的内容变暗。 */
+  focusMode?: boolean
+  /** 打字机模式：当前行常驻视口中央。 */
+  typewriterMode?: boolean
   /** 渲染文档里的行内 HTML。默认开，见 config.ts 的 `renderInlineHtml`。 */
   renderInlineHtml?: boolean
   /**
@@ -101,11 +108,20 @@ export class TypoEditor {
   private resolverOverride: AssetResolver | null = null
   private renderInlineHtmlOn: boolean
   private formatKeys: Record<string, string>
+  /**
+   * 书写模式（专注 / 打字机）。
+   *
+   * 存成字段而不是每次从 options 读，理由跟上面那两项一样：它们能被 set*
+   * 改，而 `setDoc` 会用 `buildExtensions()` 重建整个 state —— 从 options
+   * 读的话，换一篇文档就把用户开着的专注模式悄悄关掉了。
+   */
+  private readonly modes: WritingModes
 
   constructor(private readonly options: TypoEditorOptions) {
     this.sourceModeOn = options.sourceMode ?? false
     this.renderInlineHtmlOn = options.renderInlineHtml ?? true
     this.formatKeys = options.formatKeys ?? DEFAULT_FORMAT_KEYS
+    this.modes = new WritingModes(options.focusMode ?? false, options.typewriterMode ?? false)
 
     this.view = new EditorView({
       parent: options.parent,
@@ -124,6 +140,7 @@ export class TypoEditor {
       markdownLanguageSupport(options.dialect ? { dialect: options.dialect } : {}),
       this.configCompartment.of(livePreviewConfig.of(this.previewConfig())),
       this.previewCompartment.of(this.sourceModeOn ? [] : livePreview()),
+      this.modes.extension(),
       linkInteraction(),
       this.readOnlyCompartment.of(EditorState.readOnly.of(options.readOnly ?? false)),
       typoTheme(),
@@ -200,6 +217,8 @@ export class TypoEditor {
       },
       headingLevel: currentHeadingLevel(state),
       sourceMode: this.sourceModeOn,
+      focusMode: this.modes.isFocus(),
+      typewriterMode: this.modes.isTypewriter(),
     }
   }
 
@@ -255,6 +274,30 @@ export class TypoEditor {
 
   isSourceMode(): boolean {
     return this.sourceModeOn
+  }
+
+  isFocusMode(): boolean {
+    return this.modes.isFocus()
+  }
+
+  isTypewriterMode(): boolean {
+    return this.modes.isTypewriter()
+  }
+
+  /**
+   * 专注模式与源码模式**互不排斥** —— 源码模式下变暗依然成立，
+   * 而且照样按块算（语法树在源码模式下也还在）。
+   */
+  setFocusMode(on: boolean): void {
+    if (on === this.modes.isFocus()) return
+    this.modes.setFocus(this.view, on)
+    this.options.onStatus?.(this.status())
+  }
+
+  setTypewriterMode(on: boolean): void {
+    if (on === this.modes.isTypewriter()) return
+    this.modes.setTypewriter(this.view, on)
+    this.options.onStatus?.(this.status())
   }
 
   /** 源码模式 = 关掉实时预览扩展。文档本身一个字都不会变。 */

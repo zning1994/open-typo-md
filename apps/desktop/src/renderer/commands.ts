@@ -101,6 +101,8 @@ export const MENU_COMMAND_INFO: Record<MenuCommand, { title: string }> = {
   'file.exportPdf': { title: '导出为 PDF…' },
   'edit.copyRichText': { title: '复制为富文本' },
   'view.toggleSource': { title: '切换源码模式' },
+  'view.toggleFocus': { title: '专注模式' },
+  'view.toggleTypewriter': { title: '打字机模式' },
   'view.toggleOutline': { title: '显示 / 隐藏大纲' },
   'view.commandPalette': { title: '命令面板' },
   'view.settings': { title: '设置…' },

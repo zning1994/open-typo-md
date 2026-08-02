@@ -250,9 +250,19 @@ export const baseTheme = EditorView.theme({
   '.cm-selectionBackground, ::selection': { backgroundColor: v('selection', '#b4d5fe') },
   '.cm-focused .cm-selectionBackground': { backgroundColor: v('selection', '#b4d5fe') },
 
+  // —— 专注模式 ——
+  // 用 opacity 而不是把前景色调淡：文档里有代码块底色、表格边框、图片、
+  // 公式，逐个调色是永远补不完的清单，而 opacity 一次盖住整层
+  '.cm-typo-dim': {
+    opacity: v('focus-dim', '0.35'),
+    transition: 'opacity 150ms ease-out',
+  },
+
   // 无障碍：尊重系统的「减少动态效果」设置（docs/design/07 §3）
   '@media (prefers-reduced-motion: reduce)': {
     '.cm-scroller': { scrollBehavior: 'auto' },
+    // 变暗的淡入也是动态效果。关掉之后功能不受影响，只是切换得干脆
+    '.cm-typo-dim': { transition: 'none' },
   },
 })
 

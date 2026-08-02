@@ -87,3 +87,13 @@ export { MathWidget, mathTheme } from './math.js'
 export { MermaidWidget, mermaidTheme, renderMermaid } from './mermaid.js'
 export { linkInteraction, linkTargetAt } from './links.js'
 export { baseTheme, markdownHighlight, typoTheme } from './theme.js'
+export {
+  DIM_CLASS,
+  TYPEWRITER_CLASS,
+  WritingModes,
+  computeDimDecorations,
+  focusMode,
+  focusRangeAt,
+  typewriterMode,
+  typewriterPadding,
+} from './writing-modes.js'

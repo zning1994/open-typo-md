@@ -67,6 +67,20 @@ const statusName = require$<HTMLElement>('#status-name')
 const statusMeta = require$<HTMLElement>('#status-meta')
 const statusStats = require$<HTMLElement>('#status-stats')
 const statusMode = require$<HTMLButtonElement>('#status-mode')
+const statusFocus = require$<HTMLButtonElement>('#status-focus')
+const statusTypewriter = require$<HTMLButtonElement>('#status-typewriter')
+
+/**
+ * 状态栏上那两个模式开关。
+ *
+ * 真相取自**偏好**而不是当前编辑器：它们是全局模式，而 `onStatus` 只在活动
+ * 标签变化时才触发 —— 从偏好读的话，哪怕开关是在设置面板里点的，状态栏也
+ * 立刻跟上。
+ */
+function renderModeStatus(): void {
+  statusFocus.setAttribute('aria-pressed', String(preferences.get('focusMode')))
+  statusTypewriter.setAttribute('aria-pressed', String(preferences.get('typewriterMode')))
+}
 
 /**
  * 本窗口的稳定标识，用作未命名文档的草稿 key 前缀。
@@ -99,6 +113,7 @@ const tabs: TabManager = new TabManager({
     statusStats.textContent = `${status.stats.words} 字 · ${status.stats.line}:${status.stats.column}`
     statusMode.textContent = status.sourceMode ? '源码模式' : '实时预览'
     statusMode.setAttribute('aria-pressed', String(status.sourceMode))
+    renderModeStatus()
     outline.schedule()
   },
   onDocChange: () => outline.schedule(),
@@ -112,6 +127,10 @@ const tabs: TabManager = new TabManager({
       // 只影响**新建的**标签：已经开着的那些按用户当时的选择留着，
       // 改一个设置就把所有标签的视图切一遍，是很吓人的行为
       sourceMode: preferences.get('sourceModeByDefault'),
+      // 专注 / 打字机相反：它们是全局状态，新标签必须**直接带着**开，
+      // 否则新开一个标签就掉回普通模式，像是设置没生效
+      focusMode: preferences.get('focusMode'),
+      typewriterMode: preferences.get('typewriterMode'),
       renderInlineHtml: preferences.get('renderInlineHtml'),
       formatKeys: editorFormatKeys(),
       assetResolver: createAssetResolver(() => {
@@ -363,6 +382,16 @@ const MENU_ACTIONS: Record<MenuCommand, () => void> = {
     activeEditor().toggleSourceMode()
     activeEditor().focus()
   },
+  // 走偏好而不是直接调编辑器：这两个是全局模式，必须同时落到所有标签上
+  // 并且持久化。直接调编辑器的话，切个标签就变回去了
+  'view.toggleFocus': () => {
+    void preferences.set('focusMode', !preferences.get('focusMode'))
+    activeEditor().focus()
+  },
+  'view.toggleTypewriter': () => {
+    void preferences.set('typewriterMode', !preferences.get('typewriterMode'))
+    activeEditor().focus()
+  },
   'view.toggleOutline': () => {
     outline.toggle()
     activeEditor().focus()
@@ -468,6 +497,11 @@ statusMode.addEventListener('click', () => {
   activeEditor().focus()
 })
 
+// 走命令表而不是各写一份：状态栏、菜单、命令面板必须是同一个动作，
+// 三处各实现一遍的结果一定是其中一处忘了持久化
+statusFocus.addEventListener('click', () => MENU_ACTIONS['view.toggleFocus']?.())
+statusTypewriter.addEventListener('click', () => MENU_ACTIONS['view.toggleTypewriter']?.())
+
 /**
  * 崩溃恢复（docs/design/04 §4）。
  *
@@ -519,7 +553,12 @@ async function restoreSession(): Promise<void> {
 // 前者是新标签的初始视图（改已开的标签会很吓人），后者是渲染规则，
 // 用户在设置里勾掉之后期待的是「我文件里那个 <b> 现在就该露出来」
 preferences.onChange((values) => {
-  for (const tab of tabs.all()) tab.editor.setRenderInlineHtml(values.renderInlineHtml)
+  for (const tab of tabs.all()) {
+    tab.editor.setRenderInlineHtml(values.renderInlineHtml)
+    tab.editor.setFocusMode(values.focusMode)
+    tab.editor.setTypewriterMode(values.typewriterMode)
+  }
+  renderModeStatus()
 })
 
 /**
