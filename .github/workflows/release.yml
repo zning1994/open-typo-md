@@ -18,15 +18,22 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
-      # **串行跑，不是为了省资源。**
+      # **真发布串行，试跑并行。**
       #
-      # 真发布时三个平台都带 `--publish always`，而草稿 release 是「没有就建一个」——
-      # 并发时三个作业会同时发现「没有」然后各建一个，结果是产物散落在两三个
-      # 草稿里，或者其中两个直接报「已存在」失败。electron-builder 的这个竞态
-      # 是已知的，上游没打算修（发布本来就不该并发）。
+      # 串行不是为了省资源：真发布时三个平台都带 `--publish always`，而草稿
+      # release 是「没有就建一个」—— 并发时三个作业会同时发现「没有」然后各建
+      # 一个，结果是产物散落在两三个草稿里，或者其中两个直接报「已存在」失败。
+      # electron-builder 的这个竞态是已知的，上游没打算修（发布本来就不该并发）。
+      # 代价是墙钟从 ~6 分钟变成 ~18 分钟，而发布一年也没几次，认了。
       #
-      # 代价是墙钟时间从 ~6 分钟变成 ~18 分钟。发布一个版本一年也没几次。
-      max-parallel: 1
+      # 但**试跑没有这个竞态**：它走 `--publish never`，压根不碰 Release，
+      # 三个平台谁也不认识谁。让它也串行纯属白等，而试跑恰恰是要反复跑的那个。
+      #
+      # 条件刻意写成「**只有**确定是试跑才并行」，而不是「不是发布就并行」——
+      # `strategy` 里读不到 job 级 env，这个判断没法跟下面的 PUBLISH_MODE 共用
+      # 一份，只能各写一遍。两份判断万一哪天分了岔，这种写法的错法是「多等了
+      # 十二分钟」，反过来写的错法是「三个草稿 release」。
+      max-parallel: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag == '' && 3 || 1 }}
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
 
