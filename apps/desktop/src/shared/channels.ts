@@ -24,6 +24,11 @@ export const CHANNELS = {
   fsList: 'fs:list',
   fsExists: 'fs:exists',
   fsSaveAttachment: 'fs:save-attachment',
+  fsCreateFile: 'fs:create-file',
+  fsCreateDirectory: 'fs:create-directory',
+  fsRename: 'fs:rename',
+  fsTrash: 'fs:trash',
+  fsTitles: 'fs:titles',
   fsWriteText: 'fs:write-text',
   fsWritePdf: 'fs:write-pdf',
   clipboardWriteHtml: 'clipboard:write-html',
@@ -129,10 +134,37 @@ export type ContextMenuRequest =
       hasOthers: boolean
       hasRight: boolean
     }
+  | {
+      /**
+       * 文件树上的一行（issue #36）。
+       *
+       * 文件和文件夹共用一个 kind，靠 `entry` 区分：两份菜单里「重命名」
+       * 「移到废纸篓」「在文件夹中显示」是同一批项，拆成两个 kind 只会让
+       * 那几项在两处各写一遍。
+       *
+       * `isRoot` 单独一位而不是让渲染进程自己判断：工作区根不能重命名、
+       * 不能扔进废纸篓（main 侧的守卫也会再拒一次），但**可以**在它下面
+       * 新建。这个差别菜单里必须体现出来，否则用户点了才发现不行。
+       */
+      kind: 'file-tree'
+      path: string
+      entry: 'file' | 'directory'
+      isRoot: boolean
+    }
 
 /** 用户选中的那一项。`null` 表示菜单被取消，或者那一项已经由 main 做掉了。 */
 export type ContextMenuResult =
-  'tab.close' | 'tab.closeOthers' | 'tab.closeRight' | 'editor.findSelection' | null
+  | 'tab.close'
+  | 'tab.closeOthers'
+  | 'tab.closeRight'
+  | 'editor.findSelection'
+  | 'tree.open'
+  | 'tree.openInNewTab'
+  | 'tree.rename'
+  | 'tree.trash'
+  | 'tree.newFile'
+  | 'tree.newFolder'
+  | null
 
 /**
  * preload 通过 contextBridge 暴露给渲染进程的全部能力。
@@ -148,6 +180,26 @@ export interface MosuBridgeApi {
     exists(path: string): Promise<boolean>
     /** 存图片，返回相对 baseDir 的 POSIX 路径。 */
     saveAttachment(baseDir: string, mime: string, bytes: Uint8Array): Promise<string>
+    /**
+     * 工作区里的改动（issue #36）。四条都走**第三条许可**
+     * （`assertWritableInWorkspace`）—— 只认工作区根的子树，且拒绝根自身。
+     *
+     * 跟 `write` 的区别在于信任来源：`write` 的路径来自保存对话框，
+     * 这四条的路径来自渲染进程画出来的那棵树。
+     */
+    createFile(dir: string, name: string): Promise<string>
+    createDirectory(dir: string, name: string): Promise<string>
+    /** 同目录内改名，返回新路径。名字里带分隔符会被拒 —— 改名不是移动。 */
+    rename(target: string, newName: string): Promise<string>
+    /** 移到系统废纸篓。拿不到废纸篓时报错，不降级成真删。 */
+    trash(target: string): Promise<void>
+    /**
+     * 批量取文档标题（文件树用第一个标题当主标签）。
+     *
+     * 批量而不是一个一个问：一屏文件树有几十行，逐个 IPC 往返的开销远大于
+     * 读那几十个文件头。读不出标题的返回 `null`，由调用方回退到文件名。
+     */
+    titles(paths: readonly string[]): Promise<Record<string, string | null>>
     /**
      * 把本窗口监听的文件集合整体换成 `paths`。
      *

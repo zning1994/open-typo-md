@@ -60,6 +60,11 @@ const api: MosuBridgeApi = {
     exists: (path) => invoke(CHANNELS.fsExists, path),
     saveAttachment: (baseDir, mime, bytes) =>
       invoke(CHANNELS.fsSaveAttachment, baseDir, mime, bytes),
+    createFile: (dir, name) => invoke(CHANNELS.fsCreateFile, dir, name),
+    createDirectory: (dir, name) => invoke(CHANNELS.fsCreateDirectory, dir, name),
+    rename: (target, newName) => invoke(CHANNELS.fsRename, target, newName),
+    trash: (target) => invoke(CHANNELS.fsTrash, target),
+    titles: (paths) => invoke(CHANNELS.fsTitles, paths),
     watch: (paths) => invoke(CHANNELS.fsWatch, paths),
     writeText: (path, text) => invoke(CHANNELS.fsWriteText, path, text),
     writePdf: (path, html, options) => invoke(CHANNELS.fsWritePdf, path, html, options),

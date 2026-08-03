@@ -299,7 +299,31 @@ const keys = new KeybindingStore(host.settings)
 
 const files = new FileTreePanel(workspace, {
   list: (dir) => host.fs.list(dir),
+  titles: (paths) => api.fs.titles(paths),
   open: (path) => void tabs.openPath(path),
+  openInNewTab: (path) => void tabs.openInNewTab(path),
+  contextMenu: (path, entry, isRoot) =>
+    api.menu.context({ kind: 'file-tree', path, entry, isRoot }),
+  createFile: (dir, name) => api.fs.createFile(dir, name),
+  createDirectory: (dir, name) => api.fs.createDirectory(dir, name),
+  rename: (target, newName) => api.fs.rename(target, newName),
+  trash: (target) => api.fs.trash(target),
+  confirm: async (message, detail) =>
+    (await host.dialog.confirm({
+      message,
+      detail,
+      buttons: [t('dialog.trash.confirm'), t('dialog.cancel')],
+      defaultId: 0,
+      cancelId: 1,
+    })) === 0,
+  reportError: (message) => void host.dialog.message({ message }),
+  // 被扔进废纸篓的文件如果正开着，**不做标签手术**：监听那一侧本来就有
+  // 「文件被外部删除」的完整处理（保住缓冲区、保存时就地重建），
+  // 而它比「悄悄关掉用户的标签」正确得多。这里只负责把会话重记一次
+  onPathGone: () => scheduleSessionReport(),
+  onPathMoved: (from, to) => {
+    void tabs.notePathMoved(from, to).then(() => scheduleSessionReport())
+  },
   onFolderChange: () => scheduleSessionReport(),
 })
 

@@ -26,7 +26,8 @@ import {
 import { APP_SCHEME_PRIVILEGES, registerAppHandler } from './app-protocol.js'
 import { ASSET_SCHEME_PRIVILEGES, registerAssetHandler } from './asset-protocol.js'
 import { claimDrafts, dropDraft, dropDraftById, writeDraft } from './drafts.js'
-import { readTextFile, saveAttachment, writeTextFile } from './fs-service.js'
+import { readTextFile, readTitle, saveAttachment, writeTextFile } from './fs-service.js'
+import { createDirectory, createFile, renameEntry, trashEntry } from './fs-mutate.js'
 import { watchFor } from './watcher.js'
 import { buildMenu, popupContextMenu } from './menu.js'
 import { renderPdf, type PdfOptions } from './pdf.js'
@@ -204,6 +205,42 @@ function registerIpc(): void {
     clipboard.write({ html, text })
   })
 
+  /**
+   * 工作区里的改动（issue #36）。四条都走 `assertWritableInWorkspace` ——
+   * 三条许可里最窄的那条。**不要图省事换成 `assertAllowed`**：后者接受任何
+   * 落在「用户打开过的文件所在目录」里的路径，而那份授权的本意只是让相对
+   * 路径的图片能加载。读一张图和删一个文件不是一个量级的事。
+   */
+  handle(CHANNELS.fsCreateFile, async (_sender, dir: string, name: string) =>
+    createFile(dir, name, await translator()),
+  )
+  handle(CHANNELS.fsCreateDirectory, async (_sender, dir: string, name: string) =>
+    createDirectory(dir, name, await translator()),
+  )
+  handle(CHANNELS.fsRename, async (_sender, target: string, newName: string) =>
+    renameEntry(target, newName, await translator()),
+  )
+  handle(CHANNELS.fsTrash, async (_sender, target: string) =>
+    trashEntry(target, await translator()),
+  )
+
+  /**
+   * 批量取文档标题 —— 文件树拿第一个标题当主标签。
+   *
+   * **一条读不出来不能拖垮整批**：目录里混着二进制文件、没权限的文件、
+   * 刚被别人删掉的文件都很正常，而用户只是展开了一个目录。所以逐条兜住，
+   * 读不出来就记 null，由渲染进程回退到文件名。
+   */
+  handle(CHANNELS.fsTitles, async (_sender, targets: readonly string[]) => {
+    const out: Record<string, string | null> = {}
+    await Promise.all(
+      targets.map(async (target) => {
+        out[target] = await readTitle(target).catch(() => null)
+      }),
+    )
+    return out
+  })
+
   handle(CHANNELS.fsWatch, async (sender, targets: readonly string[]) => {
     if (sender) await watchFor(sender, targets)
   })
@@ -227,13 +264,25 @@ function registerIpc(): void {
   handle(CHANNELS.fsList, async (_sender, dir: string) => {
     const real = await assertAllowedDirectory(dir)
     const entries = await readdir(real, { withFileTypes: true })
-    return entries
-      .filter((entry) => entry.isFile() || entry.isDirectory())
-      .map((entry) => ({
-        name: entry.name,
-        path: path.join(real, entry.name),
-        kind: entry.isDirectory() ? ('directory' as const) : ('file' as const),
-      }))
+    return Promise.all(
+      entries
+        .filter((entry) => entry.isFile() || entry.isDirectory())
+        .map(async (entry) => {
+          const full = path.join(real, entry.name)
+          // 修改时间是「按修改时间排序」要的，`readdir` 给不出，只能逐个 stat。
+          // 一条失败不能拖垮整个目录 —— 条目可能在两次系统调用之间被删掉，
+          // 而那不该让文件树整层消失
+          const mtimeMs = await stat(full)
+            .then((info) => info.mtimeMs)
+            .catch(() => undefined)
+          return {
+            name: entry.name,
+            path: full,
+            kind: entry.isDirectory() ? ('directory' as const) : ('file' as const),
+            ...(mtimeMs === undefined ? {} : { mtimeMs }),
+          }
+        }),
+    )
   })
 
   handle(

@@ -280,6 +280,62 @@ body {
   color: var(--mosu-fg-muted);
 }
 
+/* 排序切换。跟刷新按钮同一套外观 —— 它们是一组图标按钮 */
+.mosu-files__sort {
+  flex: none;
+  border: 0;
+  background: transparent;
+  color: var(--mosu-fg-muted);
+  font: inherit;
+  cursor: default;
+  padding: 0 4px;
+}
+.mosu-files__sort:hover {
+  color: var(--mosu-fg);
+}
+
+/* 过滤框（issue #36） */
+.mosu-files__filter {
+  flex: none;
+  margin: 8px 10px;
+  padding: 4px 8px;
+  border: 1px solid var(--mosu-border);
+  border-radius: 4px;
+  background: var(--mosu-bg);
+  color: var(--mosu-fg);
+  font: inherit;
+  font-size: 0.9em;
+  min-width: 0;
+}
+
+/*
+ * 文件名的副标签 —— 主标签是文档标题时才出现。
+ *
+ * `min-width: 0` 加 `flex: 0 1 auto`：标题很长时先挤这一条，
+ * 而不是把它整条推出面板（推出去的话它就成了看不见的噪声）。
+ */
+.mosu-files__sub {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-left: 6px;
+  color: var(--mosu-fg-muted);
+  font-size: 0.85em;
+}
+
+/* 原地重命名 / 新建的输入行 */
+.mosu-files__input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--mosu-accent);
+  border-radius: 3px;
+  background: var(--mosu-bg);
+  color: var(--mosu-fg);
+  font: inherit;
+  padding: 0 4px;
+}
+
 /* —— 大纲面板 —— */
 .mosu-outline {
   width: 240px;

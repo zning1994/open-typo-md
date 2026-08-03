@@ -27,6 +27,7 @@ import {
   type WriteResult,
 } from '@mosu/plugin-api'
 import { decodeText, encodeText } from '@mosu/markdown/text'
+import { firstHeading } from '@mosu/markdown'
 import { assertAllowed } from './path-guard.js'
 import { noteSelfWrite } from './watcher.js'
 import { FALLBACK_LOCALE, createTranslate, type Translate } from '../shared/i18n.js'
@@ -85,6 +86,50 @@ export async function readTextFile(
     hash: hashBytes(bytes),
     readOnly: !(await isWritable(real)),
   }
+}
+
+/**
+ * 只读文件开头，用来找文档标题（issue #36）。
+ *
+ * 文件树上一屏有几十行，每行都要一个标题。**不能读整份文件** —— 一个仓库里
+ * 随便一份几 MB 的日志或数据文件就够把展开目录这件事拖成肉眼可见的卡顿。
+ *
+ * 64 KB 是「标题一定在里面」和「读起来不心疼」之间的折中：真实文档的标题都在
+ * 前几行，front matter 再长也不会到这个量级。
+ */
+const TITLE_HEAD_BYTES = 64 * 1024
+
+export async function readTitle(target: string): Promise<string | null> {
+  const real = await assertAllowed(target)
+  const info = await stat(real).catch(() => null)
+  if (!info?.isFile()) return null
+
+  const handle = await openFile(real, 'r')
+  let text: string
+  try {
+    const buffer = Buffer.alloc(Math.min(TITLE_HEAD_BYTES, info.size))
+    const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0)
+    // 走 decodeText 而不是直接 toString：BOM 与 UTF-16 由它认，
+    // 少了这一层，带 BOM 的文件第一行会以一个不可见字符开头，
+    // `# 标题` 于是匹配不上
+    const decoded = decodeText(buffer.subarray(0, bytesRead), target)
+    text = decoded.text
+  } catch {
+    // 读不出来（权限、编码不支持）就当没有标题 —— 文件树回退到文件名。
+    // 这里报错没有意义：用户只是展开了一个目录
+    return null
+  } finally {
+    await handle.close()
+  }
+
+  // 截断处可能是半个多字节字符或半行。丢掉最后一行，剩下的一定是完整的 ——
+  // 而标题不会正好落在那半行上（真落在了，回退到文件名也不算错）
+  if (info.size > TITLE_HEAD_BYTES) {
+    const cut = text.lastIndexOf('\n')
+    if (cut > 0) text = text.slice(0, cut)
+  }
+
+  return firstHeading(text)?.text ?? null
 }
 
 /**

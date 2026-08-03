@@ -24,9 +24,9 @@ export function contextMenuTemplate(
   pick: Pick,
   onPath?: PathAction,
 ): MenuItemConstructorOptions[] {
-  return request.kind === 'editor'
-    ? editorMenu(request, t, pick)
-    : tabMenu(request, t, pick, onPath)
+  if (request.kind === 'editor') return editorMenu(request, t, pick)
+  if (request.kind === 'tab') return tabMenu(request, t, pick, onPath)
+  return fileTreeMenu(request, t, pick, onPath)
 }
 
 function editorMenu(
@@ -88,4 +88,52 @@ function tabMenu(
       },
     },
   ]
+}
+
+/**
+ * 文件树的右键菜单（issue #36）。
+ *
+ * 两种行分支，但共用尾部的四项 —— 重命名 / 废纸篓 / 复制路径 / 在文件夹中显示
+ * 对文件和文件夹是同一件事。
+ *
+ * **工作区根只保留「新建」那一组**：改名和扔废纸篓在 main 侧会被守卫直接拒
+ * （见 path-guard 的 `assertWritableInWorkspace`），菜单里就不该出现 ——
+ * 让用户点一下再收到一句报错，是把内部规则当成交互。
+ */
+function fileTreeMenu(
+  request: Extract<ContextMenuRequest, { kind: 'file-tree' }>,
+  t: Translate,
+  pick: Pick,
+  onPath?: PathAction,
+): MenuItemConstructorOptions[] {
+  const { path, entry, isRoot } = request
+  const items: MenuItemConstructorOptions[] = []
+
+  if (entry === 'file') {
+    items.push(
+      { label: t('menu.context.open'), click: pick('tree.open') },
+      { label: t('menu.context.openInNewTab'), click: pick('tree.openInNewTab') },
+      { type: 'separator' },
+    )
+  } else {
+    items.push(
+      { label: t('menu.context.newFile'), click: pick('tree.newFile') },
+      { label: t('menu.context.newFolder'), click: pick('tree.newFolder') },
+      { type: 'separator' },
+    )
+  }
+
+  if (!isRoot) {
+    items.push(
+      { label: t('menu.context.rename'), click: pick('tree.rename') },
+      { label: t('menu.context.trash'), click: pick('tree.trash') },
+      { type: 'separator' },
+    )
+  }
+
+  items.push(
+    { label: t('menu.context.copyPath'), click: () => onPath?.('copy', path) },
+    { label: t('menu.context.reveal'), click: () => onPath?.('reveal', path) },
+  )
+  return items
 }
