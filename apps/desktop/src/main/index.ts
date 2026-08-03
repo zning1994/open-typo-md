@@ -32,6 +32,7 @@ import { searchWorkspace, walkWorkspace, type SearchOptions } from './workspace-
 import { watchFor } from './watcher.js'
 import { buildMenu, popupContextMenu } from './menu.js'
 import { renderPdf, type PdfOptions } from './pdf.js'
+import { checkForUpdate } from './updates.js'
 import { claimSession, flushSession, reportSession, savedSessions } from './session.js'
 import type { WindowSession } from './session.js'
 import {
@@ -466,6 +467,23 @@ function registerIpc(): void {
       throw new Error((await translator())('error.linkBlocked', { url }))
     }
     await shell.openExternal(url)
+  })
+
+  /**
+   * 检查更新。**设置里关掉之后这里直接拒绝**，不是靠渲染进程自觉不调
+   * —— 那是唯一一处能真正保证「一个包都不发出去」的地方。
+   */
+  handle(CHANNELS.updateCheck, async () => {
+    if ((await getSetting('updates.check')) === false) {
+      return {
+        current: app.getVersion(),
+        latest: null,
+        outdated: false,
+        url: null,
+        error: 'disabled',
+      }
+    }
+    return checkForUpdate(app.getVersion())
   })
 
   handle(CHANNELS.settingsGet, async (_sender, key: string) => getSetting(key))

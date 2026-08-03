@@ -134,6 +134,7 @@ const COMMAND_KEYS: Record<MenuCommand, MessageKey> = {
   'view.commandPalette': 'command.view.commandPalette',
   'view.quickOpen': 'command.view.quickOpen',
   'view.settings': 'command.view.settings',
+  'help.checkUpdates': 'command.help.checkUpdates',
   // 这六条走 menuCommandTitle 里的分支，键在这里只是为了让类型完整
   'view.theme.auto': 'theme.auto',
   'view.theme.light': 'theme.light',

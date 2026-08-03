@@ -47,6 +47,7 @@ describe('默认值', () => {
       'export.pdf.marginInch': 1.25,
       'panel.outline.width': 320,
       'panel.outline.numbering': true,
+      'updates.check': false,
     })
     expect(store.all()).toEqual({
       sourceModeByDefault: true,
@@ -58,6 +59,7 @@ describe('默认值', () => {
       pdfMarginInch: 1.25,
       outlineWidth: 320,
       outlineNumbering: true,
+      checkUpdates: false,
     })
   })
 })

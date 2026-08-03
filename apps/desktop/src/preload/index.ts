@@ -107,6 +107,9 @@ const api: MosuBridgeApi = {
     set: (key, value) => invoke(CHANNELS.settingsSet, key, value),
   },
   platform,
+  update: {
+    check: () => invoke(CHANNELS.updateCheck),
+  },
   on: {
     menuCommand: (handler) =>
       subscribe(EVENTS.menuCommand, handler as (...args: never[]) => void),

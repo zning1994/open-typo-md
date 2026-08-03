@@ -66,6 +66,10 @@ export function buildMenu(
             label: app.name,
             submenu: [
               { role: 'about', label: t('menu.app.about', { app: app.name }) },
+              // macOS 上「检查更新」历来紧跟「关于」，跟「设置」一样只有这一个
+              // 位置 —— 非 mac 平台则在「帮助」里（见下面）。同一个动作出现在
+              // 两处，用户会以为它们是两件事
+              item(t('menu.help.checkUpdates'), 'help.checkUpdates'),
               { type: 'separator' },
               // macOS 的「设置…」**必须**在应用菜单里，紧跟「关于」。
               //
@@ -215,6 +219,13 @@ export function buildMenu(
       role: 'help',
       label: t('menu.help'),
       submenu: [
+        // mac 上它在应用菜单里（macOS 的老规矩），这里就不再放一份
+        ...(isMac
+          ? []
+          : [
+              item(t('menu.help.checkUpdates'), 'help.checkUpdates'),
+              { type: 'separator' } as MenuItemConstructorOptions,
+            ]),
         {
           label: t('menu.help.homepage'),
           click: () => void shell.openExternal('https://github.com/zning1994/mosu'),

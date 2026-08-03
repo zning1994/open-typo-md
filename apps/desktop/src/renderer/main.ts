@@ -339,6 +339,47 @@ const outline = new OutlinePanel(workspace, {
   setNumbering: (on) => void preferences.set('outlineNumbering', on),
 })
 
+/**
+ * 检查更新（用户按菜单里那一项时）。
+ *
+ * 网络那一步在 main（渲染进程的 CSP 连不出去，也不该连得出去）；
+ * 这里只负责把结果说成人话。
+ *
+ * **失败和「已是最新」必须分开说。** 把连不上显示成「已是最新版本」是在骗
+ * 用户 —— 他会以为自己装的是最新的，而实际上可能落后好几个版本。
+ */
+async function checkUpdates(): Promise<void> {
+  const result = await api.update.check().catch(() => null)
+
+  if (!result || result.error) {
+    const reason = result?.error ?? 'network'
+    await host.dialog.message({
+      message: t('update.failed.title'),
+      detail: t(`update.failed.${reason}` as Parameters<typeof t>[0], {}),
+    })
+    return
+  }
+
+  if (!result.outdated || !result.url) {
+    await host.dialog.message({
+      message: t('update.latest.title'),
+      detail: t('update.latest.detail', { version: result.current }),
+    })
+    return
+  }
+
+  const choice = await host.dialog.confirm({
+    message: t('update.found.title', { version: result.latest ?? '' }),
+    detail: t('update.found.detail', { current: result.current }),
+    buttons: [t('update.download'), t('dialog.cancel')],
+    defaultId: 0,
+    cancelId: 1,
+  })
+  // 不自己下载、不自己安装 —— 交给系统浏览器打开下载页。
+  // 这一版刻意只做到「告诉你有新版」，理由见 docs/design/09
+  if (choice === 0) await host.shell.openExternal(result.url)
+}
+
 /** 导出与复制共用的上下文。 */
 function exportContext(): ExportContext {
   const state = activeController().state()
@@ -541,6 +582,7 @@ const MENU_ACTIONS: Record<MenuCommand, () => void> = {
   'view.quickOpen': () => quickOpen.toggle(),
   'edit.findInFiles': () => search.toggle(),
   'view.settings': () => settings.toggle(),
+  'help.checkUpdates': () => void checkUpdates(),
   ...(Object.fromEntries(
     THEMES.map((t) => [`view.theme.${t.id}`, () => void themes.select(t.id)]),
   ) as Record<`view.theme.${(typeof THEMES)[number]['id']}`, () => void>),
