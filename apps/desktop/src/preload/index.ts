@@ -65,12 +65,17 @@ const api: MosuBridgeApi = {
     rename: (target, newName) => invoke(CHANNELS.fsRename, target, newName),
     trash: (target) => invoke(CHANNELS.fsTrash, target),
     titles: (paths) => invoke(CHANNELS.fsTitles, paths),
+    walk: (root) => invoke(CHANNELS.fsWalk, root),
     watch: (paths) => invoke(CHANNELS.fsWatch, paths),
     writeText: (path, text) => invoke(CHANNELS.fsWriteText, path, text),
     writePdf: (path, html, options) => invoke(CHANNELS.fsWritePdf, path, html, options),
   },
   clipboard: {
     writeHtml: (html, text) => invoke(CHANNELS.clipboardWriteHtml, html, text),
+  },
+  search: {
+    start: (root, query, options) => invoke(CHANNELS.searchStart, root, query, options),
+    cancel: () => invoke(CHANNELS.searchCancel),
   },
   session: {
     report: (session) => invoke(CHANNELS.sessionReport, session),
@@ -110,6 +115,8 @@ const api: MosuBridgeApi = {
       subscribe(EVENTS.requestClose, handler as (...args: never[]) => void),
     fileChanged: (handler) =>
       subscribe(EVENTS.fileChanged, handler as (...args: never[]) => void),
+    searchProgress: (handler) =>
+      subscribe(EVENTS.searchProgress, handler as (...args: never[]) => void),
   },
   respondClose: (canClose) => ipcRenderer.send('respond-close', canClose),
 }

@@ -123,6 +123,7 @@ const COMMAND_KEYS: Record<MenuCommand, MessageKey> = {
   'file.exportPdf': 'command.file.exportPdf',
   'edit.copyRichText': 'command.edit.copyRichText',
   'edit.find': 'command.edit.find',
+  'edit.findInFiles': 'command.edit.findInFiles',
   'view.toggleFiles': 'command.view.toggleFiles',
   'view.nextTab': 'command.view.nextTab',
   'view.prevTab': 'command.view.prevTab',
@@ -131,6 +132,7 @@ const COMMAND_KEYS: Record<MenuCommand, MessageKey> = {
   'view.toggleTypewriter': 'command.view.toggleTypewriter',
   'view.toggleOutline': 'command.view.toggleOutline',
   'view.commandPalette': 'command.view.commandPalette',
+  'view.quickOpen': 'command.view.quickOpen',
   'view.settings': 'command.view.settings',
   // 这六条走 menuCommandTitle 里的分支，键在这里只是为了让类型完整
   'view.theme.auto': 'theme.auto',

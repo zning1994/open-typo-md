@@ -29,6 +29,9 @@ export const CHANNELS = {
   fsRename: 'fs:rename',
   fsTrash: 'fs:trash',
   fsTitles: 'fs:titles',
+  fsWalk: 'fs:walk',
+  searchStart: 'search:start',
+  searchCancel: 'search:cancel',
   fsWriteText: 'fs:write-text',
   fsWritePdf: 'fs:write-pdf',
   clipboardWriteHtml: 'clipboard:write-html',
@@ -61,9 +64,38 @@ export const EVENTS = {
   requestClose: 'event:request-close',
   /** 正在编辑的文件在磁盘上变了（外部程序改的，不是我们自己保存的）。 */
   fileChanged: 'event:file-changed',
+  /**
+   * 全工作区搜索的一批结果（issue #39）。
+   *
+   * 搜索是**推**回来的而不是一次 invoke 返回：几百份文档搜完要几百毫秒到几秒，
+   * 而这段时间里界面必须已经在出结果了。
+   */
+  searchProgress: 'event:search-progress',
 } as const
 
+export type {
+  FileMatches,
+  SearchHit,
+  SearchOptions,
+  SearchProgress,
+  WalkResult,
+  WorkspaceFile,
+} from '../main/workspace-scan.js'
 export type { Draft, DraftMeta, FileChangeNotice, PdfOptions, WindowSession }
+
+/** 一批搜索结果，外加它属于哪一次搜索。 */
+export interface SearchProgressEvent {
+  /**
+   * 这一批属于哪一次搜索。
+   *
+   * 必须带：用户改查询词时上一次可能还在跑，而它的结果会晚一步到达。
+   * 没有这个 id 的话，旧结果会涌进新列表里，而且看起来完全合理。
+   */
+  id: number
+  matches: import('../main/workspace-scan.js').FileMatches[]
+  done: boolean
+  truncated: boolean
+}
 
 export type MenuCommand =
   | 'file.open'
@@ -85,9 +117,11 @@ export type MenuCommand =
   | 'view.toggleTypewriter'
   | 'view.toggleOutline'
   | 'view.commandPalette'
+  | 'view.quickOpen'
   | 'view.settings'
   | `view.theme.${'auto' | 'light' | 'dark' | 'sepia' | 'high-contrast' | 'github'}`
   | 'edit.find'
+  | 'edit.findInFiles'
   | 'edit.copyRichText'
   | 'format.bold'
   | 'format.italic'
@@ -200,6 +234,8 @@ export interface MosuBridgeApi {
      * 读那几十个文件头。读不出标题的返回 `null`，由调用方回退到文件名。
      */
     titles(paths: readonly string[]): Promise<Record<string, string | null>>
+    /** 工作区里的全部 Markdown（Quick Open 用）。撞上限会带 `truncated`。 */
+    walk(root: string): Promise<import('../main/workspace-scan.js').WalkResult>
     /**
      * 把本窗口监听的文件集合整体换成 `paths`。
      *
@@ -226,6 +262,21 @@ export interface MosuBridgeApi {
   clipboard: {
     /** 同时写 HTML 与纯文本兜底 —— 目标应用不支持富文本时才有东西可粘。 */
     writeHtml(html: string, text: string): Promise<void>
+  }
+  search: {
+    /**
+     * 开一次全工作区搜索。结果走 `on.searchProgress` 推回来。
+     *
+     * 返回这次搜索的 id。**开新的会自动把上一次作废** —— 一个窗口同时只有
+     * 一次搜索有意义，而让调用方自己去取消是一条必然会漏的路径。
+     */
+    start(
+      root: string,
+      query: string,
+      options: import('../main/workspace-scan.js').SearchOptions,
+    ): Promise<number>
+    /** 主动取消（关掉面板时）。 */
+    cancel(): Promise<void>
   }
   session: {
     /** 上报本窗口当前的形态（工作区 + 标签列表），供下次启动恢复。 */
@@ -277,6 +328,7 @@ export interface MosuBridgeApi {
     openFile(handler: (path: string) => void): () => void
     requestClose(handler: () => void): () => void
     fileChanged(handler: (notice: FileChangeNotice) => void): () => void
+    searchProgress(handler: (event: SearchProgressEvent) => void): () => void
   }
   /**
    * 回应 requestClose：true 表示可以关。

@@ -28,6 +28,7 @@ import { ASSET_SCHEME_PRIVILEGES, registerAssetHandler } from './asset-protocol.
 import { claimDrafts, dropDraft, dropDraftById, writeDraft } from './drafts.js'
 import { readTextFile, readTitle, saveAttachment, writeTextFile } from './fs-service.js'
 import { createDirectory, createFile, renameEntry, trashEntry } from './fs-mutate.js'
+import { searchWorkspace, walkWorkspace, type SearchOptions } from './workspace-scan.js'
 import { watchFor } from './watcher.js'
 import { buildMenu, popupContextMenu } from './menu.js'
 import { renderPdf, type PdfOptions } from './pdf.js'
@@ -55,6 +56,11 @@ import {
 const DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
 // main 与 preload 被 esbuild 打成 CJS，因此 __dirname 可用（import.meta 反而不可用）
 const dirname = __dirname
+
+/**
+ * 每个窗口当前那次搜索的 id。递增即作废上一次（见 `CHANNELS.searchStart`）。
+ */
+const searchIds = new Map<number, number>()
 
 /** 启动参数里带的待打开文件。 */
 let pendingOpenPath: string | null = null
@@ -239,6 +245,58 @@ function registerIpc(): void {
       }),
     )
     return out
+  })
+
+  handle(CHANNELS.fsWalk, async (_sender, root: string) => walkWorkspace(root))
+
+  /**
+   * 全工作区搜索（issue #39）。
+   *
+   * 结果**推**回去而不是一次返回：几百份文档搜完要几百毫秒到几秒，而这段时间
+   * 里界面必须已经在出结果了。
+   *
+   * 「同时只有一次搜索」是在 main 这边保证的，不是靠渲染进程自觉：
+   * 每次 start 都把该窗口的 id 递增，跑着的那次每批检查一下自己是不是还是
+   * 当前那个 —— 不是就当场收手。让调用方自己去取消是一条必然会漏的路径
+   * （面板关掉、窗口关掉、用户连敲五个字符，每一条都要记得取消）。
+   *
+   * id 按窗口存：两个窗口各搜各的，互不作废。
+   */
+  handle(
+    CHANNELS.searchStart,
+    async (sender, root: string, query: string, options: SearchOptions) => {
+      if (!sender) return 0
+      const id = (searchIds.get(sender.id) ?? 0) + 1
+      searchIds.set(sender.id, id)
+
+      // 不 await：这个 invoke 要立刻返回 id，搜索在后台跑
+      void searchWorkspace(
+        root,
+        query,
+        options,
+        (progress) => {
+          // 窗口可能在搜索跑到一半时被关掉
+          if (sender.isDestroyed()) return
+          sender.webContents.send(EVENTS.searchProgress, { id, ...progress })
+        },
+        () => sender.isDestroyed() || searchIds.get(sender.id) !== id,
+      ).catch(() => {
+        // 遍历失败（工作区被删、权限没了）不该让渲染进程永远停在「搜索中」
+        if (!sender.isDestroyed()) {
+          sender.webContents.send(EVENTS.searchProgress, {
+            id,
+            matches: [],
+            done: true,
+            truncated: false,
+          })
+        }
+      })
+      return id
+    },
+  )
+
+  handle(CHANNELS.searchCancel, async (sender) => {
+    if (sender) searchIds.set(sender.id, (searchIds.get(sender.id) ?? 0) + 1)
   })
 
   handle(CHANNELS.fsWatch, async (sender, targets: readonly string[]) => {

@@ -336,6 +336,170 @@ body {
   padding: 0 4px;
 }
 
+/* —— Quick Open（issue #37）—— */
+
+/* 复用命令面板的浮层骨架，只补自己那两处 */
+.mosu-quickopen__item {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.mosu-quickopen__detail {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--mosu-fg-muted);
+  font-size: 0.85em;
+  /* 路径靠右：左边界对齐的是文件名，扫一列比扫两列快 */
+  margin-left: auto;
+}
+
+.mosu-quickopen__note {
+  padding: 6px 12px;
+  border-top: 1px solid var(--mosu-border);
+  color: var(--mosu-fg-muted);
+  font-size: 12px;
+}
+
+/* —— 全工作区搜索（issue #39）—— */
+
+/*
+ * 常驻侧栏而不是浮层：结果要一边看一边点，浮层每点一次就消失一次。
+ * 放在文件树和编辑区之间（order 0.5 做不到，所以用 0 并靠 DOM 顺序）。
+ */
+.mosu-search {
+  order: 0;
+  flex: none;
+  width: 300px;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--mosu-border);
+  background: var(--mosu-status-bg);
+  font-size: 13px;
+  overflow: hidden;
+}
+.mosu-search[hidden] {
+  display: none;
+}
+
+.mosu-search__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px 4px;
+}
+
+.mosu-search__input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--mosu-border);
+  border-radius: 4px;
+  background: var(--mosu-bg);
+  color: var(--mosu-fg);
+  font: inherit;
+}
+
+.mosu-search__close {
+  flex: none;
+  border: 0;
+  background: transparent;
+  color: var(--mosu-fg-muted);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: default;
+  padding: 0 4px;
+}
+.mosu-search__close:hover {
+  color: var(--mosu-fg);
+}
+
+.mosu-search__options {
+  display: flex;
+  gap: 4px;
+  padding: 0 10px 6px;
+}
+
+.mosu-search__toggle {
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--mosu-fg-muted);
+  font: inherit;
+  font-size: 11px;
+  padding: 1px 6px;
+  cursor: default;
+}
+.mosu-search__toggle:hover {
+  border-color: var(--mosu-border);
+}
+.mosu-search__toggle.is-on {
+  background: var(--mosu-accent);
+  border-color: var(--mosu-accent);
+  color: #fff;
+}
+
+.mosu-search__status {
+  padding: 0 10px 6px;
+  color: var(--mosu-fg-muted);
+  font-size: 12px;
+}
+
+.mosu-search__list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-bottom: 8px;
+}
+
+.mosu-search__filename {
+  padding: 6px 10px 2px;
+  color: var(--mosu-fg-muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* 文件名跟着滚动条粘住：一个文件几十条命中时，滚到中间就认不出这是哪份了 */
+  position: sticky;
+  top: 0;
+  background: var(--mosu-status-bg);
+}
+
+.mosu-search__hit {
+  display: flex;
+  gap: 8px;
+  padding: 2px 10px;
+  cursor: default;
+  white-space: nowrap;
+}
+.mosu-search__hit:hover {
+  background: var(--mosu-selection);
+}
+
+.mosu-search__line {
+  flex: none;
+  min-width: 2.5em;
+  text-align: right;
+  color: var(--mosu-fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.mosu-search__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mosu-search__text mark {
+  background: color-mix(in srgb, var(--mosu-accent) 30%, transparent);
+  color: inherit;
+  border-radius: 2px;
+}
+
 /* —— 大纲面板 —— */
 .mosu-outline {
   width: 240px;
@@ -419,7 +583,8 @@ body {
 }
 
 /* —— 命令面板 —— */
-.mosu-palette {
+.mosu-palette,
+.mosu-quickopen {
   position: fixed;
   inset: 0;
   z-index: 100;
@@ -430,11 +595,13 @@ body {
   background: rgb(0 0 0 / 25%);
 }
 
-.mosu-palette[hidden] {
+.mosu-palette[hidden],
+.mosu-quickopen[hidden] {
   display: none;
 }
 
-.mosu-palette__box {
+.mosu-palette__box,
+.mosu-quickopen__box {
   width: min(560px, 90vw);
   max-height: 60vh;
   display: flex;
@@ -446,7 +613,8 @@ body {
   overflow: hidden;
 }
 
-.mosu-palette__input {
+.mosu-palette__input,
+.mosu-quickopen__input {
   border: 0;
   border-bottom: 1px solid var(--mosu-border);
   background: transparent;
@@ -457,14 +625,16 @@ body {
   outline: none;
 }
 
-.mosu-palette__list {
+.mosu-palette__list,
+.mosu-quickopen__list {
   margin: 0;
   padding: 4px 0;
   list-style: none;
   overflow-y: auto;
 }
 
-.mosu-palette__item {
+.mosu-palette__item,
+.mosu-quickopen__item {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -473,25 +643,29 @@ body {
   font-size: 14px;
 }
 
-.mosu-palette__item.is-active {
+.mosu-palette__item.is-active,
+.mosu-quickopen__item.is-active {
   background: var(--mosu-accent);
   color: #fff;
 }
 
-.mosu-palette__label {
+.mosu-palette__label,
+.mosu-quickopen__label {
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.mosu-palette__label mark {
+.mosu-palette__label mark,
+.mosu-quickopen__label mark {
   background: transparent;
   color: var(--mosu-accent);
   font-weight: 600;
 }
 
-.mosu-palette__item.is-active .mosu-palette__label mark {
+.mosu-palette__item.is-active .mosu-palette__label mark,
+.mosu-quickopen__item.is-active .mosu-quickopen__label mark {
   color: inherit;
   text-decoration: underline;
 }
@@ -509,7 +683,8 @@ body {
   border-color: currentcolor;
 }
 
-.mosu-palette__empty {
+.mosu-palette__empty,
+.mosu-quickopen__empty {
   padding: 12px 16px;
   color: var(--mosu-fg-muted);
   font-size: 13px;

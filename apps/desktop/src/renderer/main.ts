@@ -32,6 +32,8 @@ import { DocumentController } from './document.js'
 import { FileTreePanel } from './filetree.js'
 import { OutlinePanel } from './outline.js'
 import { CommandPalette } from './palette.js'
+import { QuickOpenPanel } from './quick-open.js'
+import { SearchPanel } from './search-panel.js'
 import { PreferenceStore } from './preferences.js'
 import { applyLanguage, t } from './i18n.js'
 import { LANGUAGE_KEY, isLanguageSetting, type LanguageSetting } from '../shared/i18n.js'
@@ -532,6 +534,8 @@ const MENU_ACTIONS: Record<MenuCommand, () => void> = {
   'view.nextTab': () => tabs.cycle(1),
   'view.prevTab': () => tabs.cycle(-1),
   'view.commandPalette': () => palette.toggle(),
+  'view.quickOpen': () => quickOpen.toggle(),
+  'edit.findInFiles': () => search.toggle(),
   'view.settings': () => settings.toggle(),
   ...(Object.fromEntries(
     THEMES.map((t) => [`view.theme.${t.id}`, () => void themes.select(t.id)]),
@@ -591,6 +595,35 @@ const palette = new CommandPalette({
   commands: allCommands,
   restoreFocus: () => activeEditor().focus(),
   mac: () => api.platform.os === 'mac',
+})
+
+const quickOpen = new QuickOpenPanel({
+  workspace: () => files.folder(),
+  walk: (root) => api.fs.walk(root),
+  titles: (paths) => api.fs.titles(paths),
+  // 未命名的标签没有路径，进不了「按路径打开」这条路，滤掉
+  openTabs: () =>
+    tabs
+      .all()
+      .map((tab) => tab.controller.state())
+      .filter((state): state is typeof state & { path: string } => state.path !== null)
+      .map((state) => ({ path: state.path, label: state.name })),
+  open: (path) => void tabs.openPath(path),
+  openInNewTab: (path) => void tabs.openInNewTab(path),
+  restoreFocus: () => activeEditor().focus(),
+})
+
+const search = new SearchPanel(workspace, {
+  workspace: () => files.folder(),
+  start: (root, query, options) => api.search.start(root, query, options),
+  cancel: () => api.search.cancel(),
+  onProgress: (handler) => api.on.searchProgress(handler),
+  // 先打开再跳：`openPath` 已开着的文件会直接切过去，所以这一条对
+  // 「在结果里连点几条」也成立
+  reveal: (path, offset) => {
+    void tabs.openPath(path).then(() => activeEditor().jumpTo(offset))
+  },
+  restoreFocus: () => activeEditor().focus(),
 })
 
 const settings = new SettingsPanel({
@@ -755,6 +788,8 @@ function refreshLanguage(): void {
 function retranslateAll(): void {
   outline.retranslate()
   palette.retranslate()
+  quickOpen.retranslate()
+  search.retranslate()
   files.retranslate()
   settings.retranslate()
   for (const tab of tabs.all()) tab.editor.setLabels(editorLabels())
