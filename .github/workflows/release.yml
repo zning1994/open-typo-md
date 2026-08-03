@@ -128,13 +128,27 @@ jobs:
           if security import "$cert" -k "$keychain" -P "$CSC_KEY_PASSWORD" -T /usr/bin/codesign >/dev/null 2>&1; then
             echo "证书与密码对得上，继续打包"
             security delete-keychain "$keychain" >/dev/null 2>&1 || true
-          else
-            security delete-keychain "$keychain" >/dev/null 2>&1 || true
-            echo "::error::.p12 打不开。文件本身是完整的 PKCS#12，所以是下面两件事之一："
-            echo "::error::(1) CSC_KEY_PASSWORD 跟导出时设的那个密码不一致 —— 常见于把结尾的换行或空格一起粘进了 secret。"
-            echo "::error::(2) 这张 .p12 是 openssl 3 导出的。它默认用 AES-256 + SHA-256 MAC，而 macOS 的 security(1) 读不懂，密码再对也报同一句话。改用「钥匙串访问 → 我的证书 → 导出」重导一张，或者 openssl 加 -legacy 重新封装。"
-            exit 1
+            exit 0
           fi
+          security delete-keychain "$keychain" >/dev/null 2>&1 || true
+
+          # —— 失败了。**先给出能跟本机对照的凭据，再谈猜测。** ——
+          #
+          # secret 存进去就读不回来了，所以「我本机这一对是好的」跟「CI 拿到的
+          # 是同一对」之间一直隔着一层。下面两条把这层捅破，而且都不泄露内容：
+          # 文件哈希本来就靠密码保护，空白字符只报有无。
+          echo "::error::.p12 打不开。先对照下面两条，再看后面的猜测。"
+          echo "::error::CI 拿到的 .p12  sha256 = $(shasum -a 256 "$cert" | cut -d' ' -f1)"
+          echo "::error::  本机对照：shasum -a 256 cert.p12　　对不上 = CSC_LINK 存的是另一个文件或截断了。"
+
+          if [ "$(printf '%s' "$CSC_KEY_PASSWORD" | tr -d '[:space:]')" != "$CSC_KEY_PASSWORD" ]; then
+            echo "::error::CSC_KEY_PASSWORD 里含有空白字符（空格 / 换行 / 制表符）。粘贴时把结尾的换行带进来是最常见的一种，重存一遍即可。"
+          else
+            echo "::error::CSC_KEY_PASSWORD 里没有空白字符，所以不是「粘贴时多带了换行」那种。"
+          fi
+
+          echo "::error::哈希对得上、密码也没有空白的话，就是密码本身敲错了 —— 或者这张 .p12 是 openssl 3 导出的（默认 AES-256 + SHA-256 MAC，macOS 的 security(1) 读不懂，密码再对也报同一句话）。后者用「钥匙串访问 → 我的证书 → 导出」重导一张即可。"
+          exit 1
 
       # 打包分成两步，不是为了好看 —— 是因为 **macOS 与 Windows 的签名证书完全
       # 不是一回事**，而 electron-builder 认的是同一个环境变量名 `CSC_LINK`。
