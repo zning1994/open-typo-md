@@ -48,6 +48,7 @@ export const CHANNELS = {
   settingsGet: 'settings:get',
   settingsSet: 'settings:set',
   platformInfo: 'platform:info',
+  updateCheck: 'update:check',
   windowCreate: 'window:create',
   menuContext: 'menu:context',
   sessionReport: 'session:report',
@@ -81,6 +82,7 @@ export type {
   WalkResult,
   WorkspaceFile,
 } from '../main/workspace-scan.js'
+export type { UpdateCheck } from '../main/updates.js'
 export type { Draft, DraftMeta, FileChangeNotice, PdfOptions, WindowSession }
 
 /** 一批搜索结果，外加它属于哪一次搜索。 */
@@ -119,6 +121,7 @@ export type MenuCommand =
   | 'view.commandPalette'
   | 'view.quickOpen'
   | 'view.settings'
+  | 'help.checkUpdates'
   | `view.theme.${'auto' | 'light' | 'dark' | 'sepia' | 'high-contrast' | 'github'}`
   | 'edit.find'
   | 'edit.findInFiles'
@@ -322,6 +325,15 @@ export interface MosuBridgeApi {
   platform: {
     os: 'mac' | 'win' | 'linux'
     locale: string
+  }
+  update: {
+    /**
+     * 查一次有没有新版本。**只在用户按下菜单里那一项时调用** ——
+     * 没有启动时自动检查，没有后台轮询（见 main/updates.ts 的三条边界）。
+     *
+     * 设置里关掉之后 main 会直接拒绝，不是靠这一层自觉。
+     */
+    check(): Promise<import('../main/updates.js').UpdateCheck>
   }
   on: {
     menuCommand(handler: (command: MenuCommand) => void): () => void

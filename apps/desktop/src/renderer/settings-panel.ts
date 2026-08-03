@@ -262,6 +262,14 @@ export class SettingsPanel {
           t('settings.renderInlineHtml.hint'),
           (value) => this.options.preferences.set('renderInlineHtml', value),
         ),
+        // 这是整个应用唯一一个会主动对外发请求的开关，所以提示语里把
+        // 「什么时候发、发了什么」说清楚 —— 本地优先的工具不该让用户去猜
+        this.checkRow(
+          t('settings.updates'),
+          prefs.checkUpdates,
+          t('settings.updates.hint'),
+          (value) => this.options.preferences.set('checkUpdates', value),
+        ),
       ]),
       this.section(t('settings.section.keys'), [this.keysTable()]),
       this.section(t('settings.section.pdf'), [

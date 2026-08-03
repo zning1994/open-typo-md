@@ -502,15 +502,29 @@ body {
 
 /* —— 大纲面板 —— */
 .mosu-outline {
+  /* 宽度由 JS 按偏好设，这里只给个兜底（面板在 JS 跑起来之前就在 DOM 里） */
   width: 240px;
   flex: none;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  /* 拖拽把手是 absolute 的，需要一个定位参照 */
+  position: relative;
+  overflow: hidden;
   /* 大纲现在在右边（见上面的 order），分隔线跟着换边 */
   border-left: 1px solid var(--mosu-border);
   background: var(--mosu-status-bg);
-  padding: 12px 0 24px;
+  padding: 12px 0 0;
   user-select: none;
   -webkit-user-select: none;
+}
+
+/*
+ * `display: flex` 会盖掉浏览器给 `[hidden]` 的那条 `display: none`。
+ * 少了这一句，面板永远看得见 —— 而 `isOpen` 读的是 `hidden` 属性，
+ * 于是「看得见但从不重建内容」，表现是一个空面板。文件树那边也有同一条。
+ */
+.mosu-outline[hidden] {
+  display: none;
 }
 
 .mosu-outline__title {
@@ -524,8 +538,111 @@ body {
 
 .mosu-outline__list {
   margin: 0;
-  padding: 0;
+  padding: 0 0 24px;
   list-style: none;
+  /* 只让列表滚，工具条和过滤框粘在顶上 —— 长文里它们才是最常用的 */
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* —— 长文导航（issue #41）—— */
+
+/*
+ * 拖左边界调宽度。
+ *
+ * 做得比看上去宽（8px）而只画 1px：太窄的把手是「明明看得见却抓不住」的
+ * 经典来源，而视觉上的粗线条会喧宾夺主。
+ */
+.mosu-outline__handle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  margin-left: -4px;
+  cursor: col-resize;
+  z-index: 2;
+  touch-action: none;
+}
+.mosu-outline__handle:hover::after,
+.mosu-outline__handle:active::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--mosu-accent);
+}
+
+.mosu-outline__tools,
+.mosu-outline__levels {
+  display: flex;
+  gap: 4px;
+  padding: 0 12px 6px;
+  flex: none;
+}
+.mosu-outline__levels[hidden] {
+  display: none;
+}
+
+.mosu-outline__tool,
+.mosu-outline__level {
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--mosu-fg-muted);
+  font: inherit;
+  font-size: 11px;
+  padding: 1px 6px;
+  cursor: default;
+}
+.mosu-outline__tool:hover,
+.mosu-outline__level:hover {
+  border-color: var(--mosu-border);
+  color: var(--mosu-fg);
+}
+.mosu-outline__tool.is-on {
+  background: var(--mosu-accent);
+  border-color: var(--mosu-accent);
+  color: #fff;
+}
+
+.mosu-outline__filter {
+  flex: none;
+  margin: 0 12px 8px;
+  padding: 3px 8px;
+  border: 1px solid var(--mosu-border);
+  border-radius: 4px;
+  background: var(--mosu-bg);
+  color: var(--mosu-fg);
+  font: inherit;
+  font-size: 12px;
+  min-width: 0;
+}
+
+/* 折叠三角。没有下级的行留一个等宽的空位，免得标题左边界参差不齐 */
+.mosu-outline__twisty {
+  flex: none;
+  width: 14px;
+  border: 0;
+  background: transparent;
+  color: var(--mosu-fg-muted);
+  font: inherit;
+  font-size: 10px;
+  line-height: 1;
+  padding: 0;
+  cursor: default;
+}
+.mosu-outline__twisty:hover {
+  color: var(--mosu-fg);
+}
+
+.mosu-outline__item {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
 }
 
 .mosu-outline__link {

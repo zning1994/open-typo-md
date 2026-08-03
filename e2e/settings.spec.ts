@@ -9,7 +9,14 @@
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { clickMenu, docText, expect, resetDoc, test } from './fixtures.js'
+import {
+  clickMenu,
+  docText,
+  expect,
+  openSettings as openSettingsMenu,
+  resetDoc,
+  test,
+} from './fixtures.js'
 import { backgroundRect } from './pdf.js'
 import type { ElectronApplication, Page } from '@playwright/test'
 
@@ -24,7 +31,9 @@ test.afterEach(async () => {
 })
 
 async function openSettings(app: ElectronApplication, page: Page): Promise<void> {
-  await clickMenu(app, ['视图', '设置…'])
+  // 菜单位置按平台不同（mac 在应用菜单，其它在「视图」），
+  // 所以走 fixtures 里那份共享的 —— 写死一条路径只会让另一个平台的 CI 红
+  await openSettingsMenu(app)
   await expect(page.locator('.mosu-settings')).toBeVisible()
 }
 

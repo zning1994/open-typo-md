@@ -7,7 +7,7 @@
  * 这一条不能省：真正拦住按键的是菜单（Electron 的菜单加速键优先于网页），
  * 界面显示新的、菜单还挂着旧的，是这个功能最可能的坏法。
  */
-import { clickMenu, expect, test } from './fixtures.js'
+import { clickMenu, expect, openSettings as openSettingsMenu, test } from './fixtures.js'
 import type { ElectronApplication, Page } from '@playwright/test'
 
 /** 从真实的原生菜单里读一个菜单项的加速键。 */
@@ -25,7 +25,9 @@ async function acceleratorOf(app: ElectronApplication, path: string[]): Promise<
 }
 
 async function openSettings(app: ElectronApplication, page: Page): Promise<void> {
-  await clickMenu(app, ['视图', '设置…'])
+  // 菜单位置按平台不同（mac 在应用菜单，其它在「视图」），
+  // 所以走 fixtures 里那份共享的 —— 写死一条路径只会让另一个平台的 CI 红
+  await openSettingsMenu(app)
   await expect(page.locator('.mosu-settings')).toBeVisible()
 }
 
