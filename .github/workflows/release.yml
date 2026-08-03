@@ -297,16 +297,27 @@ jobs:
           TAG: ${{ github.event.inputs.tag || github.ref_name }}
         run: |
           notes="$RUNNER_TEMP/notes.md"
+          : > "$notes"
 
-          # 上一个 tag。**首个版本时它是空的** —— 那时列全部历史毫无意义
-          # （几百条提交，而读者想知道的是「这是什么」），所以降级成一句提示。
+          # **散文在上，变更清单在下。**
+          #
+          # `release-notes/<tag>.md` 是这个版本要跟用户说的话 —— 「这是什么、
+          # 为什么值得下」。它需要判断，所以写在仓库里、跟着 PR 走，而不是发布
+          # 当天在网页上现敲。没有这个文件也能发，那时正文就只有下面的清单。
+          if [ -f "release-notes/$TAG.md" ]; then
+            cat "release-notes/$TAG.md" >> "$notes"
+            printf '\n' >> "$notes"
+            echo "用上了 release-notes/$TAG.md"
+          else
+            echo "::notice::没有 release-notes/$TAG.md，正文只有自动生成的变更清单"
+          fi
+
+          # 上一个 tag。**首个版本时它是空的** —— 那时列全部历史毫无意义：
+          # 几百条提交里绝大多数是写给我们自己的施工记录（「两条路径守卫用例在
+          # macOS 上是错的」），对下载的人零价值。所以首个版本只有上面那份散文。
           previous="$(git describe --tags --abbrev=0 "$TAG^" 2>/dev/null || true)"
 
           if [ -z "$previous" ]; then
-            printf '%s\n' \
-              '<!-- 首个版本：没有上一个 tag 可比，正文请手写。' \
-              '     第一个 release note 是「这是什么、为什么值得下」，不是变更清单。 -->' \
-              '' > "$notes"
             echo "::notice::没有找到上一个 tag，按首个版本处理，不生成变更清单"
           else
             echo "对比区间：$previous..$TAG"
