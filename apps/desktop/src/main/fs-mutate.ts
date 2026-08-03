@@ -116,19 +116,31 @@ export async function renameEntry(
 ): Promise<string> {
   if (!isLegalName(newName)) throw new Error(t('error.illegalName', { name: newName }))
   const from = await assertWritableInWorkspace(target)
-  const to = await assertWritableInWorkspace(path.join(path.dirname(from), newName.trim()))
+
+  /**
+   * 落点用**字面路径**，不用守卫返回的那个。
+   *
+   * 守卫返回的是 `realpath` 的结果，而在大小写不敏感的卷上（macOS 默认、
+   * Windows）`realpath('/w/README.md')` 给回的是磁盘上真实的那个名字
+   * `/w/readme.md` —— 于是 `from === to`，纯大小写改名**静默什么都不做**。
+   *
+   * 这条是 CI 抓出来的：Linux 上恒绿（大小写敏感，两个名字是两个文件），
+   * macOS / Windows 上恒红。正是 07 §1 说的那类「只在一个平台上验对了」。
+   *
+   * 守卫仍然要过 —— 只是拿它当**校验**，不拿它当**路径规范化**。
+   */
+  const to = path.join(path.dirname(from), newName.trim())
+  await assertWritableInWorkspace(to)
 
   if (from === to) return from
+
   // `fs.rename` 会静默覆盖目标 —— 见文件头第 1 条。
   //
-  // 在大小写不敏感的文件系统上（macOS 默认、Windows），`a.md` → `A.md`
-  // 会命中这一条：两个名字指向同一个 inode，`exists(to)` 为真。所以先比
-  // 真实路径，相等就是同一个文件，那是合法的纯大小写改名，直接放行
-  if ((await exists(to)) && (await sameEntry(from, to))) {
-    await rename(from, to)
-    return to
+  // 大小写不敏感的卷上 `a.md` → `A.md` 会让 `exists(to)` 为真，而那是同一个
+  // inode，是合法的纯大小写改名。所以撞名与否要比 inode，不能只看存在
+  if ((await exists(to)) && !(await sameEntry(from, to))) {
+    throw new Error(t('error.alreadyExists', { name: newName.trim() }))
   }
-  if (await exists(to)) throw new Error(t('error.alreadyExists', { name: newName.trim() }))
 
   await rename(from, to)
   return to

@@ -50,6 +50,9 @@ export class SearchPanel {
   private searching = false
   private truncated = false
   private debounce: ReturnType<typeof setTimeout> | null = null
+  /** 本次搜索的 id 还没回来 —— 期间到达的结果先攒在 `pending` 里。 */
+  private awaitingId = false
+  private pending: SearchProgressEvent[] = []
 
   constructor(
     host: HTMLElement,
@@ -178,6 +181,8 @@ export class SearchPanel {
     // 关掉面板就把跑着的那次作废 —— 结果没人看了，磁盘不该继续转
     void this.deps.cancel()
     this.searching = false
+    this.awaitingId = false
+    this.pending = []
     this.deps.restoreFocus()
   }
 
@@ -206,6 +211,10 @@ export class SearchPanel {
 
     if (!root || !query) {
       this.searching = false
+      // 攒着的那些属于已经作废的上一次，跟着一起丢。留着的话它们会在
+      // 上一次的 `start` 回来时被冲进一个本该是空的列表
+      this.awaitingId = false
+      this.pending = []
       // 没有工作区时把原因说出来。空着一个搜不出东西的框，用户会以为是坏了
       void this.deps.cancel()
       this.render()
@@ -213,20 +222,42 @@ export class SearchPanel {
     }
 
     this.searching = true
+    // 在拿到这次的 id 之前，到达的结果一律先攒着（见 `onProgress`）
+    this.awaitingId = true
+    this.pending = []
     this.render()
+
     void this.deps.start(root, query, this.options).then((id) => {
       this.currentId = id
+      this.awaitingId = false
+      const buffered = this.pending
+      this.pending = []
+      for (const progress of buffered) this.consume(progress)
     })
   }
 
+  /**
+   * 收一批结果。
+   *
+   * **id 还没回来时先攒着，不能直接按 id 判。** 这里有一个窄但真实的窗口：
+   * 用户改查询词时，`runSearch` 已经把列表清空了，而 main 还没收到新的
+   * `start`，于是上一次搜索仍在推结果 —— 那些结果带的正是**上一次**的 id，
+   * 而此刻 `currentId` 也还是上一次的值，按 id 比是放行的。
+   * 表现是新一次的列表里混着上一次的命中，看起来完全合理。
+   *
+   * 攒着而不是丢掉：丢掉的话，如果本次的头几批恰好赶在 id 之前到达，
+   * 用户会**静默地少看到几个文件** —— 那比多看到几个更糟。
+   */
   private onProgress(progress: SearchProgressEvent): void {
-    // 迟到的旧结果。**必须挡掉** —— 放进来的话它们看起来完全合理，
-    // 用户只会觉得「搜出来的东西怎么对不上」
-    //
-    // `>` 而不是 `!==`：`start` 的 Promise 可能比第一批结果晚回来，
-    // 那时 `currentId` 还是上一次的值，用不等号会把本次的头几批丢掉
-    if (progress.id < this.currentId) return
-    this.currentId = progress.id
+    if (this.awaitingId) {
+      this.pending.push(progress)
+      return
+    }
+    this.consume(progress)
+  }
+
+  private consume(progress: SearchProgressEvent): void {
+    if (progress.id !== this.currentId) return
 
     this.matches.push(...progress.matches)
     if (progress.truncated) this.truncated = true
