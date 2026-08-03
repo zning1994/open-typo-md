@@ -1,9 +1,38 @@
 name: CI
 
+# **只有可能影响产品的改动才跑这条。**
+#
+# 改一行文档要等三平台 e2e 跑完，等的是一件跟它毫无关系的事。下面这份
+# `paths-ignore` 把那类改动摘出去，交给 `docs.yml`（更快，且**不是不跑**）。
+#
+# 两份清单必须是**互补**的：这里 ignore 掉的，`docs.yml` 必须接住。原因是仓库
+# 里没有 pre-commit 钩子（07 §5 曾经声称有，其实没装），`pnpm format:check`
+# 只有 CI 这一道 —— 哪条路径两边都不跑，那条路径的格式就没人管了，
+# 而它的报应是下一次改代码时 CI 莫名其妙地红，且跟那次改动无关。
+#
+# `.github/workflows/ci.yml` **刻意不在**下面这份清单里：改 CI 自己当然要跑 CI。
+#
+# 下面这份清单出现两次（push 与 pull_request 各一份），改一处必须改另一处。
+# 想用 YAML 锚点（`&`/`*`）合并 —— **不行，GitHub Actions 的解析器不支持锚点**，
+# 写了会直接报解析错误。
 on:
   push:
     branches: ['**']
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - 'LICENSE'
+      - '.github/workflows/docs.yml'
+      - '.github/workflows/pages.yml'
+      - '.github/workflows/release.yml'
   pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - 'LICENSE'
+      - '.github/workflows/docs.yml'
+      - '.github/workflows/pages.yml'
+      - '.github/workflows/release.yml'
   workflow_dispatch:
 
 concurrency:

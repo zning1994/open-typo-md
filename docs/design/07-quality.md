@@ -324,7 +324,10 @@ fs」的防灾测试得先把整个 Electron 桩起来。翻译器由 IPC 那一
 ## 5. 工程规范
 
 - TypeScript `strict` + `noUncheckedIndexedAccess`；不允许 `any` 逃逸（`@typescript-eslint` 强制）。
-- ESLint + Prettier，pre-commit 钩子（lint-staged）。
+- ESLint + Prettier。**pre-commit 钩子还没装** —— 这一条原来写着「lint-staged」，
+  但 `devDependencies` 里没有 husky 也没有 lint-staged，是句空话。目前
+  `pnpm format:check` 只有 CI 那一道关口，这决定了 §6 那两份触发路径清单
+  必须互补（哪条路径两边都不跑，格式就没人管了）。
 - `dependency-cruiser` 强制 01 §1 的分层依赖方向。
 - Conventional Commits；语义化版本；CHANGELOG 自动生成。
 - 每个 PR 必须说明：改了什么、怎么测的、有没有影响格式保真。
@@ -334,9 +337,13 @@ fs」的防灾测试得先把整个 Electron 桩起来。翻译器由 IPC 那一
 
 实际的 `ci.yml`（`✅` 已有，`❌` 还没有）：
 
+**哪条流水线跑，取决于改了什么。** 改一行文档要等三平台 e2e 跑完，等的是一件
+跟它毫无关系的事。所以 `ci.yml` 用 `paths-ignore` 把文档、Markdown、其它工作流
+摘出去，由 `docs.yml` 接住 —— 重点是**接住**，不是不跑（见 §6.8）。
+
 ```
-push / PR
- ├─ ✅ check：依赖方向 + typecheck + lint + 格式 + 单元测试（666 条，仅 Linux）
+push / PR（代码、ci.yml 自己）
+ ├─ ✅ check：依赖方向 + typecheck + lint + 格式 + 单元测试（669 条，仅 Linux）
  ├─ ✅ verify-cross：macOS / Windows 上跑同一条 pnpm verify（见 §6.7）
  ├─ ✅ e2e：三平台各构建一次，跑 221 条 Playwright（含无障碍与 IME）
  ├─ ✅ bench：性能基准 + bundle 体积（只有体积卡门槛，见 §2.1）
@@ -344,7 +351,10 @@ push / PR
  ├─ ❌ 两个解析器的一致性比对（见 §1.1）
  └─ ❌ 视觉回归
 
-docs/** 变动
+push / PR（docs/**、*.md、LICENSE、release.yml / pages.yml / docs.yml）
+ └─ ✅ docs：格式检查 + 构建文档站 + 工作流清单互补检查（~1 分钟）
+
+docs/** 变动且在 main 上
  └─ ✅ pages：构建 VitePress 并发布到 mosu.ohgiantai.com
 
 tag v* ／ 手动触发（tag 留空 = 试跑，见 §6.7）
@@ -710,6 +720,37 @@ security: SecKeychainItemImport: MAC verification failed during PKCS12 import (w
 
 那个测试是按惯例验过「对着旧文件是红的」才留下的 —— 一个不会失败的测试比
 没有测试更糟，它还占着「这里已经测过了」的位置。
+
+### 6.8 按改动路径分流：关键是「接住」，不是「不跑」
+
+改一行文档等三平台 e2e，等的是一件跟它无关的事。所以 `ci.yml` 的 `push` 和
+`pull_request` 都带了 `paths-ignore`：`docs/**`、`**/*.md`、`LICENSE`，
+以及 `release.yml` / `pages.yml` / `docs.yml`。
+
+`.github/workflows/ci.yml` **刻意不在**那份清单里 —— 改 CI 自己当然要跑 CI。
+
+摘出去的那些交给 `docs.yml`：`pnpm format:check` + `pnpm docs:build`，约一分钟。
+**这一步不能省。** 仓库里没有 pre-commit 钩子（§5 那句「lint-staged」是空话），
+`format:check` 只有 CI 这一道；哪条路径两边都不跑，那条路径的格式就没人管了，
+而它的报应是下一次改代码时 CI 莫名其妙地红，且跟那次改动毫无关系。
+
+于是两份清单必须**互补**。这本来是一句写在两个文件注释里的「改一边记得改另
+一边」—— 而这个仓库当天已经因为「靠记性的约定」栽过好几次，所以做成了检查：
+`test/workflows.test.ts` 断言 `ci.yml` 的 `paths-ignore` 与 `docs.yml` 的
+`paths` 逐条相等。
+
+三个实现细节，都是踩出来的：
+
+- **GitHub Actions 不支持 YAML 锚点**（`&` / `*`）。同一份清单在每个文件里得写
+  两遍（`push` 一遍、`pull_request` 一遍），想用锚点合并会直接报解析错误。
+  这也正是那条一致性测试存在的理由。
+- **那条测试要在 `docs.yml` 里单独跑一次**（`pnpm vitest run
+  test/workflows.test.ts`）。指望 `ci.yml` 去验是不成立的：改 `docs.yml` 的清单
+  只会触发 `docs.yml`，而清单写歪恰恰就发生在改它的时候。
+- **测试里不引 YAML 解析器。** `js-yaml` 只是某个包的传递依赖，直接 import 是在
+  用幽灵依赖；为一条断言加一个直接依赖又太重。验的本来就是文本约定，所以用了个
+  够小的提取器 —— 它坏掉时的表现是「列表为空」，所以第一条断言就是「不许为空」，
+  免得悄悄变成永远通过。
 
 ## 7. 发布与更新
 

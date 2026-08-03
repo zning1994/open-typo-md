@@ -1,0 +1,74 @@
+name: Docs
+
+# **`ci.yml` 的补集。**
+#
+# 那边跑的是「可能影响产品的改动」，三平台 e2e 加打包，十来分钟。改一行文档要
+# 等完那些，等的是一件跟它毫无关系的事 —— 所以那边用 `paths-ignore` 把文档、
+# Markdown、其它工作流摘了出去，由这里接住。
+#
+# **重点是「接住」，不是「不跑」。** 仓库里没有 pre-commit 钩子，
+# `pnpm format:check` 只有 CI 这一道；哪条路径两边都不跑，那条路径的格式就没人
+# 管了，而它的报应是下一次改代码时 CI 莫名其妙地红，且跟那次改动无关。
+#
+# 两份清单必须互补 —— 这里的 `paths` 要跟 `ci.yml` 的 `paths-ignore` 逐条对上。
+# 改一边记得改另一边（GitHub Actions 不支持 YAML 锚点，没法共用一份）。
+on:
+  push:
+    branches: ['**']
+    paths:
+      - 'docs/**'
+      - '**/*.md'
+      - 'LICENSE'
+      - '.github/workflows/docs.yml'
+      - '.github/workflows/pages.yml'
+      - '.github/workflows/release.yml'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - '**/*.md'
+      - 'LICENSE'
+      - '.github/workflows/docs.yml'
+      - '.github/workflows/pages.yml'
+      - '.github/workflows/release.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: 文档与配置检查
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # **不设 `ELECTRON_SKIP_BINARY_DOWNLOAD`**，哪怕这个 job 根本用不到
+      # Electron。理由在 ci.yml 顶部：pnpm 会把「没装二进制」的安装结果缓存进
+      # 共享 store，污染后面真正需要它的 job。省下的一分钟远不如那笔调试成本。
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+
+      # 全仓跑一遍（prettier 认 Markdown 和 YAML）。几秒钟的事，
+      # 而它是这条路径上唯一的格式关口
+      - name: 格式检查
+        run: pnpm format:check
+
+      # 站点构建能抓到 pages.yml 抓不到的东西：坏掉的相对链接、VitePress 配置
+      # 里指向已删文件的侧边栏项。pages.yml 只在 main 上跑，分支上没有这一道
+      - name: 构建文档站
+        run: pnpm docs:build
+
+      # 只跑这一个文件，因为它验的正是「这两个工作流的清单还互补吗」。
+      #
+      # 不能指望 ci.yml 去验：改 `docs.yml` 的清单只会触发**这条**工作流，
+      # 而清单写歪了恰恰就发生在改它的时候。
+      - name: 工作流触发路径仍然互补
+        run: pnpm vitest run test/workflows.test.ts
