@@ -145,7 +145,7 @@ const LOCALES: LocaleConfig<DefaultTheme.Config> = {
         { text: '设计文档', link: '/design/00-overview' },
         { text: '架构决策', link: '/adr/0001-desktop-shell' },
         { text: '路线图', link: '/design/08-roadmap' },
-        { text: '下载', link: `${GITHUB}/releases` },
+        { text: '下载', link: `${GITHUB}/releases/latest` },
       ],
       sidebar: zhSidebar,
     },
@@ -172,7 +172,7 @@ const LOCALES: LocaleConfig<DefaultTheme.Config> = {
       nav: [
         { text: 'Design docs (Chinese)', link: '/design/00-overview' },
         { text: 'Roadmap (Chinese)', link: '/design/08-roadmap' },
-        { text: 'Download', link: `${GITHUB}/releases` },
+        { text: 'Download', link: `${GITHUB}/releases/latest` },
       ],
     },
   },
@@ -198,7 +198,7 @@ const LOCALES: LocaleConfig<DefaultTheme.Config> = {
       nav: [
         { text: '設計ドキュメント（中国語）', link: '/design/00-overview' },
         { text: 'ロードマップ（中国語）', link: '/design/08-roadmap' },
-        { text: 'ダウンロード', link: `${GITHUB}/releases` },
+        { text: 'ダウンロード', link: `${GITHUB}/releases/latest` },
       ],
     },
   },

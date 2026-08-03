@@ -779,6 +779,13 @@ security: SecKeychainItemImport: MAC verification failed during PKCS12 import (w
 
 ## 7. 发布与更新
 
+**现状（v0.1.0）**：手动发布，无自动更新。tag 推上去 → 三平台并行打包 → 建草稿
+Release → 人看过再点 Publish。下面这些是 M6 的目标，除了最后一条都还没做。
+
+有一件已经在做了但还没有人用：`latest*.yml`（electron-updater 的更新源元数据）
+随每个 release 一起发出去了。客户端那半没写，所以**目前没有任何东西会去读它** ——
+带上它只是为了做自动更新那天不必回头补一个 release。
+
 - 渠道：stable / beta。beta 用户可在设置里切换。
 - 自动更新：下载后提示重启安装，**绝不静默替换正在运行的程序**。
 - 更新包签名校验失败一律拒绝安装并上报。

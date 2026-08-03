@@ -11,7 +11,7 @@
 | --- | --- | --- |
 | **GitHub Release**（直接分发） | Developer ID 证书 + 公证（99 美元/年） | ✅ 已跑通：签名 + 公证 + 装订 |
 | **Mac App Store** | 上面那些 + App Sandbox 改造 | ⛔ 有架构级冲突，见 §2 |
-| 包管理器（Homebrew / winget / AUR） | 只需要一个稳定的 Release | 等第一个 release 之后再说 |
+| 包管理器（Homebrew / winget / AUR） | 只需要一个稳定的 Release | 前提已满足（v0.1.0），但先等真实下载量说话 |
 
 **结论：先做直接分发。** 它的门槛低一个量级，而且不受沙盒限制 ——
 现有的文件访问模型原样能用。拿它收集真实用户反馈（M1 就欠着的那一步），

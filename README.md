@@ -14,8 +14,10 @@ An open-source WYSIWYG Markdown editor — no split pane, no preview pane. What 
 > version; exactly what was cut is written down in the roadmap.
 > Next up is the plugin system (M5).
 >
-> The repository name and the internal package scope `@mosu/*` now both say Mosu.
-> The old `open-typo-md` URL redirects permanently, so existing clones need no remote change.
+> **[v0.1.0](https://github.com/zning1994/mosu/releases/latest) is out** — installers for
+> macOS, Windows and Linux. The macOS builds are signed with a Developer ID certificate
+> and notarised by Apple, so they open on a double-click. Windows is not signed yet, and
+> that is a deliberate call rather than a pending one — see below.
 
 ---
 

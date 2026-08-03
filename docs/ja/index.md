@@ -10,11 +10,11 @@ hero:
   tagline: "オープンソースの WYSIWYG Markdown エディタ。分割ビューもプレビューペインもなく、編集領域はひとつだけです。"
   actions:
     - theme: brand
+      text: "ダウンロード"
+      link: https://github.com/zning1994/mosu/releases/latest
+    - theme: alt
       text: "GitHub"
       link: https://github.com/zning1994/mosu
-    - theme: alt
-      text: "ダウンロード"
-      link: https://github.com/zning1994/mosu/releases
     - theme: alt
       text: "設計ドキュメント（中国語）"
       link: /design/00-overview

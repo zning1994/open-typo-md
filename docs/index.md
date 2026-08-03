@@ -10,6 +10,9 @@ hero:
   tagline: "开源的 Markdown 所见即所得编辑器。无分屏，无预览窗格，只有一个编辑区。"
   actions:
     - theme: brand
+      text: "下载"
+      link: https://github.com/zning1994/mosu/releases/latest
+    - theme: alt
       text: "看设计文档"
       link: /design/00-overview
     - theme: alt

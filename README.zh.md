@@ -13,8 +13,9 @@
 > 其中三条是**缩范围 / 换做法**的版本，各自明确没做的部分都写在路线图里。
 > 下一步是插件系统（M5）—— 见[路线图](docs/design/08-roadmap.md)。
 >
-> 仓库名与内部包名 `@mosu/*` 都已统一到 Mosu。旧地址 `open-typo-md` 由 GitHub 永久重定向，
-> 已有的 clone 不用改 remote。
+> **[v0.1.0](https://github.com/zning1994/mosu/releases/latest) 已发布** —— 三个平台的安装包都有。
+> macOS 那几个用 Developer ID 证书签了名并通过了 Apple 公证，双击就开。
+> Windows 仍未签名，而那是**刻意的决定**而非欠着的工作，理由见下面。
 
 ---
 
