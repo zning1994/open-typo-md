@@ -724,8 +724,12 @@ security: SecKeychainItemImport: MAC verification failed during PKCS12 import (w
 ### 6.8 按改动路径分流：关键是「接住」，不是「不跑」
 
 改一行文档等三平台 e2e，等的是一件跟它无关的事。所以 `ci.yml` 的 `push` 和
-`pull_request` 都带了 `paths-ignore`：`docs/**`、`**/*.md`、`LICENSE`，
-以及 `release.yml` / `pages.yml` / `docs.yml`。
+`pull_request` 都带了 `paths-ignore`：`docs/**`、`**/*.md`、`LICENSE`、
+`.github/ISSUE_TEMPLATE/**`，以及 `release.yml` / `pages.yml` / `docs.yml`。
+
+`ISSUE_TEMPLATE` 那条是漏了之后补的：清单第一版只写了 `**/*.md`，而 issue 模板
+是 `.yml`，于是一次「只改了社区文件」的推送照样拖出了完整 CI。**分流的清单是
+按后缀想出来的，而它该按「会不会影响产品」来划。**
 
 `.github/workflows/ci.yml` **刻意不在**那份清单里 —— 改 CI 自己当然要跑 CI。
 
