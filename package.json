@@ -42,7 +42,7 @@
     "typescript": "5.9.3",
     "typescript-eslint": "^8.65.0",
     "vitepress": "^1.6.4",
-    "vitest": "^3.2.7"
+    "vitest": "^4.1.10"
   },
   "repository": {
     "type": "git",
