@@ -165,7 +165,17 @@ test('右对齐列真的右对齐', async ({ page }) => {
   expect(align).toBe('right')
 })
 
-test('表格内容不折行', async ({ page }) => {
+// 这条用例原先叫「表格内容不折行」，断言 `white-space: pre`、单元格宽过
+// 1000px、行高不到 60px —— 也就是**把缺陷本身钉住了**。
+//
+// issue #35：那个取舍（「一折，列宽就失去参考意义」）在真实长内容面前站不住。
+// `pre` 让每列的最小内容宽度等于它最长那格的整行长度，而匿名表格盒是收缩到
+// 适应的，于是表一路撑出视口，右侧列既看不见也滚不回来。列宽失真只是不好看，
+// 列看不见是功能没了。现在的断言是反过来的那一半。
+//
+// 溢出与折行的完整覆盖在 `e2e/table-overflow.spec.ts`（五列长内容 + 长 URL +
+// 不断行标识符），这里只守住「窄窗口下的单列长内容也收得住」这个最小情形。
+test('表格内容在单元格里折行，不撑出可视宽度', async ({ page }) => {
   await resetDoc(page)
   await page.keyboard.type('| 列 |\n| --- |\n')
   await page.keyboard.type(`| ${'很长的内容'.repeat(30)} |`)
@@ -178,16 +188,23 @@ test('表格内容不折行', async ({ page }) => {
   const measured = await page.evaluate(() => {
     const rows = document.querySelectorAll('.cm-mosu-tr')
     const row = rows[rows.length - 1] as HTMLElement
+    const scroller = document.querySelector(
+      '.tab-page:not([hidden]) .cm-scroller',
+    ) as HTMLElement
     return {
-      whiteSpace: getComputedStyle(row).whiteSpace,
-      // 不折行的直接证据：单元格比可视宽度宽得多，而不是被压成多行
       cellWidth: (row.querySelector('.cm-mosu-td') as HTMLElement).getBoundingClientRect()
         .width,
-      lineHeight: row.getBoundingClientRect().height,
+      contentWidth: (
+        document.querySelector('.tab-page:not([hidden]) .cm-content') as HTMLElement
+      ).getBoundingClientRect().width,
+      rowHeight: row.getBoundingClientRect().height,
+      scrollerOverflow: Math.round(scroller.scrollWidth - scroller.clientWidth),
     }
   })
-  expect(measured.whiteSpace).toBe('pre')
-  expect(measured.cellWidth).toBeGreaterThan(1000)
-  // 折了行的话这一行会有几十上百像素高
-  expect(measured.lineHeight).toBeLessThan(60)
+
+  // 单元格收在正文宽度里，视口也没有因此获得横向滚动空间
+  expect(measured.cellWidth).toBeLessThanOrEqual(measured.contentWidth + 1)
+  expect(measured.scrollerOverflow).toBeLessThanOrEqual(1)
+  // 150 个字挤进一列，必然折成好几行
+  expect(measured.rowHeight).toBeGreaterThan(60)
 })
