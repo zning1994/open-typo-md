@@ -11,43 +11,40 @@ on:
 
 permissions:
   contents: write
+  # 显式写出来：只要声明了 permissions，没列到的一律变成 none。
+  # 同一次运行内取 artifact 走的是 runtime token，本来不需要它 ——
+  # 但哪天改成跨运行取，少这一条的报错是「artifact 不存在」，很难往权限上想。
+  actions: read
 
+# **打包与发布是两件事，拆成两个 job。**
+#
+# 原来是一个 job 干两件：三个平台各自 `--publish always`，各自往 Release 里塞
+# 产物。那样必须串行 —— 草稿 release 的语义是「没有就建一个」，并发时三个作业
+# 会同时发现「没有」然后各建一个，产物散落在两三个草稿里，或者其中两个直接报
+# 「已存在」失败。当时的处理是 `max-parallel: 1`，墙钟从 ~6 分钟变成 ~18 分钟。
+#
+# 但**串行只是在绕开竞态，没有消掉它**。竞的是「谁来建这个 Release」，
+# 那就别让打包作业去建：打包一律 `--publish never`，产物走 artifact；
+# 全部成功之后，由**唯一一个** release job 下载下来统一发布。
+#
+# 换来三件事，第三件才是最值钱的：
+#
+# 1. 三个平台真正并行，墙钟回到「最慢的那个平台」；
+# 2. **要么全发，要么不发。** 原来 Windows 挂了的话，Release 里已经躺着 macOS
+#    的产物了 —— 一个只发了一半的版本。现在发布只在三个都绿之后发生一次；
+# 3. **试跑和真发布的打包路径完全一样了。** 差别只剩「后面那个 job 跑不跑」。
+#    以前 `--publish` 的取值两条路不同，意味着试跑验不到真发布那条；而这个仓库
+#    刚刚才因为「从没跑过的路径」连挂四轮（见 07 §6.7）。
 jobs:
-  release:
-    name: 发布（${{ matrix.os }}）
+  build:
+    name: 打包（${{ matrix.os }}）
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
-      # **真发布串行，试跑并行。**
-      #
-      # 串行不是为了省资源：真发布时三个平台都带 `--publish always`，而草稿
-      # release 是「没有就建一个」—— 并发时三个作业会同时发现「没有」然后各建
-      # 一个，结果是产物散落在两三个草稿里，或者其中两个直接报「已存在」失败。
-      # electron-builder 的这个竞态是已知的，上游没打算修（发布本来就不该并发）。
-      # 代价是墙钟从 ~6 分钟变成 ~18 分钟，而发布一年也没几次，认了。
-      #
-      # 但**试跑没有这个竞态**：它走 `--publish never`，压根不碰 Release，
-      # 三个平台谁也不认识谁。让它也串行纯属白等，而试跑恰恰是要反复跑的那个。
-      #
-      # 条件刻意写成「**只有**确定是试跑才并行」，而不是「不是发布就并行」——
-      # `strategy` 里读不到 job 级 env，这个判断没法跟下面的 PUBLISH_MODE 共用
-      # 一份，只能各写一遍。两份判断万一哪天分了岔，这种写法的错法是「多等了
-      # 十二分钟」，反过来写的错法是「三个草稿 release」。
-      max-parallel: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag == '' && 3 || 1 }}
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
 
     env:
-      # **发布与否取决于有没有 tag，不取决于怎么触发的。**
-      #
-      # 留一条「不发布」的路，是因为验证签名配置本来不该以「先造一个 tag」为代价：
-      # tag 是发布语义的东西，推错了要删、删了本地还留着，而这里要回答的问题
-      # 只是「那五个 secret 配对了没有」。留空跑一次，签名公证照做，
-      # 产物走 artifact，Release 那边一片安静。
-      #
-      # push tag 触发时 `github.event.inputs` 是 null，所以第一个分支不能省 ——
-      # 靠 `inputs.tag != ''` 判断的话，null 与 '' 在表达式里都会转成 0，判等成立。
-      PUBLISH_MODE: ${{ (github.event_name == 'push' || github.event.inputs.tag != '') && 'always' || 'never' }}
       # `secrets` 在 step 的 `if:` 里读不到（可用的上下文里没有它），
       # 所以在 job 级 env 上过一道 —— env 是能读 secrets 的
       HAS_MAC_CERT: ${{ secrets.CSC_LINK != '' }}
@@ -169,7 +166,7 @@ jobs:
         # electron-builder 会直接失败，而「还没有证书」是这个项目的正常状态
         run: >-
           pnpm --filter @mosu/desktop exec electron-builder
-          --config electron-builder.yml --publish ${{ env.PUBLISH_MODE }}
+          --config electron-builder.yml --publish never
           ${{ secrets.APPLE_TEAM_ID != '' && '-c.mac.notarize=true' || '' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -187,7 +184,7 @@ jobs:
         if: runner.os == 'Windows'
         run: >-
           pnpm --filter @mosu/desktop exec electron-builder
-          --config electron-builder.yml --publish ${{ env.PUBLISH_MODE }}
+          --config electron-builder.yml --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Authenticode 证书，跟 macOS 那张是两码事，所以用**另一对** secret 名
@@ -200,17 +197,23 @@ jobs:
         # Linux 没有代码签名这回事（AppImage 可以签，但生态里几乎没人验）
         run: >-
           pnpm --filter @mosu/desktop exec electron-builder
-          --config electron-builder.yml --publish ${{ env.PUBLISH_MODE }}
+          --config electron-builder.yml --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # 试跑时没有 Release 可下载，产物得有别的出口 —— 否则「签名成功」
-      # 就只剩流水线里的一句话，本机跑不了 spctl / stapler 去验第二遍。
-      - name: 上传产物（试跑）
-        if: env.PUBLISH_MODE == 'never'
+      # **无条件上传** —— 这是产物离开这个 job 的唯一出口，两种模式都要走。
+      #
+      # 试跑时它是给人下载的（否则「签名成功」就只剩流水线里的一句话，本机跑不了
+      # spctl / stapler 验第二遍）；真发布时它是下面那个 release job 的输入。
+      # 同一条路，所以每次试跑都在演练真发布。
+      #
+      # `latest*.yml` 是 electron-updater 的更新元数据。自动更新还没做（M6），
+      # 现在带上只是为了那天到来时不必回头改这里 —— 但**那天要确认它确实生成了**：
+      # `--publish never` 会不会跳过这些文件没有验证过。
+      - name: 上传产物
         uses: actions/upload-artifact@v7
         with:
-          name: mosu-dryrun-${{ matrix.os }}
+          name: mosu-${{ matrix.os }}
           path: |
             apps/desktop/release/*.dmg
             apps/desktop/release/*.zip
@@ -218,8 +221,9 @@ jobs:
             apps/desktop/release/*.AppImage
             apps/desktop/release/*.deb
             apps/desktop/release/*.tar.gz
+            apps/desktop/release/latest*.yml
           retention-days: 7
-          if-no-files-found: warn
+          if-no-files-found: error
 
       # 产物到底签没签名，必须在 Actions 页面上一眼看得见。
       #
@@ -228,9 +232,7 @@ jobs:
       - name: 记录签名状态
         shell: bash
         run: |
-          if [ "${{ env.PUBLISH_MODE }}" = "never" ]; then
-            echo "- ℹ️ **本次是试跑**：没有建 Release，产物在本页 artifact 里（\`mosu-dryrun-*\`）。" >> "$GITHUB_STEP_SUMMARY"
-          fi
+          echo "- 产物已上传到本页 artifact（\`mosu-${{ matrix.os }}\`）。" >> "$GITHUB_STEP_SUMMARY"
           if [ "${{ runner.os }}" = "Linux" ]; then
             echo "- **Linux**：签名不适用" >> "$GITHUB_STEP_SUMMARY"
           elif [ "${{ runner.os }}" = "Windows" ]; then
@@ -246,3 +248,52 @@ jobs:
           else
             echo "- **macOS**：✅ 已签名并公证，双击即开。" >> "$GITHUB_STEP_SUMMARY"
           fi
+
+  # ── 发布：唯一一个会碰 Release 的作业 ────────────────────────────────
+  #
+  # `needs: build` 意味着**三个平台全绿才会走到这里**，所以不存在「只发了一半
+  # 的版本」。这也是拆 job 最主要的收益，比并行省下的那十二分钟重要。
+  #
+  # 判断「要不要发布」的表达式在整个文件里只出现这一处。job 的 `if:` 读不到
+  # `env`（可用上下文里没有它），所以只能写在这儿 —— 好在也只需要一处。
+  #
+  # push tag 触发时 `github.event.inputs` 是 null，第一个分支不能省：靠
+  # `inputs.tag != ''` 判断的话，null 与 '' 在表达式里都会转成 0，判等成立。
+  release:
+    name: 建草稿 Release
+    needs: build
+    if: github.event_name == 'push' || github.event.inputs.tag != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: 取回三个平台的产物
+        uses: actions/download-artifact@v7
+        with:
+          pattern: mosu-*
+          path: dist
+          merge-multiple: true
+
+      - name: 建草稿并上传产物
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          ls -lh dist
+
+          # **草稿，不是正式发布。** 正文留空是有意的：第一个版本的 release note
+          # 是「这是什么、为什么值得下」，不是变更清单，值得手写。写好之后在
+          # Release 页面点 Publish 才对外可见。
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            echo "::notice::$TAG 的 Release 已存在，往里补产物（同名文件会被覆盖）"
+            gh release upload "$TAG" dist/* --repo "$REPO" --clobber
+          else
+            gh release create "$TAG" dist/* \
+              --repo "$REPO" --draft --title "$TAG" \
+              --notes "正文待补 —— 产物已就位，确认无误后编辑本文并点 Publish。"
+          fi
+
+          {
+            echo "- ✅ 已建/更新草稿 Release **$TAG**，产物 $(ls dist | wc -l | tr -d ' ') 个。"
+            echo "- ⚠️ 这是**草稿**，对外不可见。写好正文后到 Release 页面点 Publish。"
+          } >> "$GITHUB_STEP_SUMMARY"
