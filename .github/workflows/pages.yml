@@ -35,7 +35,7 @@ jobs:
           # lastUpdated 要读每个文件的最后提交时间，浅克隆拿不到
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@v6.0.9
 
       - uses: actions/setup-node@v5
         with:
