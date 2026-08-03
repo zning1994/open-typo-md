@@ -7,7 +7,14 @@
  * 这条断言就是整个功能的安全前提。单测断言不到它 —— 单测看的是装饰对象，
  * 而「有没有元素被造出来」只有在真 DOM 里才问得出来。
  */
-import { ACTIVE_CONTENT, clickMenu, expect, pasteText, test, visibleText } from './fixtures.js'
+import {
+  ACTIVE_CONTENT,
+  expect,
+  openSettings,
+  pasteText,
+  test,
+  visibleText,
+} from './fixtures.js'
 import type { ElectronApplication, Page } from '@playwright/test'
 
 /** 编辑区里所有元素的标签名。 */
@@ -86,7 +93,7 @@ async function setRenderInlineHtml(
   page: Page,
   on: boolean,
 ): Promise<void> {
-  await clickMenu(app, ['视图', '设置…'])
+  await openSettings(app)
   await expect(page.locator('.mosu-settings')).toBeVisible()
   const box = page
     .locator('.mosu-settings__row')

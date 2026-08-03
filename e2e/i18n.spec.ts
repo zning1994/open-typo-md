@@ -7,12 +7,20 @@
  *
  * 那正是 i18n 最常见的 bug 形态：不是「没翻译」，是「翻了一半」。
  */
-import { ACTIVE_CONTENT, ACTIVE_PAGE, clickMenu, expect, resetDoc, test } from './fixtures.js'
+import {
+  ACTIVE_CONTENT,
+  ACTIVE_PAGE,
+  clickMenu,
+  expect,
+  openSettings as openSettingsMenu,
+  resetDoc,
+  test,
+} from './fixtures.js'
 import type { ElectronApplication, Page } from '@playwright/test'
 
 /** 打开设置面板。语言只能在这里换，所以每条用例都要走一遍。 */
 async function openSettings(app: ElectronApplication, page: Page): Promise<void> {
-  await clickMenu(app, ['视图', '设置…'])
+  await openSettingsMenu(app)
   await expect(page.locator('.mosu-settings')).toBeVisible()
 }
 

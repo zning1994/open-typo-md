@@ -22,7 +22,7 @@
 import { readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import path from 'node:path'
-import { ACTIVE_CONTENT, clickMenu, expect, resetDoc, test } from './fixtures.js'
+import { ACTIVE_CONTENT, clickMenu, expect, openSettings, resetDoc, test } from './fixtures.js'
 import type { Page } from '@playwright/test'
 
 /**
@@ -91,7 +91,7 @@ test('主界面（编辑区 + 状态栏）没有违规', async ({ page }) => {
 })
 
 test('设置面板没有违规', async ({ app, page }) => {
-  await clickMenu(app, ['视图', '设置…'])
+  await openSettings(app)
   await expect(page.locator('.mosu-settings')).toBeVisible()
   expect(summarize(await scan(page, '.mosu-settings'))).toEqual([])
   await page.keyboard.press('Escape')
