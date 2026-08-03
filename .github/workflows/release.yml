@@ -6,8 +6,8 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: '要发布的 tag（例如 v0.1.0）'
-        required: true
+        description: '要发布的 tag（例如 v0.1.0）。**留空**＝拿当前分支试跑：照常签名公证，但不建 Release，产物走 artifact'
+        required: false
 
 permissions:
   contents: write
@@ -20,7 +20,7 @@ jobs:
       fail-fast: false
       # **串行跑，不是为了省资源。**
       #
-      # 三个平台都带 `--publish always`，而草稿 release 是「没有就建一个」——
+      # 真发布时三个平台都带 `--publish always`，而草稿 release 是「没有就建一个」——
       # 并发时三个作业会同时发现「没有」然后各建一个，结果是产物散落在两三个
       # 草稿里，或者其中两个直接报「已存在」失败。electron-builder 的这个竞态
       # 是已知的，上游没打算修（发布本来就不该并发）。
@@ -30,7 +30,39 @@ jobs:
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
 
+    env:
+      # **发布与否取决于有没有 tag，不取决于怎么触发的。**
+      #
+      # 留一条「不发布」的路，是因为验证签名配置本来不该以「先造一个 tag」为代价：
+      # tag 是发布语义的东西，推错了要删、删了本地还留着，而这里要回答的问题
+      # 只是「那五个 secret 配对了没有」。留空跑一次，签名公证照做，
+      # 产物走 artifact，Release 那边一片安静。
+      #
+      # push tag 触发时 `github.event.inputs` 是 null，所以第一个分支不能省 ——
+      # 靠 `inputs.tag != ''` 判断的话，null 与 '' 在表达式里都会转成 0，判等成立。
+      PUBLISH_MODE: ${{ (github.event_name == 'push' || github.event.inputs.tag != '') && 'always' || 'never' }}
+
     steps:
+      # 填了一个不存在的 tag 时，checkout 报的是「failed with exit code 1」，
+      # 而且重试三次、每次等 11 秒 —— 看上去像网络抖动，实际是 ref 不存在。
+      # 这一步把它换成一句能读懂的话，顺带省掉那 40 秒。
+      #
+      # 放在 checkout 之前：gh 只要有 token 就能查，不需要工作副本。
+      - name: 核对 tag 存在
+        if: github.event.inputs.tag != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.inputs.tag }}
+          REPO: ${{ github.repository }}
+        run: |
+          if gh api "repos/$REPO/git/ref/tags/$TAG" >/dev/null 2>&1; then
+            echo "tag $TAG 存在，继续发布"
+          else
+            echo "::error::tag \`$TAG\` 在 $REPO 里不存在。先 \`git tag $TAG && git push origin $TAG\`；或者把 tag 这一栏留空，做一次只签名、不发布的试跑。"
+            exit 1
+          fi
+
       - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.inputs.tag || github.ref }}
@@ -55,13 +87,13 @@ jobs:
       # 合成一步的话，仓库里存一份 macOS 的 .p12，Windows 作业会拿它去做
       # Authenticode 签名，然后以一个没人看得懂的错误挂掉。分开之后，
       # 两种证书各走各的，谁也漏不到对方那边。
-      - name: 打包并上传到 Release 草稿（macOS）
+      - name: 打包（macOS）
         if: runner.os == 'macOS'
         # 公证只在确实配了凭据时才打开 —— 没有凭据却要求公证的话，
         # electron-builder 会直接失败，而「还没有证书」是这个项目的正常状态
         run: >-
           pnpm --filter @mosu/desktop exec electron-builder
-          --config electron-builder.yml --publish always
+          --config electron-builder.yml --publish ${{ env.PUBLISH_MODE }}
           ${{ secrets.APPLE_TEAM_ID != '' && '-c.mac.notarize=true' || '' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -75,11 +107,11 @@ jobs:
           # 没配证书时关掉钥匙串自动搜索，让「跳过签名」成为确定行为
           CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.CSC_LINK != '' }}
 
-      - name: 打包并上传到 Release 草稿（Windows）
+      - name: 打包（Windows）
         if: runner.os == 'Windows'
         run: >-
           pnpm --filter @mosu/desktop exec electron-builder
-          --config electron-builder.yml --publish always
+          --config electron-builder.yml --publish ${{ env.PUBLISH_MODE }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Authenticode 证书，跟 macOS 那张是两码事，所以用**另一对** secret 名
@@ -87,14 +119,31 @@ jobs:
           CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
           CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.WIN_CSC_LINK != '' }}
 
-      - name: 打包并上传到 Release 草稿（Linux）
+      - name: 打包（Linux）
         if: runner.os == 'Linux'
         # Linux 没有代码签名这回事（AppImage 可以签，但生态里几乎没人验）
         run: >-
           pnpm --filter @mosu/desktop exec electron-builder
-          --config electron-builder.yml --publish always
+          --config electron-builder.yml --publish ${{ env.PUBLISH_MODE }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 试跑时没有 Release 可下载，产物得有别的出口 —— 否则「签名成功」
+      # 就只剩流水线里的一句话，本机跑不了 spctl / stapler 去验第二遍。
+      - name: 上传产物（试跑）
+        if: env.PUBLISH_MODE == 'never'
+        uses: actions/upload-artifact@v7
+        with:
+          name: mosu-dryrun-${{ matrix.os }}
+          path: |
+            apps/desktop/release/*.dmg
+            apps/desktop/release/*.zip
+            apps/desktop/release/*.exe
+            apps/desktop/release/*.AppImage
+            apps/desktop/release/*.deb
+            apps/desktop/release/*.tar.gz
+          retention-days: 7
+          if-no-files-found: warn
 
       # 产物到底签没签名，必须在 Actions 页面上一眼看得见。
       #
@@ -103,6 +152,9 @@ jobs:
       - name: 记录签名状态
         shell: bash
         run: |
+          if [ "${{ env.PUBLISH_MODE }}" = "never" ]; then
+            echo "- ℹ️ **本次是试跑**：没有建 Release，产物在本页 artifact 里（\`mosu-dryrun-*\`）。" >> "$GITHUB_STEP_SUMMARY"
+          fi
           if [ "${{ runner.os }}" = "Linux" ]; then
             echo "- **Linux**：签名不适用" >> "$GITHUB_STEP_SUMMARY"
           elif [ "${{ runner.os }}" = "Windows" ]; then

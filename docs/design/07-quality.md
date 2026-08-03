@@ -363,7 +363,19 @@ fork 的 PR 拿不到（必须在 workflow 里显式限制）。
    连同 Apple ID 与 Team ID 存成 `APPLE_ID` / `APPLE_APP_SPECIFIC_PASSWORD` /
    `APPLE_TEAM_ID`。
 
-三个 secret 齐了，下一次 tag 推上去就是签名 + 公证 + 装订（staple）的包。
+五个 secret 齐了，下一次 tag 推上去就是签名 + 公证 + 装订（staple）的包。
+
+**先别急着打 tag —— 有一条试跑的路。** `release.yml` 的 `workflow_dispatch`
+把 tag 这一栏**留空**，就拿当前分支跑一遍：签名、公证一样不少，但不建 Release，
+产物落在本次运行的 artifact（`mosu-dryrun-*`）里。
+
+留这条路是因为「验证签名配好没有」不该以造一个 tag 为代价 —— tag 是发布语义的
+东西，推错了要删、删了本地还留着，而这里要回答的问题只是「那五个值对不对」。
+判断依据是 `PUBLISH_MODE`：有 tag 才 `--publish always`，跟怎么触发的无关。
+
+顺带一提，填一个**不存在**的 tag 时，checkout 的原生报错是
+`The process '/usr/bin/git' failed with exit code 1`，还会重试三次各等 11 秒 ——
+看上去像网络抖动。所以 checkout 之前加了一步 `gh api` 核对，把它换成一句人话。
 
 **几个容易踩的点：**
 
