@@ -34,7 +34,7 @@ let dir: string
 beforeEach(async () => {
   resetGrantsForTest()
   dir = await mkdtemp(path.join(tmpdir(), 'mosu-test-'))
-  grantDirectory(dir)
+  await grantDirectory(dir)
 })
 
 afterEach(async () => {
@@ -175,7 +175,7 @@ describe('路径白名单', () => {
 
   it('指向白名单外部的符号链接不能绕过校验', async () => {
     resetGrantsForTest()
-    grantDirectory(dir)
+    await grantDirectory(dir)
     const outside = await mkdtemp(path.join(tmpdir(), 'mosu-outside-'))
     try {
       await writeFile(path.join(outside, 'secret.txt'), '机密', 'utf8')
@@ -191,10 +191,25 @@ describe('路径白名单', () => {
 
   it('目录穿越（../）被规范化后拦下', async () => {
     resetGrantsForTest()
-    grantDirectory(dir)
-    await expect(assertAllowed(path.join(dir, '..', '..', 'etc', 'passwd'))).rejects.toThrow(
-      /未获授权/,
-    )
+    await grantDirectory(dir)
+
+    // 这条用例原来有两个毛病，凑在一起让它在 Linux 上「碰巧是绿的」：
+    //
+    // 1. **穿越的目标得真实存在。** 不存在的话守卫先以「路径不可访问」拒绝，
+    //    于是白名单即使形同虚设，用例照样绿 —— 它验的就不是白名单了。
+    //    原来写的是 `../../etc/passwd`：Linux 的 `/tmp` 只有一层，正好落到
+    //    真的 `/etc/passwd`；macOS 的临时目录深在 `/var/folders/…` 里，
+    //    落在一个不存在的路径上，于是那边报的是「不可访问」。
+    // 2. **`path.join` 自己就把 `..` 抹平了**，守卫根本没见过 `..`，
+    //    所谓「被规范化后拦下」压根没测到规范化。这里改成手工拼字符串。
+    const outside = await mkdtemp(path.join(tmpdir(), 'mosu-outside-'))
+    try {
+      await writeFile(path.join(outside, 'secret.txt'), '机密', 'utf8')
+      const traversal = [dir, '..', path.basename(outside), 'secret.txt'].join(path.sep)
+      await expect(assertAllowed(traversal)).rejects.toThrow(/未获授权/)
+    } finally {
+      await rm(outside, { recursive: true, force: true })
+    }
   })
 })
 

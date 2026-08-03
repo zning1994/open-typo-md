@@ -97,6 +97,47 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
+  # ── 跨平台单元测试：只跑单测，不跑 lint / 覆盖率 ─────────────────────
+  #
+  # `check` 只在 Linux 上跑。**跟路径打交道的用例在别的平台上会悄悄失效**，
+  # 而且是往「假绿」的方向失效 —— 下面两条都是真事：
+  #
+  # - macOS 的 `/var` 是指向 `/private/var` 的符号链接，临时目录全在它底下。
+  #   拿 `mkdtemp` 的返回值直接当期望值的断言，在那边永远对不上。
+  # - Linux 的 `/tmp` 只有一层，`../../etc/passwd` 正好落到真的 `/etc/passwd`；
+  #   macOS 的临时目录深在 `/var/folders/…` 里，同样的写法落在一个**不存在**的
+  #   路径上，于是守卫走的是「路径不可访问」那条分支 —— 用例照样绿，
+  #   验的却不再是白名单。
+  #
+  # 这两条是发布流水线在 macOS 上跑 `pnpm verify` 时才撞见的，代价是一次发布
+  # 尝试。放在这里，代价变成一次 push。
+  #
+  # 不并进 `check`：那会让 e2e / bench 多等一个 Windows runner 的安装时间。
+  # 单开一个跟它们并行的 job，墙钟上是白拿的。
+  unit-cross:
+    name: 单元测试（${{ matrix.os }}）
+    needs: check
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+
+      - name: 单元测试
+        run: pnpm test
+
   # ── 端到端：真 Chromium + 真 Electron。IME 用例是发布门槛 ─────────────
   e2e:
     name: 端到端（${{ matrix.os }}）

@@ -3,8 +3,30 @@
  *
  * 这是渲染进程被打穿之后唯一还站着的一道墙，所以它的边界值得逐条钉死 ——
  * 尤其是「读文件」和「列目录」这两条**故意分开**的许可。
+ *
+ * ## 在 Linux 上复现 macOS 的行为
+ *
+ * 这里的用例几乎每一条都跟符号链接解析有关，而两个平台的临时目录不一样：
+ * macOS 的 `/var` 指向 `/private/var`，Linux 的 `/tmp` 就是它自己。于是
+ * 「拿 mkdtemp 的返回值当期望值」这类写法在 Linux 上恒绿、在 macOS 上恒红。
+ *
+ * 不用等 CI，给 TMPDIR 套一层符号链接就能在本地复现：
+ *
+ * ```bash
+ * mkdir -p /tmp/realtmp && ln -sfn /tmp/realtmp /tmp/linktmp
+ * TMPDIR=/tmp/linktmp pnpm vitest run apps/desktop/test/path-guard.test.ts
+ * ```
  */
-import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises'
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  realpath,
+  rm,
+  symlink,
+  writeFile,
+} from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -111,9 +133,17 @@ describe('读文件的许可', () => {
 })
 
 describe('列目录的许可', () => {
-  it('用户显式打开的工作区，根自身就能列', async () => {
+  it('用户显式打开的工作区，根自身就能列（返回的是解析后的真实路径）', async () => {
+    // **不能拿 `root` 自己当期望值。** 守卫返回的是 realpath 之后的路径 ——
+    // 那正是它该做的（校验和返回必须是同一个路径，否则调用方拿着未解析的
+    // 路径去读写，等于绕过刚做完的校验）。
+    //
+    // 在 Linux 上这两者恰好相等，`/tmp` 不是符号链接；macOS 的 `/var` 指向
+    // `/private/var`，于是这条断言在那边一直是错的。CI 的单测只跑 Linux，
+    // 所以直到发布流水线在 macOS 上跑 `pnpm verify` 才暴露出来。
+    const real = await realpath(root)
     await grantDirectory(root)
-    await expect(assertAllowedDirectory(root)).resolves.toBe(root)
+    await expect(assertAllowedDirectory(root)).resolves.toBe(real)
   })
 
   it('工作区的子目录也能列', async () => {
