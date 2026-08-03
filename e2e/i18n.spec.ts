@@ -13,6 +13,7 @@ import {
   clickMenu,
   expect,
   openSettings as openSettingsMenu,
+  platformMenuPath,
   resetDoc,
   test,
 } from './fixtures.js'
@@ -116,7 +117,7 @@ test('日文界面下编辑区里的文案也跟着变', async ({ app, page }) =
   )
 
   await resetDoc(page)
-  await clickMenu(app, ['表示', '設定…'])
+  await clickMenu(app, await platformMenuPath(app, '設定…', '表示'))
   await switchTo(page, 'zh-CN')
   await page.keyboard.press('Escape')
 })
@@ -126,7 +127,7 @@ test('语言存进 settings.json，重开设置面板时还在', async ({ app, p
   await switchTo(page, 'en')
   await page.keyboard.press('Escape')
 
-  await clickMenu(app, ['View', 'Settings…'])
+  await clickMenu(app, await platformMenuPath(app, 'Settings…', 'View'))
   await expect(control(page, 'Interface language')).toHaveValue('en')
 
   await switchTo(page, 'zh-CN')

@@ -198,16 +198,22 @@ export async function openDocInNewWindow(
  * 同理见下面的 `openCheckUpdates`。
  */
 export async function openSettings(app: ElectronApplication): Promise<void> {
-  await clickMenu(app, await menuPath(app, '设置…'))
+  await clickMenu(app, await platformMenuPath(app, '设置…'))
 }
 
 /** 点「检查更新…」。位置同样按平台不同（mac 在应用菜单，其它在「帮助」）。 */
 export async function openCheckUpdates(app: ElectronApplication): Promise<void> {
-  await clickMenu(app, await menuPath(app, '检查更新…', '帮助'))
+  await clickMenu(app, await platformMenuPath(app, '检查更新…', '帮助'))
 }
 
-/** mac 上这一项在应用菜单里，其它平台在 `fallback` 那一栏。 */
-async function menuPath(
+/**
+ * mac 上这一项在应用菜单里，其它平台在 `fallback` 那一栏。
+ *
+ * 导出出去是因为 `i18n.spec.ts` 会**先把界面语言换掉再开设置** —— 那时菜单
+ * 标签是 `Settings…` / `設定…`，栏目也变成 `View` / `表示`。所以标签由调用方
+ * 给，这里只负责「mac 在应用菜单、其它在某一栏」这条平台差异。
+ */
+export async function platformMenuPath(
   app: ElectronApplication,
   label: string,
   fallback = '视图',
