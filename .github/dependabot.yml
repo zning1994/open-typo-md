@@ -2,29 +2,9 @@
 #
 # 文档：https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 #
-# **这个仓库到 v0.1.0 为止一个 PR 都没有**（全是直接推 main），所以 Dependabot 开的
-# 会是头几个 PR。它们会照常触发 CI，这正是想要的 —— 依赖升级恰恰是「测试说了算」
-# 的那类改动。
+# **只留 GitHub Actions 一个生态。** npm 那一个开过，实测不可用，理由在下面。
 version: 2
 updates:
-  # ── npm（pnpm workspace）────────────────────────────────────────────
-  #
-  # `package-ecosystem: npm` 同时管 npm / yarn / pnpm，认的是 `pnpm-lock.yaml`。
-  # 这个仓库用 pnpm 10 + workspace，而 Dependabot 对新版 pnpm lockfile 的支持历来
-  # 比 npm 慢半拍 —— 万一它抱怨解析不了 lockfile，那是已知的上游限制，不是这里写错了。
-  - package-ecosystem: 'npm'
-    directory: '/'
-    schedule:
-      interval: 'weekly'
-    # 一周十几个 PR 没人看得完，看不完就会开始无脑合 —— 那比不升级更危险。
-    # 分组之后正常情况下每周最多两个：一个补丁/次版本的合集，一个大版本的。
-    open-pull-requests-limit: 5
-    groups:
-      minor-and-patch:
-        update-types: ['minor', 'patch']
-    commit-message:
-      prefix: 'chore(deps)'
-
   # ── GitHub Actions ─────────────────────────────────────────────────
   #
   # 这一条对这个仓库格外值：action 的运行时弃用（node20 → node24）只能靠升版本
@@ -34,7 +14,11 @@ updates:
   #
   # 但**别照单全收**：仓库的规矩是「已经是 node24 就不为追新而升」（同样在 ci.yml
   # 顶部），因为那只是白白引入变更面。Dependabot 不知道这条规矩，所以它开的大版本
-  # PR 该按这条规矩审，不是见绿就合。
+  # PR 该按这条规矩审，不是见绿就合 —— 第一批四个（checkout 5→7、setup-node 5→7、
+  # download-artifact 7→8、action-setup 钉到 6.0.9）就是照这条规矩全关掉的。
+  #
+  # `action-setup 6 → 6.0.9` 那个尤其要留意：它把浮动的大版本标签钉成具体补丁号，
+  # 以后补丁不再自动拿到，跟这里的做法正相反。
   - package-ecosystem: 'github-actions'
     directory: '/'
     schedule:
@@ -45,3 +29,27 @@ updates:
         update-types: ['minor', 'patch']
     commit-message:
       prefix: 'ci(deps)'
+# ── 为什么没有 npm ─────────────────────────────────────────────────────
+#
+# **Dependabot 在这个仓库里生成不出可用的 pnpm lockfile。** 开过一次，六个 PR
+# 全部只改 `package.json`、`pnpm-lock.yaml` 一个字不动，于是 CI 在 12 秒内挂在：
+#
+#     ERR_PNPM_OUTDATED_LOCKFILE
+#       - electron (lockfile: ^38.8.6, manifest: ^39.8.5)
+#
+# 这不是配置写错，是它对 pnpm 10 + workspace 的支持还没到。留着只会源源不断
+# 产出合不了的 PR，而一堆常年红着、谁也不合的 PR 比没有更糟：它训练所有人
+# 忽略这个列表。
+#
+# **漏洞通知不受影响。** Dependabot **alerts** 不看这个文件，有公告照样报到
+# Security 标签页。丢掉的只是「自动开 PR」，而这个仓库本来就不该那样升级依赖 ——
+# Electron 是运行时，一次大版本换的是 Chromium，这种事该由人发起、有人盯着，
+# 走一次完整 CI 加打包冒烟，而不是看见绿勾就合。
+#
+# 另有一条只能在网页上关的：Settings → Code security → **Dependabot security
+# updates**。那个开关管的是「安全公告触发的自动 PR」，不归这个文件管，
+# 而它产出的 PR 会撞上同一个 lockfile 问题。
+#
+# 想把 npm 这条重新打开的话，先解决 lockfile：要么等上游支持，要么加一个
+# workflow 在 dependabot 分支上跑 `pnpm install --no-frozen-lockfile` 并把
+# lockfile 提交回去（代价是要给 bot 分支写权限）。
