@@ -67,6 +67,16 @@ export function buildMenu(
             submenu: [
               { role: 'about', label: t('menu.app.about', { app: app.name }) },
               { type: 'separator' },
+              // macOS 的「设置…」**必须**在应用菜单里，紧跟「关于」。
+              //
+              // 它原来只挂在「视图」下面，而 macOS 用户找设置只会去这一个地方
+              // —— 于是一个装了应用的人可以完全不知道有设置这回事，
+              // 连带着「怎么换界面语言」也一起找不到（语言就在设置面板里）。
+              // 这是用户报回来的。
+              //
+              // ⌘, 早就是它的默认绑定了，缺的只是这个入口。
+              item(t('menu.view.settings'), 'view.settings'),
+              { type: 'separator' },
               { role: 'services', label: t('menu.app.services') },
               { type: 'separator' },
               { role: 'hide', label: t('menu.app.hide', { app: app.name }) },
@@ -170,7 +180,9 @@ export function buildMenu(
         item(t('menu.view.nextTab'), 'view.nextTab'),
         item(t('menu.view.prevTab'), 'view.prevTab'),
         item(t('menu.view.outline'), 'view.toggleOutline'),
-        item(t('menu.view.settings'), 'view.settings'),
+        // mac 上设置已经在应用菜单里了（见上面），这里不再重复一份 ——
+        // 同一个动作在两处出现，用户会以为它们是两件事
+        ...(isMac ? [] : [item(t('menu.view.settings'), 'view.settings')]),
         item(t('menu.view.palette'), 'view.commandPalette'),
         item(t('menu.view.quickOpen'), 'view.quickOpen'),
         {
