@@ -1,0 +1,43 @@
+name: Feature request
+description: Suggest something Mosu should do
+labels: ['enhancement']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before writing: the [roadmap](https://github.com/zning1994/mosu/blob/main/docs/design/08-roadmap.md)
+        lists what is planned and — at the end of each milestone — what was
+        deliberately cut and why. Some things are missing on purpose.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do
+      description: |
+        Describe the situation you are in, not the feature you have in mind. What
+        gets in your way today, and how do you work around it? That is usually
+        enough to find a better answer than the one either of us started with.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you have in mind
+      description: If you already have a shape for it, describe it here.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: principles
+    attributes:
+      label: Does it fit the three rules
+      description: |
+        Not a test you have to pass — a prompt. Requests that collide with these
+        are still worth filing; the answer is just more interesting.
+      options:
+        - label: It does not require the buffer to hold anything other than the Markdown on disk
+        - label: It does not require dropping content the editor cannot parse
+        - label: It does not require the editor core to know about Node or Electron
+    validations:
+      required: false

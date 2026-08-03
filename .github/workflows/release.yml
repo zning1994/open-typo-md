@@ -265,6 +265,13 @@ jobs:
     if: github.event_name == 'push' || github.event.inputs.tag != ''
     runs-on: ubuntu-latest
     steps:
+      # 生成变更清单要读 git 历史，所以这个 job 也得有工作副本
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+          # 要能 describe 到上一个 tag，浅克隆不行
+          fetch-depth: 0
+
       - name: 取回三个平台的产物
         uses: actions/download-artifact@v7
         with:
@@ -272,25 +279,88 @@ jobs:
           path: dist
           merge-multiple: true
 
+      # **不用 GitHub 自带的 `--generate-notes`。**
+      #
+      # 那个东西是规则不是 AI，而且它列的是**合并的 PR**。这个仓库是直接推 main
+      # 的，`git log --merges` 是空的 —— 生成出来只剩一行 Full Changelog 链接。
+      #
+      # 提交信息本身是规整的 Conventional Commits，所以按类型分组就够了。
+      # 这也不是 AI：提交信息在这个仓库里写得比任何摘要都细，让模型去总结它们
+      # 多半是把好东西压扁。真正值得机器做的是「开发者视角 → 用户视角」的转换，
+      # 那件事等有了几个版本再说。
+      - name: 生成变更清单
+        id: notes
+        shell: bash
+        env:
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          notes="$RUNNER_TEMP/notes.md"
+
+          # 上一个 tag。**首个版本时它是空的** —— 那时列全部历史毫无意义
+          # （几百条提交，而读者想知道的是「这是什么」），所以降级成一句提示。
+          previous="$(git describe --tags --abbrev=0 "$TAG^" 2>/dev/null || true)"
+
+          if [ -z "$previous" ]; then
+            printf '%s\n' \
+              '<!-- 首个版本：没有上一个 tag 可比，正文请手写。' \
+              '     第一个 release note 是「这是什么、为什么值得下」，不是变更清单。 -->' \
+              '' > "$notes"
+            echo "::notice::没有找到上一个 tag，按首个版本处理，不生成变更清单"
+          else
+            echo "对比区间：$previous..$TAG"
+
+            # 分隔符用制表符，不用 `|` —— 提交标题里出现 `|` 是完全可能的
+            # （Markdown 表格、`a | b`），那会让 awk 从中间截断。
+            #
+            # 每行前面的数字只用来定序（New → Fixed → Performance → Changed），
+            # awk 输出时丢掉。不加的话 sort 按字母来，Fixed 会跑到 New 前面。
+            {
+              echo '## What changed'
+              # 只列这四类。ci / chore / test / docs 对下载的人没有意义 ——
+              # 想看全部的人有末尾那个 Full Changelog 链接
+              while IFS=$'\t' read -r type title; do
+                case "$type" in
+                  feat) row=$'1\t### New' ;;
+                  fix) row=$'2\t### Fixed' ;;
+                  perf) row=$'3\t### Performance' ;;
+                  refactor) row=$'4\t### Changed' ;;
+                  *) continue ;;
+                esac
+                printf '%s\t%s\n' "$row" "$title"
+              done < <(
+                git log --no-merges --format='%s' "$previous..$TAG" |
+                  sed -n 's/^\([a-z]*\)\(([^)]*)\)\?!\?: \(.*\)$/\1\t\3/p'
+              ) | sort -s -k1,1 | awk -F'\t' '
+                  $2 != last { printf "\n%s\n\n", $2; last = $2 }
+                  { printf "- %s\n", $3 }
+                '
+              echo
+              echo "**Full changelog**: https://github.com/${{ github.repository }}/compare/$previous...$TAG"
+            } >> "$notes"
+          fi
+
+          echo "path=$notes" >> "$GITHUB_OUTPUT"
+          cat "$notes"
+
       - name: 建草稿并上传产物
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           TAG: ${{ github.event.inputs.tag || github.ref_name }}
+          NOTES: ${{ steps.notes.outputs.path }}
         run: |
           ls -lh dist
 
-          # **草稿，不是正式发布。** 正文留空是有意的：第一个版本的 release note
-          # 是「这是什么、为什么值得下」，不是变更清单，值得手写。写好之后在
+          # **草稿，不是正式发布。** 上面那份清单是**骨架**，不是成品 ——
+          # 提交信息是写给开发者的，release note 是写给用户的。写好之后在
           # Release 页面点 Publish 才对外可见。
           if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
-            echo "::notice::$TAG 的 Release 已存在，往里补产物（同名文件会被覆盖）"
+            echo "::notice::$TAG 的 Release 已存在，只补产物，**不动正文**（可能已经手改过了）"
             gh release upload "$TAG" dist/* --repo "$REPO" --clobber
           else
             gh release create "$TAG" dist/* \
-              --repo "$REPO" --draft --title "$TAG" \
-              --notes "正文待补 —— 产物已就位，确认无误后编辑本文并点 Publish。"
+              --repo "$REPO" --draft --title "$TAG" --notes-file "$NOTES"
           fi
 
           {
