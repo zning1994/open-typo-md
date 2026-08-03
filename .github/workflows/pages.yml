@@ -30,7 +30,7 @@ jobs:
     name: 构建站点
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           # lastUpdated 要读每个文件的最后提交时间，浅克隆拿不到
           fetch-depth: 0

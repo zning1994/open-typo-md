@@ -70,7 +70,7 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.inputs.tag || github.ref }}
 
@@ -268,7 +268,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # 生成变更清单要读 git 历史，所以这个 job 也得有工作副本
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.inputs.tag || github.ref }}
           # 要能 describe 到上一个 tag，浅克隆不行
