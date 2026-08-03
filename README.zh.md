@@ -137,38 +137,48 @@ Linux 上跑端到端测试需要一个显示环境：`xvfb-run -a pnpm test:e2e
 已知的粗糙之处都记在[路线图](docs/design/08-roadmap.md)各里程碑末尾的「实际偏差」里，
 不藏着掖着。
 
-## 试用 CI 构建的安装包
+## 下载
 
-每次推到 `main`，[Actions](https://github.com/zning1994/mosu/actions) 里会产出三个平台的安装包。
-注意页面上显示的 `mosu-macos-arm64-dmg` 这类名字是**产物包**的名称，不是文件名 ——
-GitHub 一律把产物打成 zip，解开之后才是 `Mosu-0.1.0-arm64.dmg`。
+三个平台的安装包都在[最新 release](https://github.com/zning1994/mosu/releases/latest)。
 
-**这些包都没有签名**，因为开发者证书还没配（见 [07 §6.1](docs/design/07-quality.md)）。
-所以首次打开会被系统拦下来：
+| 你的机器 | 拿哪个 |
+| --- | --- |
+| macOS，Apple Silicon | `Mosu-<版本>-arm64.dmg` |
+| macOS，Intel | `Mosu-<版本>-x64.dmg` |
+| Windows | `Mosu-<版本>-x64.exe`，Arm 机器用 `-arm64.exe` |
+| Windows，不确定架构 | `Mosu-<版本>.exe` —— 两种架构都装在里面，体积翻倍 |
+| Windows，不想安装 | `Mosu-<版本>-x64-portable.exe` |
+| Linux | `Mosu-<版本>-x86_64.AppImage`，或者 `.deb` / `.tar.gz` |
 
-**macOS** —— 提示「Apple 无法验证"Mosu"是否包含恶意软件」。
-应用没问题，只是没有经过公证。两种放行办法：
+macOS `.dmg` 旁边那几个 `.zip`、以及 `latest*.yml`，是留给将来自动更新用的，你不需要。
 
-```bash
-# 办法一：右键点应用 → 打开 → 在弹窗里再点一次「打开」
-# 办法二：直接去掉 quarantine 标记（路径含空格，引号不能省）
-xattr -dr com.apple.quarantine "/Applications/Mosu.app"
-```
+**macOS 的包已签名并公证。** 双击就开，不会被 Gatekeeper 拦，也不用 `xattr`。
 
-（更早的版本会报「已损坏，无法打开」——那是完全没签名导致的，已经用 ad-hoc
-签名修掉了。ad-hoc 只解决「能不能跑」，解除 Gatekeeper 拦截**必须**靠
-Developer ID 证书 + 公证，那是 M6 的内容。）
-
-**Windows** —— SmartScreen 提示「Windows 已保护你的电脑」，点「更多信息」→「仍要运行」。
-
-（Windows 这一关**刻意先不解决**：跟 macOS 不同，签了名也不代表不弹窗 ——
-普通证书要靠安装量积累「声誉」，立刻生效的 EV 证书又贵、还得配云签名服务。
-账算不过来，理由见 [07 §6.2](docs/design/07-quality.md)。）
+**Windows 的包没有签名。** SmartScreen 会提示「Windows 已保护你的电脑」，
+点「更多信息」→「仍要运行」。这一关是**刻意先不解决**而不是还没做：跟 macOS 不同，
+签了名也不代表不弹窗 —— 普通证书要靠安装量积累「声誉」，立刻生效的 EV 证书又贵、
+还得配云签名服务。账算不过来，理由见 [07 §6.2](docs/design/07-quality.md)。
 
 **Linux** —— AppImage 需要先加执行权限：
 
 ```bash
 chmod +x Mosu-*.AppImage && ./Mosu-*.AppImage
+```
+
+## 试用还没发布的版本
+
+每次推到 `main`，[Actions](https://github.com/zning1994/mosu/actions) 里也会产出安装包 ——
+每个平台一种格式，用来试某一个具体的提交。页面上显示的 `mosu-macos-arm64-dmg` 这类名字
+是**产物包**的名称，不是文件名，GitHub 一律把产物打成 zip，解开之后才是 `.dmg`。
+
+**这些包都没有签名，macOS 也一样** —— 签名证书只对发布流水线可用。所以在 macOS 上
+会提示「Apple 无法验证"Mosu"是否包含恶意软件」。应用没问题，只是没有经过公证。
+两种放行办法：
+
+```bash
+# 办法一：右键点应用 → 打开 → 在弹窗里再点一次「打开」
+# 办法二：直接去掉 quarantine 标记（路径含空格，引号不能省）
+xattr -dr com.apple.quarantine "/Applications/Mosu.app"
 ```
 
 ## 仓库结构

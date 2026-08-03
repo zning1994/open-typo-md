@@ -136,33 +136,53 @@ On Linux the end-to-end tests need a display: `xvfb-run -a pnpm test:e2e`.
 Every rough edge is written down at the end of each milestone in the roadmap, under
 "what actually differed from the plan". Nothing is swept under the rug.
 
-## Trying the CI builds
+## Download
 
-Every push to `main` produces installers for all three platforms under
-[Actions](https://github.com/zning1994/mosu/actions). Note that the names shown there
-(`mosu-macos-arm64-dmg` and the like) are **artifact bundle** names, not file names — GitHub
-always zips artifacts, so unpack first.
+Installers for all three platforms are on the
+[latest release](https://github.com/zning1994/mosu/releases/latest).
 
-**These builds are unsigned**, because the certificates are not configured yet.
+| You are on | Take |
+| --- | --- |
+| macOS, Apple Silicon | `Mosu-<version>-arm64.dmg` |
+| macOS, Intel | `Mosu-<version>-x64.dmg` |
+| Windows | `Mosu-<version>-x64.exe`, or `-arm64.exe` on an Arm machine |
+| Windows, unsure which | `Mosu-<version>.exe` — contains both, and is twice the size |
+| Windows, no installer | `Mosu-<version>-x64-portable.exe` |
+| Linux | `Mosu-<version>-x86_64.AppImage`, or the `.deb` / `.tar.gz` |
 
-**macOS** — you will see "Apple could not verify …". The app is fine, it simply is not
-notarised. Two ways through:
+The `.zip` files next to the macOS `.dmg`s and the `latest*.yml` files are for a future
+auto-updater. You do not need them.
 
-```bash
-# 1. Right-click the app → Open → click Open again in the dialog
-# 2. Or strip the quarantine flag (the path contains a space, keep the quotes)
-xattr -dr com.apple.quarantine "/Applications/Mosu.app"
-```
+**macOS builds are signed and notarised.** Double-click and the app opens — no Gatekeeper
+prompt, no `xattr` incantation.
 
-**Windows** — SmartScreen says "Windows protected your PC"; click "More info" → "Run anyway".
-This one is **deliberately left unsolved for now**: unlike macOS, signing does not by itself
-stop the warning — an ordinary certificate has to accumulate install reputation first, and the
-kind that works immediately is expensive and requires a cloud signing service.
+**Windows builds are not signed.** SmartScreen will say "Windows protected your PC"; click
+"More info" → "Run anyway". This is **deliberate rather than pending**: unlike macOS, a
+signature alone does not remove the warning — an ordinary certificate has to accumulate
+install reputation first, and the kind that works immediately is expensive and requires a
+cloud signing service.
 
 **Linux** — make the AppImage executable first:
 
 ```bash
 chmod +x Mosu-*.AppImage && ./Mosu-*.AppImage
+```
+
+## Trying an unreleased build
+
+Every push to `main` also produces installers under
+[Actions](https://github.com/zning1994/mosu/actions) — one format per platform, for trying out
+a specific commit. The names shown there (`mosu-macos-arm64-dmg` and the like) are **artifact
+bundle** names, not file names; GitHub always zips artifacts, so unpack first.
+
+**These are unsigned, macOS included** — the signing certificate is only available to the
+release pipeline. So on macOS you will see "Apple could not verify …". The app is fine, it
+simply is not notarised. Two ways through:
+
+```bash
+# 1. Right-click the app → Open → click Open again in the dialog
+# 2. Or strip the quarantine flag (the path contains a space, keep the quotes)
+xattr -dr com.apple.quarantine "/Applications/Mosu.app"
 ```
 
 ## Repository layout
