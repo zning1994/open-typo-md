@@ -44,6 +44,10 @@ export interface Preferences {
   pdfLandscape: boolean
   /** 导出 PDF 的页边距，英寸。 */
   pdfMarginInch: number
+  /** 大纲面板的宽度（像素）。用户拖过一次就记住（issue #41）。 */
+  outlineWidth: number
+  /** 大纲里显示章节编号（1.2.3）。 */
+  outlineNumbering: boolean
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -55,11 +59,25 @@ export const DEFAULT_PREFERENCES: Preferences = {
   pdfLandscape: false,
   // 跟 Word 的默认值接近，打出来不至于顶到纸边
   pdfMarginInch: 0.6,
+  outlineWidth: 240,
+  // 默认关：编号对「这是第几节」有用，但它会占掉本就不宽的那一列，
+  // 而绝大多数时候标题文字本身就够认了
+  outlineNumbering: false,
 }
 
 /** 页边距的合理区间。上限按 A4 短边的一半算 —— 再大就没有正文了。 */
 const MARGIN_MIN = 0
 const MARGIN_MAX = 3
+
+/**
+ * 大纲宽度的合理区间。
+ *
+ * 下限 160：再窄连两三个汉字都放不下，那一列就不再是大纲而是一条噪声。
+ * 上限 600：再宽就把正文挤没了 —— 而正文是这个应用的主体。
+ * 夹住而不是拒绝：`settings.json` 里手滑写了个 5000 不该让面板占满屏幕。
+ */
+const OUTLINE_WIDTH_MIN = 160
+const OUTLINE_WIDTH_MAX = 600
 
 /** 存进 `settings.json` 时的键名。带前缀分组，方便用户自己看懂那个文件。 */
 const KEYS: Record<keyof Preferences, string> = {
@@ -70,6 +88,8 @@ const KEYS: Record<keyof Preferences, string> = {
   pdfPageSize: 'export.pdf.pageSize',
   pdfLandscape: 'export.pdf.landscape',
   pdfMarginInch: 'export.pdf.marginInch',
+  outlineWidth: 'panel.outline.width',
+  outlineNumbering: 'panel.outline.numbering',
 }
 
 /**
@@ -96,6 +116,11 @@ const VALIDATORS: {
     // 只有超出纸张物理限制的才算错
     return Math.min(MARGIN_MAX, Math.max(MARGIN_MIN, value))
   },
+  outlineWidth: (value) => {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return null
+    return Math.round(Math.min(OUTLINE_WIDTH_MAX, Math.max(OUTLINE_WIDTH_MIN, value)))
+  },
+  outlineNumbering: (value) => (typeof value === 'boolean' ? value : null),
 }
 
 export type PreferenceListener = (preferences: Preferences) => void

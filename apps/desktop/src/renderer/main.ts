@@ -333,6 +333,10 @@ const outline = new OutlinePanel(workspace, {
   items: () => activeEditor().outline(),
   cursor: () => activeEditor().cursor(),
   jumpTo: (pos) => activeEditor().jumpTo(pos),
+  width: () => preferences.get('outlineWidth'),
+  setWidth: (px) => void preferences.set('outlineWidth', px),
+  numbering: () => preferences.get('outlineNumbering'),
+  setNumbering: (on) => void preferences.set('outlineNumbering', on),
 })
 
 /** 导出与复制共用的上下文。 */

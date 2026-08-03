@@ -313,4 +313,13 @@ export const en: Messages = {
   'panel.search.badRegex': 'Invalid regular expression',
   'panel.search.close': 'Close search',
   'panel.search.noWorkspace': 'Open a folder first to search the whole workspace',
+  'panel.outline.filter': 'Filter headings…',
+  'panel.outline.noMatch': 'No matching headings',
+  'panel.outline.expandAll': 'Expand all',
+  'panel.outline.collapseAll': 'Collapse all',
+  'panel.outline.collapseTo': 'Collapse below H{level}',
+  'panel.outline.expand': 'Expand',
+  'panel.outline.collapse': 'Collapse',
+  'panel.outline.numbering': 'Show section numbers',
+  'panel.outline.resize': 'Drag to resize the outline',
 }

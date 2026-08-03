@@ -322,4 +322,13 @@ export const zhCN = {
   'panel.search.badRegex': '正则表达式写法有误',
   'panel.search.close': '关闭搜索',
   'panel.search.noWorkspace': '先打开一个文件夹，才能搜索整个工作区',
+  'panel.outline.filter': '过滤标题…',
+  'panel.outline.noMatch': '没有匹配的标题',
+  'panel.outline.expandAll': '全部展开',
+  'panel.outline.collapseAll': '全部折叠',
+  'panel.outline.collapseTo': '折叠到 H{level} 以下',
+  'panel.outline.expand': '展开',
+  'panel.outline.collapse': '折叠',
+  'panel.outline.numbering': '显示章节编号',
+  'panel.outline.resize': '拖动调整大纲宽度',
 } as const

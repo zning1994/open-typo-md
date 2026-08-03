@@ -311,4 +311,13 @@ export const ja: Messages = {
   'panel.search.badRegex': '正規表現が正しくありません',
   'panel.search.close': '検索を閉じる',
   'panel.search.noWorkspace': 'まずフォルダーを開いてください',
+  'panel.outline.filter': '見出しを絞り込む…',
+  'panel.outline.noMatch': '一致する見出しはありません',
+  'panel.outline.expandAll': 'すべて展開',
+  'panel.outline.collapseAll': 'すべて折りたたむ',
+  'panel.outline.collapseTo': 'H{level} より下を折りたたむ',
+  'panel.outline.expand': '展開',
+  'panel.outline.collapse': '折りたたむ',
+  'panel.outline.numbering': '章番号を表示',
+  'panel.outline.resize': 'ドラッグして幅を変更',
 }

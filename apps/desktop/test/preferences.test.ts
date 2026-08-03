@@ -45,6 +45,8 @@ describe('默认值', () => {
       'export.pdf.pageSize': 'Letter',
       'export.pdf.landscape': true,
       'export.pdf.marginInch': 1.25,
+      'panel.outline.width': 320,
+      'panel.outline.numbering': true,
     })
     expect(store.all()).toEqual({
       sourceModeByDefault: true,
@@ -54,6 +56,8 @@ describe('默认值', () => {
       pdfPageSize: 'Letter',
       pdfLandscape: true,
       pdfMarginInch: 1.25,
+      outlineWidth: 320,
+      outlineNumbering: true,
     })
   })
 })
@@ -148,5 +152,22 @@ describe('写回', () => {
     // 逐个写回而不是删键 —— 让用户在 settings.json 里看得见现状
     expect(backing.data['export.pdf.pageSize']).toBe('A4')
     expect(backing.data['editor.sourceModeByDefault']).toBe(false)
+  })
+})
+
+describe('大纲宽度（issue #41）', () => {
+  it('太窄太宽都夹回区间，而不是拒绝', async () => {
+    // `settings.json` 摆在用户数据目录里让人直接改，手滑写个 5000 不该让
+    // 面板占满整个屏幕；写个 10 也不该得到一条谁都看不清的竖条
+    expect((await load({ 'panel.outline.width': 5000 })).get('outlineWidth')).toBe(600)
+    expect((await load({ 'panel.outline.width': 10 })).get('outlineWidth')).toBe(160)
+  })
+
+  it('取整 —— 拖拽给出的是小数，而存进 JSON 的应当是个整数像素', async () => {
+    expect((await load({ 'panel.outline.width': 301.6 })).get('outlineWidth')).toBe(302)
+  })
+
+  it('不是数字就退回默认值', async () => {
+    expect((await load({ 'panel.outline.width': '320px' })).get('outlineWidth')).toBe(240)
   })
 })
