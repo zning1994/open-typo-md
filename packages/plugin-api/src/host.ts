@@ -72,6 +72,14 @@ export interface DirEntry {
   name: string
   path: string
   kind: 'file' | 'directory'
+  /**
+   * 最后修改时间（毫秒）。文件树的「按修改时间排序」用它。
+   *
+   * 可缺省：拿它要给每个条目多做一次 `stat`，而 `readdir` 本身给不出。
+   * 取不到（权限、条目刚被删）时留空，排序那一侧把空的排到最后 ——
+   * 不是排到最前，否则一个读不出时间的条目会一直霸占列表顶端。
+   */
+  mtimeMs?: number
 }
 
 export interface OpenDialogOptions {

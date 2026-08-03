@@ -190,6 +190,27 @@ export class DocumentController {
     await this.effects.watch(null)
   }
 
+  /**
+   * 这个文档在磁盘上被**我们自己**改名了（文件树的重命名，issue #36）。
+   *
+   * 只换路径，**不重新读盘**：缓冲区、撤销栈、脏标记、冲突基线全部原样留着。
+   * 重读一遍会把用户未保存的修改冲掉，而改名从来不该有这个后果。
+   *
+   * 也**不能**放着不管：路径不换的话，监听还盯着一个已经不存在的路径（于是
+   * 立刻收到一条「文件被删了」），下一次保存也会把内容写回旧名字 ——
+   * 磁盘上凭空多出一份旧文件。
+   */
+  async notePathMoved(from: string, to: string): Promise<void> {
+    if (this.filePath !== from) return
+    const previousKey = this.currentDraftKey()
+    this.filePath = to
+    this.externallyDeleted = false
+    this.emit()
+    // 草稿是按路径存的，改名之后旧那份认领不回来了
+    await this.effects.dropDraft(previousKey)
+    await this.effects.watch(to)
+  }
+
   async openViaDialog(): Promise<void> {
     if (!(await this.confirmDiscard())) return
     const picked = await this.host.dialog.openFile()

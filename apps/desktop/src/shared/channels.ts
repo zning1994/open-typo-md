@@ -24,6 +24,14 @@ export const CHANNELS = {
   fsList: 'fs:list',
   fsExists: 'fs:exists',
   fsSaveAttachment: 'fs:save-attachment',
+  fsCreateFile: 'fs:create-file',
+  fsCreateDirectory: 'fs:create-directory',
+  fsRename: 'fs:rename',
+  fsTrash: 'fs:trash',
+  fsTitles: 'fs:titles',
+  fsWalk: 'fs:walk',
+  searchStart: 'search:start',
+  searchCancel: 'search:cancel',
   fsWriteText: 'fs:write-text',
   fsWritePdf: 'fs:write-pdf',
   clipboardWriteHtml: 'clipboard:write-html',
@@ -56,9 +64,38 @@ export const EVENTS = {
   requestClose: 'event:request-close',
   /** 正在编辑的文件在磁盘上变了（外部程序改的，不是我们自己保存的）。 */
   fileChanged: 'event:file-changed',
+  /**
+   * 全工作区搜索的一批结果（issue #39）。
+   *
+   * 搜索是**推**回来的而不是一次 invoke 返回：几百份文档搜完要几百毫秒到几秒，
+   * 而这段时间里界面必须已经在出结果了。
+   */
+  searchProgress: 'event:search-progress',
 } as const
 
+export type {
+  FileMatches,
+  SearchHit,
+  SearchOptions,
+  SearchProgress,
+  WalkResult,
+  WorkspaceFile,
+} from '../main/workspace-scan.js'
 export type { Draft, DraftMeta, FileChangeNotice, PdfOptions, WindowSession }
+
+/** 一批搜索结果，外加它属于哪一次搜索。 */
+export interface SearchProgressEvent {
+  /**
+   * 这一批属于哪一次搜索。
+   *
+   * 必须带：用户改查询词时上一次可能还在跑，而它的结果会晚一步到达。
+   * 没有这个 id 的话，旧结果会涌进新列表里，而且看起来完全合理。
+   */
+  id: number
+  matches: import('../main/workspace-scan.js').FileMatches[]
+  done: boolean
+  truncated: boolean
+}
 
 export type MenuCommand =
   | 'file.open'
@@ -80,9 +117,11 @@ export type MenuCommand =
   | 'view.toggleTypewriter'
   | 'view.toggleOutline'
   | 'view.commandPalette'
+  | 'view.quickOpen'
   | 'view.settings'
   | `view.theme.${'auto' | 'light' | 'dark' | 'sepia' | 'high-contrast' | 'github'}`
   | 'edit.find'
+  | 'edit.findInFiles'
   | 'edit.copyRichText'
   | 'format.bold'
   | 'format.italic'
@@ -129,10 +168,37 @@ export type ContextMenuRequest =
       hasOthers: boolean
       hasRight: boolean
     }
+  | {
+      /**
+       * 文件树上的一行（issue #36）。
+       *
+       * 文件和文件夹共用一个 kind，靠 `entry` 区分：两份菜单里「重命名」
+       * 「移到废纸篓」「在文件夹中显示」是同一批项，拆成两个 kind 只会让
+       * 那几项在两处各写一遍。
+       *
+       * `isRoot` 单独一位而不是让渲染进程自己判断：工作区根不能重命名、
+       * 不能扔进废纸篓（main 侧的守卫也会再拒一次），但**可以**在它下面
+       * 新建。这个差别菜单里必须体现出来，否则用户点了才发现不行。
+       */
+      kind: 'file-tree'
+      path: string
+      entry: 'file' | 'directory'
+      isRoot: boolean
+    }
 
 /** 用户选中的那一项。`null` 表示菜单被取消，或者那一项已经由 main 做掉了。 */
 export type ContextMenuResult =
-  'tab.close' | 'tab.closeOthers' | 'tab.closeRight' | 'editor.findSelection' | null
+  | 'tab.close'
+  | 'tab.closeOthers'
+  | 'tab.closeRight'
+  | 'editor.findSelection'
+  | 'tree.open'
+  | 'tree.openInNewTab'
+  | 'tree.rename'
+  | 'tree.trash'
+  | 'tree.newFile'
+  | 'tree.newFolder'
+  | null
 
 /**
  * preload 通过 contextBridge 暴露给渲染进程的全部能力。
@@ -148,6 +214,28 @@ export interface MosuBridgeApi {
     exists(path: string): Promise<boolean>
     /** 存图片，返回相对 baseDir 的 POSIX 路径。 */
     saveAttachment(baseDir: string, mime: string, bytes: Uint8Array): Promise<string>
+    /**
+     * 工作区里的改动（issue #36）。四条都走**第三条许可**
+     * （`assertWritableInWorkspace`）—— 只认工作区根的子树，且拒绝根自身。
+     *
+     * 跟 `write` 的区别在于信任来源：`write` 的路径来自保存对话框，
+     * 这四条的路径来自渲染进程画出来的那棵树。
+     */
+    createFile(dir: string, name: string): Promise<string>
+    createDirectory(dir: string, name: string): Promise<string>
+    /** 同目录内改名，返回新路径。名字里带分隔符会被拒 —— 改名不是移动。 */
+    rename(target: string, newName: string): Promise<string>
+    /** 移到系统废纸篓。拿不到废纸篓时报错，不降级成真删。 */
+    trash(target: string): Promise<void>
+    /**
+     * 批量取文档标题（文件树用第一个标题当主标签）。
+     *
+     * 批量而不是一个一个问：一屏文件树有几十行，逐个 IPC 往返的开销远大于
+     * 读那几十个文件头。读不出标题的返回 `null`，由调用方回退到文件名。
+     */
+    titles(paths: readonly string[]): Promise<Record<string, string | null>>
+    /** 工作区里的全部 Markdown（Quick Open 用）。撞上限会带 `truncated`。 */
+    walk(root: string): Promise<import('../main/workspace-scan.js').WalkResult>
     /**
      * 把本窗口监听的文件集合整体换成 `paths`。
      *
@@ -174,6 +262,21 @@ export interface MosuBridgeApi {
   clipboard: {
     /** 同时写 HTML 与纯文本兜底 —— 目标应用不支持富文本时才有东西可粘。 */
     writeHtml(html: string, text: string): Promise<void>
+  }
+  search: {
+    /**
+     * 开一次全工作区搜索。结果走 `on.searchProgress` 推回来。
+     *
+     * 返回这次搜索的 id。**开新的会自动把上一次作废** —— 一个窗口同时只有
+     * 一次搜索有意义，而让调用方自己去取消是一条必然会漏的路径。
+     */
+    start(
+      root: string,
+      query: string,
+      options: import('../main/workspace-scan.js').SearchOptions,
+    ): Promise<number>
+    /** 主动取消（关掉面板时）。 */
+    cancel(): Promise<void>
   }
   session: {
     /** 上报本窗口当前的形态（工作区 + 标签列表），供下次启动恢复。 */
@@ -225,6 +328,7 @@ export interface MosuBridgeApi {
     openFile(handler: (path: string) => void): () => void
     requestClose(handler: () => void): () => void
     fileChanged(handler: (notice: FileChangeNotice) => void): () => void
+    searchProgress(handler: (event: SearchProgressEvent) => void): () => void
   }
   /**
    * 回应 requestClose：true 表示可以关。

@@ -222,6 +222,35 @@ export class TabManager {
   }
 
   /**
+   * 在**新**标签里打开（文件树的「在新标签页打开」，issue #36）。
+   *
+   * 跟 `openPath` 的差别只有一条：不复用当前的空白标签。用户明确说了「新标签」，
+   * 而复用会让当前那个空白页消失 —— 看起来像是替换了它。
+   *
+   * 已经开着的文件仍然只是切过去：同一个文件两个标签各有一份撤销栈和脏标记，
+   * 保存时必然互相覆盖，那是数据丢失，不是便利。
+   */
+  async openInNewTab(target: string): Promise<void> {
+    const existing = this.tabs.find((tab) => tab.controller.state().path === target)
+    if (existing) {
+      this.activate(existing.id)
+      return
+    }
+    const tab = this.open()
+    this.activate(tab.id)
+    await tab.controller.openPath(target, { alreadyConfirmed: true })
+    this.render()
+  }
+
+  /** 某个文件被改名了 —— 开着它的标签跟着换路径，不重新读盘。 */
+  async notePathMoved(from: string, to: string): Promise<void> {
+    const tab = this.tabs.find((item) => item.controller.state().path === from)
+    if (!tab) return
+    await tab.controller.notePathMoved(from, to)
+    this.render()
+  }
+
+  /**
    * 关掉一个标签。
    *
    * 关掉最后一个标签不等于关窗口 —— 补一个空白标签。「窗口里一个文档都没有」

@@ -160,3 +160,81 @@ describe('标签右键菜单', () => {
     expect(onPath).not.toHaveBeenCalled()
   })
 })
+
+/**
+ * 文件树的右键菜单（issue #36）。
+ *
+ * 这一组盯的是**工作区根那条分支**。根不能重命名、不能扔进废纸篓 ——
+ * main 侧的守卫会拒，但菜单里也必须先不给：让用户点一下再收到一句报错，
+ * 是把内部规则当成了交互。
+ */
+describe('文件树右键菜单', () => {
+  const build = (
+    entry: 'file' | 'directory',
+    isRoot = false,
+    onPath?: PathAction,
+    pick: (r: ContextMenuResult) => () => void = () => () => undefined,
+  ) =>
+    contextMenuTemplate({ kind: 'file-tree', path: '/w/a.md', entry, isRoot }, t, pick, onPath)
+
+  it('文件：打开 / 在新标签页打开 + 通用四项', () => {
+    expect(shape(build('file')).map((i) => i.label)).toEqual([
+      '打开',
+      '在新标签页打开',
+      '重命名…',
+      '移到废纸篓',
+      '复制文件路径',
+      '在文件夹中显示',
+    ])
+  })
+
+  it('文件夹：新建那一组取代打开那一组', () => {
+    expect(shape(build('directory')).map((i) => i.label)).toEqual([
+      '新建 Markdown 文件…',
+      '新建文件夹…',
+      '重命名…',
+      '移到废纸篓',
+      '复制文件路径',
+      '在文件夹中显示',
+    ])
+  })
+
+  it('工作区根上没有重命名，也没有移到废纸篓', () => {
+    const labels = shape(build('directory', true)).map((i) => i.label)
+    expect(labels).not.toContain('重命名…')
+    expect(labels).not.toContain('移到废纸篓')
+    // 但新建仍然在 —— 根下面建东西是合法的
+    expect(labels).toContain('新建 Markdown 文件…')
+  })
+
+  it('复制路径 / 在文件夹中显示由 main 就地做掉，不回渲染进程', () => {
+    const onPath = vi.fn()
+    const pick = vi.fn(() => () => undefined)
+    const template = build('file', false, onPath, pick)
+
+    const byLabel = (label: string) => template.find((item) => item.label === label)
+    byLabel('复制文件路径')?.click?.(undefined as never, undefined as never, undefined as never)
+    byLabel('在文件夹中显示')?.click?.(
+      undefined as never,
+      undefined as never,
+      undefined as never,
+    )
+
+    expect(onPath.mock.calls).toEqual([
+      ['copy', '/w/a.md'],
+      ['reveal', '/w/a.md'],
+    ])
+
+    // 会绕回渲染进程的**只有**这四项。
+    //
+    // `pick` 是在建模板时就被调用的（它返回的是 click 处理器），所以这里
+    // 数的是「哪些项走了 pick」，不是「点了哪一项」。复制路径与在文件夹中显示
+    // 不在这张表里 —— 它们由 main 就地做掉，路径已经在请求里了
+    expect(pick.mock.calls.flat()).toEqual([
+      'tree.open',
+      'tree.openInNewTab',
+      'tree.rename',
+      'tree.trash',
+    ])
+  })
+})

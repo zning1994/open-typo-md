@@ -193,8 +193,12 @@ export const DEFAULT_BINDINGS: Partial<Record<MenuCommand, string>> = {
   'view.toggleTypewriter': 'F9',
   'view.toggleOutline': 'Mod+Shift+E',
   'view.commandPalette': 'Mod+Shift+P',
+  // Quick Open 拿 ⌘P，命令面板留在 ⌘⇧P —— 这是 VS Code / Sublime 那一脉的
+  // 通行分工，而「找内容」比「找动作」高频得多，理应占那个更顺手的键位
+  'view.quickOpen': 'Mod+P',
   'view.settings': 'Mod+,',
   'edit.find': 'Mod+F',
+  'edit.findInFiles': 'Mod+Shift+F',
   'format.bold': 'Mod+B',
   'format.italic': 'Mod+I',
   'format.code': 'Mod+E',

@@ -33,6 +33,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   assertAllowed,
   assertAllowedDirectory,
+  assertWritableInWorkspace,
   grantDirectory,
   grantFile,
   resetGrantsForTest,
@@ -180,6 +181,80 @@ describe('列目录的许可', () => {
     } finally {
       await rm(outside, { recursive: true, force: true }).catch(() => undefined)
     }
+  })
+})
+
+/**
+ * 在工作区里改动的许可（issue #36）。
+ *
+ * 这是第三条许可，也是最窄的一条 —— 文件树的新建 / 重命名 / 移到废纸篓走它。
+ *
+ * **每一条「应当拒绝」的用例里，目标都真实存在。** 不存在的话守卫走的是
+ * 「路径不可访问」那条分支，白名单整个失效也照样绿（这个坑 AGENTS.md 里
+ * 记着，已经踩过三次）。唯一的例外是专门验「新建目标还不存在」的那条，
+ * 它断言的正是**通过**。
+ */
+describe('在工作区里改动的许可', () => {
+  it('工作区子树里的文件可以改动', async () => {
+    await grantDirectory(root)
+    await writeFile(at('a.md'), 'x', 'utf8')
+    await expect(assertWritableInWorkspace(at('a.md'))).resolves.toContain('a.md')
+  })
+
+  it('还不存在的目标也放行 —— 新建和重命名的落点按定义就不存在', async () => {
+    await grantDirectory(root)
+    await expect(assertWritableInWorkspace(at('新文件.md'))).resolves.toContain('新文件.md')
+  })
+
+  it('工作区根自身拒绝 —— 一次误点不该删掉整个项目', async () => {
+    await grantDirectory(root)
+    await expect(assertWritableInWorkspace(root)).rejects.toThrow('工作区根目录')
+  })
+
+  it('工作区外面的文件拒绝，哪怕它真实存在', async () => {
+    const outside = await mkdtemp(path.join(tmpdir(), 'mosu-outside-'))
+    try {
+      await grantDirectory(root)
+      const victim = path.join(outside, 'victim.md')
+      await writeFile(victim, 'x', 'utf8')
+      await expect(assertWritableInWorkspace(victim)).rejects.toThrow('未获授权')
+    } finally {
+      await rm(outside, { recursive: true, force: true }).catch(() => undefined)
+    }
+  })
+
+  it('只打开过某个文件时，它旁边的文件不可改动', async () => {
+    // 这一条是这条许可存在的**全部理由**。`grantFile` 会授权该文件所在目录
+    // （为了相对路径图片），如果写操作复用 `assertAllowed`，那份「能读一张图」
+    // 的授权就顺带变成了「能把这个目录里的东西扔进废纸篓」
+    await writeFile(at('opened.md'), 'x', 'utf8')
+    await writeFile(at('neighbour.md'), 'x', 'utf8')
+    await grantFile(at('opened.md'))
+
+    // 读得到 —— 这是既有行为，没有变
+    await expect(assertAllowed(at('neighbour.md'))).resolves.toContain('neighbour.md')
+    // 但改不了
+    await expect(assertWritableInWorkspace(at('neighbour.md'))).rejects.toThrow('未获授权')
+  })
+
+  it('工作区里指向外面的符号链接挡得住', async () => {
+    const outside = await mkdtemp(path.join(tmpdir(), 'mosu-outside-'))
+    try {
+      const victim = path.join(outside, 'victim.md')
+      await writeFile(victim, 'x', 'utf8')
+      await grantDirectory(root)
+      await symlink(victim, at('link.md'), 'file')
+      await expect(assertWritableInWorkspace(at('link.md'))).rejects.toThrow('未获授权')
+    } finally {
+      await rm(outside, { recursive: true, force: true }).catch(() => undefined)
+    }
+  })
+
+  it('`..` 爬不出去', async () => {
+    await grantDirectory(root)
+    await mkdir(at('sub'), { recursive: true })
+    const escaped = at('sub', '..', '..')
+    await expect(assertWritableInWorkspace(escaped)).rejects.toThrow()
   })
 })
 

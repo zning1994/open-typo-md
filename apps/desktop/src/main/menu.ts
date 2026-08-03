@@ -120,6 +120,7 @@ export function buildMenu(
         { role: 'selectAll', label: t('menu.edit.selectAll') },
         { type: 'separator' },
         item(t('menu.edit.find'), 'edit.find'),
+        item(t('menu.edit.findInFiles'), 'edit.findInFiles'),
         { type: 'separator' },
         item(t('menu.edit.copyRichText'), 'edit.copyRichText'),
       ],
@@ -171,6 +172,7 @@ export function buildMenu(
         item(t('menu.view.outline'), 'view.toggleOutline'),
         item(t('menu.view.settings'), 'view.settings'),
         item(t('menu.view.palette'), 'view.commandPalette'),
+        item(t('menu.view.quickOpen'), 'view.quickOpen'),
         {
           label: t('menu.theme'),
           submenu: [

@@ -158,6 +158,52 @@ export async function assertAllowedDirectory(target: string): Promise<string> {
   throw new Error(`目录未获授权：${target}`)
 }
 
+/**
+ * 校验「能不能在工作区里**改动**这个路径」—— 新建、重命名、移到废纸篓（issue #36）。
+ *
+ * 这是第三条许可，跟前两条都不同，而且必须是最窄的那一条。
+ *
+ * **为什么不能复用 `assertAllowed`**：它接受任何落在 `allowedDirs` 里面的路径，
+ * 而 `allowedDirs` 装着「用户打开过的每个文件的所在目录」—— 那份授权的本意只是
+ * 「让这篇文档的相对路径图片能加载」。拿它当写权限用，等于说「你打开过
+ * `~/Documents/a.md`，所以渲染进程可以把 `~/Documents` 里任何东西扔进废纸篓」。
+ * 读一张图和删一个文件不是一个量级的事。
+ *
+ * 所以这一条只认**工作区根的子树**：用户显式选过「打开文件夹」的那些目录。
+ *
+ * **工作区根自身被明确拒绝。** 允许的话，「移到废纸篓」的第一个目标就是用户
+ * 刚打开的整个文件夹 —— 一次误点删掉一整个项目。想删工作区去文件管理器删，
+ * 那里至少还有一次系统级确认。
+ */
+export async function assertWritableInWorkspace(target: string): Promise<string> {
+  const abs = normalize(target)
+
+  // 目标可能还不存在（新建、重命名的目标名），所以跟 `assertAllowed` 一样
+  // 退而解析父目录 —— 但**校验的仍然是解析后的真实路径**，
+  // 否则工作区里放一个指向 `~/.ssh` 的符号链接就能把整棵墙绕过去
+  let real: string
+  try {
+    real = await realpath(abs)
+  } catch {
+    try {
+      real = path.join(await realpath(path.dirname(abs)), path.basename(abs))
+    } catch {
+      throw new Error(`路径不可访问：${target}`)
+    }
+  }
+
+  // 根自身不可写。注意这里比的是 real 和 abs 两个都要挡：
+  // 用户给的路径和它的真实路径都可能正好是某个根
+  if (workspaceRoots.has(real) || workspaceRoots.has(abs)) {
+    throw new Error(`不能改动工作区根目录：${target}`)
+  }
+
+  for (const root of workspaceRoots) {
+    if (isInside(root, real)) return real
+  }
+  throw new Error(`路径未获授权：${target}`)
+}
+
 /** 仅供测试：清空白名单。 */
 export function resetGrantsForTest(): void {
   allowedDirs.clear()
