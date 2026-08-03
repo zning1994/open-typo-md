@@ -208,8 +208,10 @@ jobs:
       # 同一条路，所以每次试跑都在演练真发布。
       #
       # `latest*.yml` 是 electron-updater 的更新元数据。自动更新还没做（M6），
-      # 现在带上只是为了那天到来时不必回头改这里 —— 但**那天要确认它确实生成了**：
-      # `--publish never` 会不会跳过这些文件没有验证过。
+      # 现在带上是为了那天到来时不必回头改这里。
+      #
+      # 「`--publish never` 会不会干脆不生成它」这一条曾经存疑，现在验过了：
+      # 会生成。第一次试跑的 macOS 产物里 `latest-mac.yml` 跟四个安装包躺在一起。
       - name: 上传产物
         uses: actions/upload-artifact@v7
         with:
