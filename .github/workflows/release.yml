@@ -41,6 +41,9 @@ jobs:
       # push tag 触发时 `github.event.inputs` 是 null，所以第一个分支不能省 ——
       # 靠 `inputs.tag != ''` 判断的话，null 与 '' 在表达式里都会转成 0，判等成立。
       PUBLISH_MODE: ${{ (github.event_name == 'push' || github.event.inputs.tag != '') && 'always' || 'never' }}
+      # `secrets` 在 step 的 `if:` 里读不到（可用的上下文里没有它），
+      # 所以在 job 级 env 上过一道 —— env 是能读 secrets 的
+      HAS_MAC_CERT: ${{ secrets.CSC_LINK != '' }}
 
     steps:
       # 填了一个不存在的 tag 时，checkout 报的是「failed with exit code 1」，
@@ -95,6 +98,43 @@ jobs:
       # 而 release.yml 只在 tag 上触发 —— 一次都没跑过，就一直没人撞见。
       - name: 构建
         run: pnpm build
+
+      # 证书打不开时，electron-builder 只会转述 security(1) 的原话：
+      #
+      #     MAC verification failed during PKCS12 import (wrong password?)
+      #
+      # 那个问号底下压着两件处理方式完全不同的事，而它一句都没说。这一步把它们
+      # 分开，顺便让失败发生在打包之前而不是之后。
+      #
+      # 有一件事这句报错**已经排除掉了**：`CSC_LINK` 是好的。能走到「校验 MAC」
+      # 就说明解出来的确实是一张结构完整的 PKCS#12 —— base64 存坏的话连解析
+      # 都到不了那里。所以下面只问「打不打得开」，不必再验 base64。
+      - name: 核对 macOS 证书能被打开
+        if: runner.os == 'macOS' && env.HAS_MAC_CERT == 'true'
+        shell: bash
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+        run: |
+          cert="$RUNNER_TEMP/preflight.p12"
+          printf '%s' "$CSC_LINK" | base64 -d > "$cert" 2>/dev/null || true
+          if [ ! -s "$cert" ]; then
+            echo "::error::CSC_LINK 解不出任何内容。重新生成：base64 -i cert.p12 | tr -d '\n' | pbcopy"
+            exit 1
+          fi
+
+          keychain="$RUNNER_TEMP/preflight.keychain"
+          security create-keychain -p preflight "$keychain" >/dev/null
+          if security import "$cert" -k "$keychain" -P "$CSC_KEY_PASSWORD" -T /usr/bin/codesign >/dev/null 2>&1; then
+            echo "证书与密码对得上，继续打包"
+            security delete-keychain "$keychain" >/dev/null 2>&1 || true
+          else
+            security delete-keychain "$keychain" >/dev/null 2>&1 || true
+            echo "::error::.p12 打不开。文件本身是完整的 PKCS#12，所以是下面两件事之一："
+            echo "::error::(1) CSC_KEY_PASSWORD 跟导出时设的那个密码不一致 —— 常见于把结尾的换行或空格一起粘进了 secret。"
+            echo "::error::(2) 这张 .p12 是 openssl 3 导出的。它默认用 AES-256 + SHA-256 MAC，而 macOS 的 security(1) 读不懂，密码再对也报同一句话。改用「钥匙串访问 → 我的证书 → 导出」重导一张，或者 openssl 加 -legacy 重新封装。"
+            exit 1
+          fi
 
       # 打包分成两步，不是为了好看 —— 是因为 **macOS 与 Windows 的签名证书完全
       # 不是一回事**，而 electron-builder 认的是同一个环境变量名 `CSC_LINK`。
