@@ -75,6 +75,30 @@ E2E 里凡是碰系统 UI 的地方（原生对话框、原生菜单）都得替
 id」是纯函数，抽成不 import electron 的模板模块之后直接单测（快、断言精确）；
 E2E 只负责验「点下去之后真的发生了那件事」。
 
+### 只在一个平台上跑的测试，失败方式是假阳性
+
+单元测试的 `check` job 只跑 Linux。**跟真实文件系统打交道的用例，在别的平台上
+不是「会红」，而是「恒绿而且验错了东西」** —— 后者危险得多，因为它还占着
+「这里已经测过了」的位置。
+
+路径守卫那一组撞过两次（完整经过见 §6.7）。留下的规矩有两条：
+
+- **每一个被拒绝的目标都必须真实存在。** 守卫分两种拒绝：路径解析不出来报
+  「不可访问」，解析出来但不在白名单里才报「未获授权」。拿不存在的路径去验
+  白名单，走的是前一条分支，白名单整个失效也照样绿。
+- **想验「`..` 被规范化后拦下」，就不能用 `path.join` 拼路径** —— 它自己就把
+  `..` 抹平了，守卫压根没见过 `..`。
+
+CI 那一侧的补法是 `verify-cross`：macOS 与 Windows 上跑跟 `release.yml`
+一模一样的 `pnpm verify`，跟 `e2e` 并行（`e2e` 长得多，墙钟上白拿）。
+
+本地复现 macOS 的符号链接行为不必等 CI：
+
+```bash
+mkdir -p /tmp/realtmp && ln -sfn /tmp/realtmp /tmp/linktmp
+TMPDIR=/tmp/linktmp pnpm vitest run apps/desktop/test/path-guard.test.ts
+```
+
 ### 必须有的几组「防灾」测试
 
 这些直接对应最可能出事故的地方：
@@ -312,8 +336,9 @@ fs」的防灾测试得先把整个 Electron 桩起来。翻译器由 IPC 那一
 
 ```
 push / PR
- ├─ ✅ check：依赖方向 + typecheck + lint + 格式 + 单元测试（526 条）
- ├─ ✅ e2e：三平台各构建一次，跑 200 条 Playwright（含无障碍与 IME）
+ ├─ ✅ check：依赖方向 + typecheck + lint + 格式 + 单元测试（666 条，仅 Linux）
+ ├─ ✅ verify-cross：macOS / Windows 上跑同一条 pnpm verify（见 §6.7）
+ ├─ ✅ e2e：三平台各构建一次，跑 221 条 Playwright（含无障碍与 IME）
  ├─ ✅ bench：性能基准 + bundle 体积（只有体积卡门槛，见 §2.1）
  ├─ ✅ artifacts：三平台各一个安装包，供下载试用
  ├─ ❌ 两个解析器的一致性比对（见 §1.1）
@@ -322,9 +347,10 @@ push / PR
 docs/** 变动
  └─ ✅ pages：构建 VitePress 并发布到 mosu.ohgiantai.com
 
-tag v*
- ├─ ✅ 三平台全量打包（release.yml，串行，见 §6.6）
- ├─ ⏸ 代码签名（配置已就位，等证书，见 §6.1 / §6.2）
+tag v* ／ 手动触发（tag 留空 = 试跑，见 §6.7）
+ ├─ ✅ 三平台全量打包（release.yml）
+ ├─ ✅ macOS 代码签名 + 公证 + 装订（见 §6.1）
+ ├─ ⏸ Windows 代码签名（刻意先不做，见 §6.2）
  ├─ ❌ 生成 CHANGELOG
  └─ ❌ 发布更新源（自动更新还没做，M6）
 ```
@@ -334,7 +360,11 @@ fork 的 PR 拿不到（必须在 workflow 里显式限制）。
 
 ### 6.1 macOS 签名与公证：Gatekeeper 那一关
 
-**先说清楚这一关不能靠代码绕过。** 当前 CI 打出来的包带的是 ad-hoc 签名
+**状态：已跑通。** 配齐五个 secret 之后，`release.yml` 打出来的 macOS 包是
+签名 + 公证 + 装订（staple）过的。下面这一段仍然保留，因为它解释了为什么必须
+走到这一步，以及换一个账号重新配时该做什么。
+
+**这一关不能靠代码绕过。** 没有证书时 CI 打出来的包带的是 ad-hoc 签名
 （`scripts/after-pack.mjs`），它只解决「Apple Silicon 上能不能执行」——
 所以「已损坏，无法打开」那句误导性提示消失了，但**每次安装仍会被 Gatekeeper
 拦下**，用户要右键 → 打开，或者去「系统设置 → 隐私与安全性」点「仍要打开」。
@@ -343,7 +373,7 @@ fork 的 PR 拿不到（必须在 workflow 里显式限制）。
 公证过的包双击即开，一句提示都没有。这需要一个 Apple Developer Program 账号
 （99 美元/年），没有免费替代品。
 
-除证书之外的一切都已经配好了：
+证书之外的一切都在仓库里：
 
 | 已就位 | 位置 |
 | --- | --- |
@@ -351,19 +381,34 @@ fork 的 PR 拿不到（必须在 workflow 里显式限制）。
 | 签名策略（有证书就签、没有就跳过） | `electron-builder.yml` 的 `mac` 段刻意不写 `identity` |
 | 公证开关 | `release.yml` 检测到 `APPLE_TEAM_ID` 时加 `-c.mac.notarize=true` |
 | 签名状态可见 | `release.yml` 的「记录签名状态」步骤写进 job summary |
+| 证书本身能不能打开 | `release.yml` 的「核对 macOS 证书能被打开」，在打包之前 |
 
 **拿到账号之后要做的三件事：**
 
 1. 在 Apple Developer 后台建一张 **Developer ID Application** 证书
-   （不是 Mac App Distribution —— 那张是 App Store 用的，装到这里公证会被拒），
-   导出成 `.p12` 并设一个密码；
-2. `base64 -i cert.p12 | pbcopy`，把结果存成仓库 Secret `CSC_LINK`，
-   密码存成 `CSC_KEY_PASSWORD`；
+   （不是 Mac App Distribution —— 那张是 App Store 用的，装到这里公证会被拒；
+   也不是 Developer ID Installer，那张签的是 `.pkg`）。生成 CSR 用「钥匙串
+   访问 → 证书助理 → 从证书颁发机构请求证书」，装回钥匙串后从「**我的证书**」
+   导出成 `.p12` 并设一个密码 —— 只有「我的证书」那一栏里的条目才带私钥；
+2. `base64 -i cert.p12 | tr -d '\n' | pbcopy`，把结果存成仓库 Secret
+   `CSC_LINK`，密码存成 `CSC_KEY_PASSWORD`；
 3. 建一个 **App-Specific Password**（appleid.apple.com → 登录与安全），
    连同 Apple ID 与 Team ID 存成 `APPLE_ID` / `APPLE_APP_SPECIFIC_PASSWORD` /
    `APPLE_TEAM_ID`。
 
-五个 secret 齐了，下一次 tag 推上去就是签名 + 公证 + 装订（staple）的包。
+只有账号持有人（Account Holder）能创建 Developer ID 证书，团队里的 Admin
+不行。
+
+五个 secret 齐了，下一次 tag 推上去就是签名 + 公证 + 装订的包。产物到手之后
+还要在本机独立验一遍 —— 流水线绿只说明工具链没报错：
+
+```bash
+spctl -a -vvv -t install /Applications/Mosu.app   # 期望 accepted / Notarized Developer ID
+xcrun stapler validate /Applications/Mosu.app     # 期望 The validate action worked!
+```
+
+`stapler validate` 过了才说明公证票据**装订进包里**了 —— 那是「用户断网也能
+双击即开」的条件。
 
 **先别急着打 tag —— 有一条试跑的路。** `release.yml` 的 `workflow_dispatch`
 把 tag 这一栏**留空**，就拿当前分支跑一遍：签名、公证一样不少，但不建 Release，
@@ -385,7 +430,11 @@ fork 的 PR 拿不到（必须在 workflow 里显式限制）。
   **文件路径**，CI 里要多一步把 secret 写成临时文件。想换的话改 `release.yml`
   那一处 env 即可。
 - **公证是异步的**，Apple 那边排队几分钟到几十分钟都有可能，发布作业会一直等。
-  第一次跑记得把作业超时放宽。
+  第一次跑记得把作业超时放宽。（实测第一次约 5 分半，含签名与装订。）
+- **`MAC verification failed during PKCS12 import (wrong password?)` 这句里的
+  问号，底下压着至少三件事**：base64 存坏了、密码不一致、或者 `.p12` 是
+  OpenSSL 3 导出的（默认 AES-256 + SHA-256 MAC，`security(1)` 读不懂，
+  密码完全正确也报同一句话）。怎么分辨见 §6.7。
 - **entitlements 的文件形式本身就是一道坎**。`codesign --entitlements` 那一头
   解析 plist 的不是 CFPropertyList，而是 AMFI 自带的解析器（内核
   `OSUnserializeXML` 的变体），比标准 XML 严得多：注释、`<true />` 里的空格、
@@ -529,12 +578,120 @@ Release 走的是 `electron-builder --publish always`，它把 `.dmg` / `.exe` /
 套同一个全局 `artifactName` 会解析成同一个文件名，后打的覆盖先打的。
 CI 只打 nsis，所以它一直藏着。现在 `portable` 有自己的命名模板。
 
-### 6.6 为什么发布作业是串行的
+### 6.6 为什么真发布串行，而试跑并行
 
 三个平台都带 `--publish always`，而草稿 release 的语义是「没有就建一个」。
 并发时三个作业会同时发现「没有」，于是各建一个 —— 产物散落在两三个草稿里，
-或者其中两个直接报「已存在」失败。所以 `release.yml` 里写了 `max-parallel: 1`。
+或者其中两个直接报「已存在」失败。所以真发布时 `max-parallel: 1`。
 代价是墙钟时间三倍，而发布一年也没几次。
+
+**试跑没有这个竞态**：它走 `--publish never`，压根不碰 Release，三个平台谁也
+不认识谁。让它也串行是白等十二分钟，而试跑恰恰是要反复跑的那个。所以
+`max-parallel` 是个表达式：
+
+```yaml
+max-parallel: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag == '' && 3 || 1 }}
+```
+
+条件刻意写成「**只有**确定是试跑才并行」，而不是「不是发布就并行」。
+`strategy` 里读不到 job 级 env，这个判断没法跟 `PUBLISH_MODE` 共用一份，
+只能各写一遍；两份万一哪天分了岔，这种写法的错法是「多等十二分钟」，
+反过来写的错法是「三个草稿 release」。
+
+### 6.7 第一次真发布：七个洞，只有一个跟证书有关
+
+配好证书之后第一次点发布，连着挂了四轮。**七处失败里只有一处出在证书上**，
+其余六处是流水线和测试自己的问题 —— 它们都躺在那儿很久了，只是没有任何一条
+既有路径会执行到。
+
+| # | 现象 | 真正的原因 |
+| --- | --- | --- |
+| 1 | `checkout` 报 `failed with exit code 1`，重试三次各等 11 秒 | 手动触发时填了一个不存在的 tag。报错长得像网络抖动 |
+| 2 | macOS 上两条路径守卫用例失败 | 断言拿 `mkdtemp` 的返回值当期望值，而 macOS 的 `/var` 是符号链接 |
+| 3 | Windows 上 `format:check` 报全仓 178 个文件格式不对 | 没有 `.gitattributes`，runner 的 `core.autocrlf` 把检出换成了 CRLF |
+| 4 | 打包时 asar 里没有入口文件 | **`release.yml` 里从来没有 `pnpm build`** |
+| 5 | Windows 上「未授权路径一律拒绝」失败 | 靶子写的是 `/etc/passwd`，Windows 上没这个文件 |
+| 6 | `.p12` 导不进钥匙串 | 存进 secret 的值不对（唯一一处真的跟证书有关） |
+| 7 | `AMFIUnserializeXML: syntax error near line 15` | entitlements 里有注释、`<true />` 带空格、缺 DOCTYPE |
+
+#### 从没跑过的流水线等于没有
+
+第 4 条和第 7 条有个共同点：**它们只在「真发布」这条路径上才会被执行到**。
+
+- `release.yml` 只在 `tag v*` 上触发。第一次点它的时候，`run_number` 是 1 ——
+  也就是说这个文件写下来之后从来没有真正跑过一次。少一句 `pnpm build`
+  这种程度的错误，就那么放着。
+- entitlements 更隐蔽：**没有证书时 electron-builder 会跳过签名，那两个 plist
+  根本不会被读**。文件坏了多久都不会有人知道，直到第一次拿真证书发布。
+
+结论不是「以后小心点」，而是**让这条路径变得随时可以走一遍**。所以
+`release.yml` 的手动触发把 tag 这一栏改成可留空：留空就拿当前分支跑一遍，
+签名公证一样不少，只是不建 Release、产物走 artifact（见 §6.1）。验证签名配置
+本来就不该以「先造一个 tag」为代价 —— tag 是发布语义的东西，推错了要删，
+删了本地还留着。
+
+#### 只在一个平台上跑的测试，失败方式是假阳性
+
+第 2 和第 5 条不是「在别的平台上会红」，而是**在 Linux 上恒绿而且验错了东西**：
+
+- 「目录穿越被规范化后拦下」写的是 `../../etc/passwd`。Linux 的 `/tmp` 只有
+  一层，正好落到真的 `/etc/passwd`；macOS 的临时目录深在 `/var/folders/…`
+  里，同样的写法落在一个**不存在**的路径上 —— 于是守卫走的是「路径不可访问」
+  那条分支，白名单即使整个失效，用例照样绿。
+- 而且 `path.join` 自己就把 `..` 抹平了，守卫压根没见过 `..`，
+  「被规范化后拦下」这句话从头到尾没测到规范化。
+
+所以路径守卫的测试里立了一条规矩，写在 `fs-service.test.ts` 的 describe 头上：
+**每一个被拒绝的目标都必须真实存在**。守卫分两种拒绝，解析不出来报「不可
+访问」、解析出来但不在白名单里才报「未获授权」；拿不存在的路径去验白名单，
+验的是前一条分支。
+
+CI 那一侧的补法是 `verify-cross`：macOS 与 Windows 上跑**跟 `release.yml`
+一模一样**的 `pnpm verify`。刻意不是只跑 `pnpm test` —— 七条里有一条（CRLF）
+根本不是测试，按「我猜哪些地方会有平台差异」织网这次已经证明猜不准。
+它跟 `e2e` 并行，而 `e2e` 比它长得多，墙钟上是白拿的。
+
+本地想复现 macOS 的符号链接行为不必等 CI，给 `TMPDIR` 套一层就行：
+
+```bash
+mkdir -p /tmp/realtmp && ln -sfn /tmp/realtmp /tmp/linktmp
+TMPDIR=/tmp/linktmp pnpm vitest run apps/desktop/test/path-guard.test.ts
+```
+
+#### 报错里的问号，底下往往压着好几件事
+
+第 6 和第 7 条的原始报错都属于「一句话把几种毛病混在一起」：
+
+```
+security: SecKeychainItemImport: MAC verification failed during PKCS12 import (wrong password?)
+```
+
+那个问号底下至少三件事：base64 存坏了、密码不一致、或者 `.p12` 是 OpenSSL 3
+导出的（默认 AES-256 + SHA-256 MAC，macOS 的 `security(1)` 读不懂，
+**密码完全正确也报同一句话**）。
+
+有一件事这句报错本身就排除掉了：能走到「校验 MAC」，就说明解出来的确实是一张
+结构完整的 PKCS#12 —— base64 存坏的话连解析都到不了那一步。这类推理值得写进
+流水线而不是留在脑子里，所以打包之前加了一步「核对 macOS 证书能被打开」：
+失败时先打印**能跟本机对照的凭据**（CI 那边拿到的 `.p12` 的 sha256、
+`CSC_KEY_PASSWORD` 里有没有空白字符），再列可能性。secret 存进去就读不回来，
+「我本机这一对是好的」跟「CI 拿到的是同一对」之间一直隔着一层，这两条把它捅破。
+
+顺序是刻意的：**先给可对照的事实，再谈猜测。**
+
+#### 不逐个试
+
+第 7 条的三个可疑点（注释、`<true />` 的空格、缺 DOCTYPE）没有逐个验证 ——
+每试一轮十几分钟，而三个都不是我们非要不可的写法。直接换成 Electron 官方文档
+里那份逐字规范的形式，一次排除干净，代价是不知道究竟是哪一个。
+
+注释里的内容有价值（每条豁免项为什么必须、为什么要两份），搬去了
+`apps/desktop/build/README.md`，一个字没丢。形式则由
+`apps/desktop/test/entitlements.test.ts` 钉住：有 DOCTYPE、没有 `<!--`、
+`<true/>` 不带空格、两份文件的键完全一致。
+
+那个测试是按惯例验过「对着旧文件是红的」才留下的 —— 一个不会失败的测试比
+没有测试更糟，它还占着「这里已经测过了」的位置。
 
 ## 7. 发布与更新
 

@@ -9,7 +9,7 @@
 
 | 路径 | 门槛 | 现状 |
 | --- | --- | --- |
-| **GitHub Release**（直接分发） | Developer ID 证书 + 公证（99 美元/年） | 流水线已就绪，缺证书 |
+| **GitHub Release**（直接分发） | Developer ID 证书 + 公证（99 美元/年） | ✅ 已跑通：签名 + 公证 + 装订 |
 | **Mac App Store** | 上面那些 + App Sandbox 改造 | ⛔ 有架构级冲突，见 §2 |
 | 包管理器（Homebrew / winget / AUR） | 只需要一个稳定的 Release | 等第一个 release 之后再说 |
 
