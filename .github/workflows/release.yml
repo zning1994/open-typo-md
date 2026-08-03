@@ -275,7 +275,7 @@ jobs:
           fetch-depth: 0
 
       - name: 取回三个平台的产物
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: mosu-*
           path: dist
