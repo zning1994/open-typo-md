@@ -81,6 +81,21 @@ jobs:
       - name: 检查与单元测试
         run: pnpm verify
 
+      # **这一步曾经不存在，于是这条流水线从来没成功过。**
+      #
+      # electron-builder 不构建你的应用，它只负责把已有产物装进包里。少了这步，
+      # `files` 里那句 `dist/**` 匹配到的是空气，asar 打出来是空的，
+      # 最后死在一句看着像文件损坏的话上：
+      #
+      #     Application entry file "dist/main/index.cjs" in ... is corrupted:
+      #     "dist/main/index.cjs" was not found in this archive
+      #
+      # 本地 `pnpm --filter @mosu/desktop package` 撞不见，因为那个脚本自己带了
+      # `pnpm build &&`；ci.yml 的 artifacts job 也有这一步。只有这里漏了，
+      # 而 release.yml 只在 tag 上触发 —— 一次都没跑过，就一直没人撞见。
+      - name: 构建
+        run: pnpm build
+
       # 打包分成两步，不是为了好看 —— 是因为 **macOS 与 Windows 的签名证书完全
       # 不是一回事**，而 electron-builder 认的是同一个环境变量名 `CSC_LINK`。
       #

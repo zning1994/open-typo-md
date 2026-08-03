@@ -1,0 +1,16 @@
+# 工作副本里一律 LF —— 包括 Windows。
+#
+# 不设这条的话，Windows runner 的 `core.autocrlf=true` 会在检出时把每个文本
+# 文件换成 CRLF，而 Prettier 认 LF，于是 `pnpm format:check` 报「178 个文件
+# 格式不对」—— 全仓，且跟任何人的改动都无关。发布流水线第一次在 Windows 上
+# 跑 `pnpm verify` 撞见的就是这个。
+#
+# **这跟产品自己的换行保真是两码事。** 那一条说的是**用户文档**：打开 CRLF
+# 的文件就原样存回 CRLF（04 §2），处理的是运行时读到的字节，跟仓库怎么存
+# 源码毫无关系。混为一谈的话会以为这里该「保留各自的换行」—— 不该，
+# 源码只有一种正确答案。
+* text=auto eol=lf
+
+# 二进制别让 Git 去猜（猜错就是把图标改坏了还看不出来）
+*.png binary
+*.ico binary
