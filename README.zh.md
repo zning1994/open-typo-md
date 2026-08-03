@@ -4,6 +4,11 @@
 
 **简体中文** · [English](README.md) · [日本語](README.ja.md)
 
+[![release](https://img.shields.io/github/v/release/zning1994/mosu?label=release&color=0b7285)](https://github.com/zning1994/mosu/releases/latest)
+[![CI](https://img.shields.io/github/actions/workflow/status/zning1994/mosu/ci.yml?branch=main&label=CI)](https://github.com/zning1994/mosu/actions/workflows/ci.yml)
+[![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)](#下载)
+[![license](https://img.shields.io/github/license/zning1994/mosu?color=blue)](LICENSE)
+
 一个开源的 Markdown 「所见即所得」编辑器 —— 无分屏、无预览窗格，写下的就是看到的。
 
 > **状态：M2、M3、M4 完成，M4.5「硬骨头」六条全部落地**。

@@ -4,6 +4,11 @@
 
 [简体中文](README.zh.md) · **English** · [日本語](README.ja.md)
 
+[![release](https://img.shields.io/github/v/release/zning1994/mosu?label=release&color=0b7285)](https://github.com/zning1994/mosu/releases/latest)
+[![CI](https://img.shields.io/github/actions/workflow/status/zning1994/mosu/ci.yml?branch=main&label=CI)](https://github.com/zning1994/mosu/actions/workflows/ci.yml)
+[![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)](#download)
+[![license](https://img.shields.io/github/license/zning1994/mosu?color=blue)](LICENSE)
+
 An open-source WYSIWYG Markdown editor — no split pane, no preview pane. What you type is what you see.
 
 > **Status: milestones M2, M3 and M4 are done, and all six "hard problems" in M4.5 have landed.**
