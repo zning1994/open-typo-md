@@ -2,7 +2,7 @@
 
 # Mosu
 
-[简体中文](README.md) · [English](README.en.md) · **日本語**
+[简体中文](README.zh.md) · [English](README.md) · **日本語**
 
 オープンソースの WYSIWYG Markdown エディタ。分割ビューもプレビューペインもなく、書いたものがそのまま見えます。
 
@@ -203,6 +203,11 @@ docs/           設計ドキュメント、ADR、そしてウェブサイト
 
 PR を出す前に `pnpm verify` を実行してください。装飾ルールに触れる変更では、
 フォーマットの忠実性への影響を必ず書いてください。
+
+残りは [CONTRIBUTING.md](CONTRIBUTING.md)（英語）にあります：コードが守るべき 3 つの
+原則、変更に添えるべきもの、そして「Linux で通った」テストがなお誤っていうる理由。
+参加する方は[行動規範](CODE_OF_CONDUCT.md)に同意したものとみなします。セキュリティ上の
+問題は公開 issue ではなく[非公開の報告](SECURITY.md)へ。
 
 ## ライセンス
 

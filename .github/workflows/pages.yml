@@ -9,7 +9,7 @@ on:
     branches: [main]
     paths:
       - 'docs/**'
-      - 'README.md'
+      - 'README*.md'
       - '.github/workflows/pages.yml'
       - 'package.json'
   workflow_dispatch:
