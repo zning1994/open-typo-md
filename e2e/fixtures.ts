@@ -187,6 +187,38 @@ export async function openDocInNewWindow(
   return created
 }
 
+/**
+ * 打开设置面板。
+ *
+ * **位置按平台不同**：macOS 在应用菜单里（紧跟「关于」，那是 macOS 的老规矩），
+ * Windows / Linux 在「视图」里。所以不能写死一条路径 —— 写死的那一刻，
+ * 另一个平台上所有用到设置的用例都会挂在「菜单里找不到『设置…』」，
+ * **而且只有那个平台的 CI 会红**。这个坑刚踩过一次（18 条用例一起翻）。
+ *
+ * 同理见下面的 `openCheckUpdates`。
+ */
+export async function openSettings(app: ElectronApplication): Promise<void> {
+  await clickMenu(app, await menuPath(app, '设置…'))
+}
+
+/** 点「检查更新…」。位置同样按平台不同（mac 在应用菜单，其它在「帮助」）。 */
+export async function openCheckUpdates(app: ElectronApplication): Promise<void> {
+  await clickMenu(app, await menuPath(app, '检查更新…', '帮助'))
+}
+
+/** mac 上这一项在应用菜单里，其它平台在 `fallback` 那一栏。 */
+async function menuPath(
+  app: ElectronApplication,
+  label: string,
+  fallback = '视图',
+): Promise<string[]> {
+  const platform = await app.evaluate(() => process.platform)
+  if (platform !== 'darwin') return [fallback, label]
+  // 应用菜单那一栏的标签就是 app.name，别写死成 'Mosu'
+  const appName = await app.evaluate(({ app: electronApp }) => electronApp.name)
+  return [appName, label]
+}
+
 /** 点一个真实的原生菜单项，`labels` 是从顶层菜单往下的路径。 */
 export async function clickMenu(app: ElectronApplication, labels: string[]): Promise<void> {
   await app.evaluate(({ Menu }, path) => {

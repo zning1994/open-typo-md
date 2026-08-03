@@ -8,7 +8,7 @@
  * 三条边界（见 main/updates.ts）里的头一条 —— **只在用户按下时才发** ——
  * 也在这里钉住：启动之后什么都不做的话，一个请求都不该发出去。
  */
-import { clickMenu, expect, test } from './fixtures.js'
+import { expect, openCheckUpdates, test } from './fixtures.js'
 import type { ElectronApplication } from '@playwright/test'
 
 /** 顶掉 `net.fetch`，记下它被调过几次，并按需要给一个假响应。 */
@@ -76,17 +76,6 @@ async function lastDialog(
     )
 }
 
-/** 菜单里「检查更新…」在哪一栏取决于平台（mac 在应用菜单，其它在帮助）。 */
-async function checkUpdates(app: ElectronApplication): Promise<void> {
-  const platform = await app.evaluate(() => process.platform)
-  if (platform === 'darwin') {
-    const appName = await app.evaluate(({ app: electronApp }) => electronApp.name)
-    await clickMenu(app, [appName, '检查更新…'])
-  } else {
-    await clickMenu(app, ['帮助', '检查更新…'])
-  }
-}
-
 test('启动之后一个请求都不发 —— 只有用户按下去才联网', async ({ app, page }) => {
   await stubFetch(app, { status: 200, body: { tag_name: 'v9.9.9' } })
   await page.waitForTimeout(1_500)
@@ -99,7 +88,7 @@ test('有新版本时给出版本号，并能去下载页', async ({ app, page }
     body: { tag_name: 'v9.9.9', html_url: 'https://example.com/release' },
   })
   await stubDialogs(app)
-  await checkUpdates(app)
+  await openCheckUpdates(app)
 
   const shown = await lastDialog(app)
   expect(shown.message).toContain('9.9.9')
@@ -110,7 +99,7 @@ test('有新版本时给出版本号，并能去下载页', async ({ app, page }
 test('线上版本更旧时说「已经是最新」，不谎报有更新', async ({ app, page }) => {
   await stubFetch(app, { status: 200, body: { tag_name: 'v0.0.1' } })
   await stubDialogs(app)
-  await checkUpdates(app)
+  await openCheckUpdates(app)
 
   expect((await lastDialog(app)).message).toContain('已经是最新版本')
   await page.waitForTimeout(100)
@@ -120,7 +109,7 @@ test('连不上时明确说没检查成 —— 绝不显示成「已是最新」
   // 把失败显示成「已是最新版本」是在骗用户：他会以为自己装的是最新的
   await stubFetch(app, 'reject')
   await stubDialogs(app)
-  await checkUpdates(app)
+  await openCheckUpdates(app)
 
   const shown = await lastDialog(app)
   expect(shown.message).toContain('没能检查更新')
@@ -131,7 +120,7 @@ test('连不上时明确说没检查成 —— 绝不显示成「已是最新」
 test('被限流时说得出是限流，而不是笼统的「网络错误」', async ({ app, page }) => {
   await stubFetch(app, { status: 403 })
   await stubDialogs(app)
-  await checkUpdates(app)
+  await openCheckUpdates(app)
 
   expect((await lastDialog(app)).detail).toContain('限制了请求')
   await page.waitForTimeout(100)
@@ -141,7 +130,7 @@ test('还没有已发布版本（只有草稿）时说清楚', async ({ app, pag
   // 发布流程建的是草稿 Release，而 `/releases/latest` 按定义排除草稿
   await stubFetch(app, { status: 404 })
   await stubDialogs(app)
-  await checkUpdates(app)
+  await openCheckUpdates(app)
 
   expect((await lastDialog(app)).detail).toContain('还没有已发布的版本')
   await page.waitForTimeout(100)
@@ -151,7 +140,7 @@ test('设置里关掉之后，main 直接拒绝 —— 一个包都不发出去'
   await page.evaluate(() => window.mosu.settings.set('updates.check', false))
   await stubFetch(app, { status: 200, body: { tag_name: 'v9.9.9' } })
   await stubDialogs(app)
-  await checkUpdates(app)
+  await openCheckUpdates(app)
 
   expect((await lastDialog(app)).detail).toContain('已在设置里关闭')
   // 关键的一句：拦截发生在**发请求之前**
