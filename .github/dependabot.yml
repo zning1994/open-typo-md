@@ -1,11 +1,47 @@
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for all configuration options:
-# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
-
+# Dependabot 版本更新。
+#
+# 文档：https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+#
+# **这个仓库到 v0.1.0 为止一个 PR 都没有**（全是直接推 main），所以 Dependabot 开的
+# 会是头几个 PR。它们会照常触发 CI，这正是想要的 —— 依赖升级恰恰是「测试说了算」
+# 的那类改动。
 version: 2
 updates:
-  - package-ecosystem: "" # See documentation for possible values
-    directory: "/" # Location of package manifests
+  # ── npm（pnpm workspace）────────────────────────────────────────────
+  #
+  # `package-ecosystem: npm` 同时管 npm / yarn / pnpm，认的是 `pnpm-lock.yaml`。
+  # 这个仓库用 pnpm 10 + workspace，而 Dependabot 对新版 pnpm lockfile 的支持历来
+  # 比 npm 慢半拍 —— 万一它抱怨解析不了 lockfile，那是已知的上游限制，不是这里写错了。
+  - package-ecosystem: 'npm'
+    directory: '/'
     schedule:
-      interval: "weekly"
+      interval: 'weekly'
+    # 一周十几个 PR 没人看得完，看不完就会开始无脑合 —— 那比不升级更危险。
+    # 分组之后正常情况下每周最多两个：一个补丁/次版本的合集，一个大版本的。
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types: ['minor', 'patch']
+    commit-message:
+      prefix: 'chore(deps)'
+
+  # ── GitHub Actions ─────────────────────────────────────────────────
+  #
+  # 这一条对这个仓库格外值：action 的运行时弃用（node20 → node24）只能靠升版本
+  # 消掉，而**版本号看不出来** —— `upload-artifact@v5` 仍然是 node20，v6 才不是。
+  # ci.yml 顶部那张表是逐个 clone 下来读 `action.yml` 才排出来的；Dependabot 至少
+  # 能主动把「有新版了」推到眼前。
+  #
+  # 但**别照单全收**：仓库的规矩是「已经是 node24 就不为追新而升」（同样在 ci.yml
+  # 顶部），因为那只是白白引入变更面。Dependabot 不知道这条规矩，所以它开的大版本
+  # PR 该按这条规矩审，不是见绿就合。
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    open-pull-requests-limit: 5
+    groups:
+      actions:
+        update-types: ['minor', 'patch']
+    commit-message:
+      prefix: 'ci(deps)'
