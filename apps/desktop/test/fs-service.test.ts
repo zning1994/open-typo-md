@@ -159,10 +159,32 @@ describe('冲突检测', () => {
   })
 })
 
+/**
+ * 路径白名单。
+ *
+ * **这里每一条被拒绝的目标都必须真实存在。** 守卫分两种拒绝：路径解析不出来
+ * 报「不可访问」，解析出来但不在白名单里才报「未获授权」。拿一个不存在的路径
+ * 去验白名单，走的是前一条分支 —— 于是白名单即使整个失效，用例照样绿。
+ *
+ * 这条规矩是踩出来的：`/etc/passwd`（Windows 上没有）、`../../etc/passwd`
+ * （macOS 的临时目录深在 /var/folders/… 里，落在不存在的路径上）。两处都在
+ * Linux 上恒绿，都在别的平台上暴露，而暴露出来的是「测试写错了」而不是
+ * 「产品漏了」—— 更糟的一种失败，因为它一直在假装自己验过了。
+ */
 describe('路径白名单', () => {
   it('未授权路径一律拒绝', async () => {
     resetGrantsForTest()
-    await expect(readTextFile('/etc/passwd')).rejects.toThrow(/未获授权/)
+    // 原来写的是 `/etc/passwd` —— 那是渲染进程被打穿后第一个要读的东西，
+    // 当靶子很贴切，可惜 Windows 上没有这个文件。换成临时目录里一个真的文件，
+    // 它同样在白名单之外，而且三个平台上都确实存在。
+    const outside = await mkdtemp(path.join(tmpdir(), 'mosu-outside-'))
+    try {
+      const secret = path.join(outside, 'secret.txt')
+      await writeFile(secret, '机密', 'utf8')
+      await expect(readTextFile(secret)).rejects.toThrow(/未获授权/)
+    } finally {
+      await rm(outside, { recursive: true, force: true })
+    }
   })
 
   it('授权某个文件会连带授权其所在目录', async () => {
