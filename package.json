@@ -24,7 +24,7 @@
     "test:e2e:ui": "playwright test --ui",
     "screenshots": "node scripts/screenshots/capture.mjs",
     "docs:dev": "vitepress dev docs",
-    "docs:build": "vitepress build docs",
+    "docs:build": "vitepress build docs && node scripts/check-docs-build.mjs",
     "docs:preview": "vitepress preview docs",
     "bench": "node scripts/bench/run.mjs",
     "bench:bundle": "node scripts/bench/bundle.mjs"

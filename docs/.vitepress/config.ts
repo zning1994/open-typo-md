@@ -212,6 +212,33 @@ export default defineConfig({
   cleanUrls: true,
   locales: LOCALES,
 
+  /**
+   * 把 Vue 的插值分隔符换掉，让 `{{ … }}` 在文档里就是字面量。
+   *
+   * **踩过一次**：`docs/design/00-overview.md` 里有一句
+   * `` `${{ github.repository }}` ``（讲 CI 里不写死仓库 slug）。围栏代码块
+   * VitePress 会自动包 `v-pre`，**行内代码不会** —— 于是 Vue 把它当插值编译，
+   * SSR 时求值 `github.repository` 抛 `Cannot read properties of undefined`。
+   *
+   * 而 VitePress **吞掉这个异常**：构建照常退出 0，只是那一页的正文是空的。
+   * 于是「建站绿了」和「页面能看」变成了两件事，线上空了一页没人知道。
+   * 正文非空的检查见 `scripts/check-docs-build.mjs`，它挂在 `docs:build` 里面
+   * 而不是某个 workflow 的步骤上 —— 挂在步骤上就总有一条路径会忘了它。
+   *
+   * 为什么换分隔符而不是在那一句上包 `<span v-pre>`：这些设计文档**本身也是
+   * 产品内容**（用 Mosu 打开来读的就是它们），往里塞站点框架的语法是把两件事
+   * 搅在一起。而且这个仓库的文档天生会反复出现 `${{ }}`（讲的就是 CI），
+   * 逐处去包是一张永远追不完的清单。
+   *
+   * 代价：文档里从此**无法**使用 Vue 插值。当前一处都没用，将来真要用就写
+   * 新的分隔符 —— 那反而是件好事，因为它是显式的。
+   */
+  vue: {
+    template: {
+      compilerOptions: { delimiters: ['{%', '%}'] },
+    },
+  },
+
   head: [
     ['link', { rel: 'icon', type: 'image/png', href: '/favicon.png' }],
     ['link', { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' }],
