@@ -1,34 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-  Hardened Runtime 的豁免项（Developer ID 分发用，不是 App Store 用）。
-
-  开启 hardened runtime 是**公证的前提** —— 没有它 notarytool 直接拒收。
-  而 Electron 在 hardened runtime 下跑不起来，除非放开下面这几条：
-
-  - allow-jit / allow-unsigned-executable-memory
-      V8 要在运行时生成机器码。缺了它 Electron 20+ 在 arm64 上启动即崩。
-  - disable-library-validation
-      Electron.framework 与几个 Helper 是上游预签名的，Team ID 跟我们的不同；
-      库校验会拒绝加载它们。
-  - allow-dyld-environment-variables
-      Electron 的启动脚本要靠 DYLD_* 定位自己的 framework。
-
-  这几条都会削弱 hardened runtime 的保护，但它们是 Electron 应用的标准配置
-  （@electron/osx-sign 的默认模板就是这些）。**不是随手加的**：每去掉一条都
-  可以自己验证一遍，表现是启动即崩或者白屏。
-
-  App Store 那条路要的是另一套（App Sandbox + user-selected 文件权限），
-  跟这份文件不通用 —— 见 docs/design/07 §6。
--->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
   <dict>
     <key>com.apple.security.cs.allow-jit</key>
-    <true />
+    <true/>
     <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
-    <true />
+    <true/>
     <key>com.apple.security.cs.disable-library-validation</key>
-    <true />
+    <true/>
     <key>com.apple.security.cs.allow-dyld-environment-variables</key>
-    <true />
+    <true/>
   </dict>
 </plist>

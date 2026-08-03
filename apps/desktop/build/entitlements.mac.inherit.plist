@@ -1,23 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-  子进程（Helper、Helper (Renderer)、Helper (GPU)…）与内嵌 framework 的豁免项。
-
-  内容跟 entitlements.mac.plist 一致，但**必须单独有一份**：签名是逐个 bundle
-  做的，主程序的 entitlements 不会自动传给 Helper。少了这份的表现是主进程起得
-  来、渲染进程一开就崩 —— 而那看起来完全不像签名问题。
-
-  这里**没有** `com.apple.security.inherit`：那个键是 App Sandbox 的继承机制，
-  而 Developer ID 分发不开沙盒，写了也不起作用。
--->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
   <dict>
     <key>com.apple.security.cs.allow-jit</key>
-    <true />
+    <true/>
     <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
-    <true />
+    <true/>
     <key>com.apple.security.cs.disable-library-validation</key>
-    <true />
+    <true/>
     <key>com.apple.security.cs.allow-dyld-environment-variables</key>
-    <true />
+    <true/>
   </dict>
 </plist>

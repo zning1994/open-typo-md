@@ -347,7 +347,7 @@ fork 的 PR 拿不到（必须在 workflow 里显式限制）。
 
 | 已就位 | 位置 |
 | --- | --- |
-| Hardened Runtime 豁免项 | `apps/desktop/build/entitlements.mac.plist`（+ `.inherit.plist`） |
+| Hardened Runtime 豁免项 | `apps/desktop/build/entitlements.mac.plist`（+ `.inherit.plist`，说明见同目录 README） |
 | 签名策略（有证书就签、没有就跳过） | `electron-builder.yml` 的 `mac` 段刻意不写 `identity` |
 | 公证开关 | `release.yml` 检测到 `APPLE_TEAM_ID` 时加 `-c.mac.notarize=true` |
 | 签名状态可见 | `release.yml` 的「记录签名状态」步骤写进 job summary |
@@ -386,6 +386,14 @@ fork 的 PR 拿不到（必须在 workflow 里显式限制）。
   那一处 env 即可。
 - **公证是异步的**，Apple 那边排队几分钟到几十分钟都有可能，发布作业会一直等。
   第一次跑记得把作业超时放宽。
+- **entitlements 的文件形式本身就是一道坎**。`codesign --entitlements` 那一头
+  解析 plist 的不是 CFPropertyList，而是 AMFI 自带的解析器（内核
+  `OSUnserializeXML` 的变体），比标准 XML 严得多：注释、`<true />` 里的空格、
+  缺 DOCTYPE 都可能让它报 `AMFIUnserializeXML: syntax error near line N`，
+  而 `xmllint` 判定完全良构。更麻烦的是这只在**真配了证书之后**才会发生 ——
+  没证书时 electron-builder 跳过签名，这两个文件根本不会被读到，坏了也没人
+  知道。现在由 `apps/desktop/test/entitlements.test.ts` 钉住形式，
+  说明写在 `apps/desktop/build/README.md`。
 - **公证失败最常见的原因是 entitlements 或 hardened runtime 没开**。
   这两样已经配好了，但如果将来引入了原生模块（`.node`），它必须**单独签名**，
   否则公证日志里会报 “The binary is not signed with a valid Developer ID
