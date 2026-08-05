@@ -65,7 +65,7 @@ document that uses none of these pays no startup cost for them.
 
 ## Where the project stands
 
-**Usable, but not formally released yet.** Version 0.1.0. The most recent batch of work
+**Usable, and still on the way to 1.0.** Version 0.2.0. The "hard problems" batch
 (milestone "M4.5") is done:
 
 GFM (tables, task lists, strikethrough, footnotes), math, Mermaid diagrams, an outline panel,
@@ -74,10 +74,20 @@ paste-HTML-as-Markdown, table editing, a file tree, tabs, session restore, a set
 inline HTML rendering, customisable shortcuts, focus mode, typewriter mode and a
 Chinese/English/Japanese interface are all working.
 
-**Not there yet:** the plugin system, cross-file search, user theme directories with hot
-reload, block-level HTML rendering (that one is a deliberate *no*, see the roadmap),
-drag-to-resize table columns, PDF headers/footers and TOC page numbers, rename/create/delete
-in the file tree, and Pandoc-based export (DOCX / ePub).
+v0.2.0 added create/rename/move-to-trash in the file tree, Quick Open (⌘P), search across the
+whole workspace (⌘⇧F), outline filtering and collapsing, and a manual update check.
+
+**Next up is AI** — rewrite, translate, summarise, ask-the-document, all built in rather than
+installed, and **never editing the document directly**: every AI change arrives as a diff you
+can see, and one ⌘Z undoes it.
+
+**Not there yet:** AI (M5, not a line written), user theme directories with hot reload,
+block-level HTML rendering (that one is a deliberate *no*, see the roadmap), drag-to-resize
+table columns, PDF headers/footers and TOC page numbers, drag-to-move in the file tree, and
+Pandoc-based export (DOCX / ePub).
+
+**An open plugin system is also a deliberate no** for v1 — no third-party code is loaded.
+What gets opened up later is a controlled Tool API.
 
 Every milestone ends with a "what actually differed from the plan" section listing exactly what
 was cut and why. That list is part of the project, not an embarrassment to hide.
@@ -102,7 +112,7 @@ pnpm dev
 ## A note on the documentation
 
 **The design documents are written in Chinese and are not translated.** That is a deliberate
-trade-off rather than unfinished work: there are nine design documents plus five architecture
+trade-off rather than unfinished work: there are ten design documents plus six architecture
 decision records, they change as development goes on, and translating a moving target costs not
 one translation but one per revision, forever.
 

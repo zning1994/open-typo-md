@@ -17,9 +17,12 @@ An open-source WYSIWYG Markdown editor — no split pane, no preview pane. What 
 > tabs, session restore, the settings panel, inline HTML rendering and customisable shortcuts
 > are all usable. Three of those six shipped as a **reduced-scope or different-approach**
 > version; exactly what was cut is written down in the roadmap.
-> Next up is the plugin system (M5).
+> Next up is the **AI foundation (M5)**. That slot used to say "plugin system"; it was
+> replaced in August 2026 —
+> [ADR-0006](docs/adr/0006-ai-runtime-and-plugin-strategy.md) decides that **v1 ships no
+> open plugin system and AI is a built-in capability**, not something you install.
 >
-> **[v0.1.0](https://github.com/zning1994/mosu/releases/latest) is out** — installers for
+> **[v0.2.0](https://github.com/zning1994/mosu/releases/latest) is out** — installers for
 > macOS, Windows and Linux. The macOS builds are signed with a Developer ID certificate
 > and notarised by Apple, so they open on a double-click. Windows is not signed yet, and
 > that is a deliberate call rather than a pending one — see below.
@@ -130,15 +133,17 @@ On Linux the end-to-end tests need a display: `xvfb-run -a pnpm test:e2e`.
 
 ## Not there yet
 
-- The plugin system (M5)
-- Cross-file search (there is only find-and-replace within one file today)
+- AI (rewrite, translate, summarise, ask-the-document) — M5 / M5.5, not a line written yet
+- **An open plugin system — a deliberate no** for v1. No third-party code is loaded; what
+  gets opened up later is a controlled Tool API. The conditions for revisiting that are in
+  [ADR-0006](docs/adr/0006-ai-runtime-and-plugin-strategy.md)
 - User theme directories with hot reload
 - Pandoc-based export (DOCX / ePub / LaTeX)
 - Block-level HTML rendering (`<div>…</div>`) — this one is a deliberate *no*, not a
   scheduling matter: its meaning lives almost entirely in attributes, and attributes are
   exactly what the "not one byte of HTML reaches the DOM" approach cannot cover
-- Drag-to-resize table columns, PDF headers/footers and TOC page numbers, rename/create/delete
-  in the file tree
+- Drag-to-resize table columns, PDF headers/footers and TOC page numbers, drag-to-move in the
+  file tree
 
 Every rough edge is written down at the end of each milestone in the roadmap, under
 "what actually differed from the plan". Nothing is swept under the rug.
@@ -214,7 +219,7 @@ Dependencies flow strictly one way; `pnpm layers` enforces it in CI.
 Website: <https://mosu.ohgiantai.com>
 
 **The design documents are written in Chinese and are not translated** — a deliberate
-trade-off, not unfinished work. There are nine of them plus five architecture decision records,
+trade-off, not unfinished work. There are ten of them plus six architecture decision records,
 and they change as development goes on; translating a moving target costs one translation per
 revision, forever.
 

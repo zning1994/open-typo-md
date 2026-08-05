@@ -10,7 +10,7 @@
  *
  * ## 多语言：落地页翻，设计文档暂不翻
  *
- * 这是刻意的取舍，不是没做完。设计文档有九篇加五份 ADR，而且**还在随着开发
+ * 这是刻意的取舍，不是没做完。设计文档有十篇加六份 ADR，而且**还在随着开发
  * 变动**（今天就改了四处）—— 翻译一份会漂移的长文档，代价不是翻一次，
  * 是此后每次改动都要翻三次。落地页不一样：它变得慢，而且是决定「要不要继续
  * 看下去」的那一页。
@@ -39,19 +39,23 @@ const DESIGN = [
   ['02-editor-core', '02 · 编辑器内核'],
   ['03-markdown-pipeline', '03 · Markdown 管线'],
   ['04-files-and-workspace', '04 · 文件与工作区'],
-  ['05-themes-and-plugins', '05 · 主题与插件'],
+  // 文件名还叫 -plugins 是刻意的：改名会让文档站已有的 URL 404，
+  // 而 GitHub Pages 上没有便宜的重定向。内容以文档里「二、扩展点」那节为准。
+  ['05-themes-and-plugins', '05 · 主题与扩展点'],
   ['06-export', '06 · 导出'],
   ['07-quality', '07 · 质量基线'],
   ['08-roadmap', '08 · 路线图'],
   ['09-distribution', '09 · 分发'],
+  ['10-ai', '10 · AI 与 Agent Runtime'],
 ] as const
 
 const ADR = [
   ['0001-desktop-shell', '0001 · 桌面壳选 Electron'],
   ['0002-editor-core', '0002 · 内核选 CodeMirror 6'],
   ['0003-dual-parser', '0003 · 双解析器'],
-  ['0004-plugin-isolation', '0004 · 插件隔离'],
+  ['0004-plugin-isolation', '0004 · 插件隔离（已搁置）'],
   ['0005-windows-and-tabs', '0005 · 窗口与标签'],
+  ['0006-ai-runtime-and-plugin-strategy', '0006 · AI 与插件策略'],
 ] as const
 
 /** 中文站的侧栏 —— 设计文档与 ADR 互为折叠的第二组，两边都能一眼跳过去。 */
