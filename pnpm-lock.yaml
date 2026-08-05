@@ -88,6 +88,12 @@ importers:
         specifier: ^7.3.6
         version: 7.3.6(@types/node@22.20.1)(jiti@2.7.0)
 
+  packages/agent-core:
+    devDependencies:
+      '@codemirror/state':
+        specifier: ^6.7.1
+        version: 6.7.1
+
   packages/editor:
     dependencies:
       '@codemirror/autocomplete':

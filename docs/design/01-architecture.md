@@ -18,17 +18,17 @@
 ├──────────────────────────────────────────────────────────────┤
 │  @mosu/plugin-api    宿主能力的公开类型契约（仅类型 + 常量）     │
 └──────────────────────────────────────────────────────────────┘
-   @mosu/export   @mosu/themes   @mosu/agent-core（⬜ M5）
+   @mosu/export   @mosu/themes   @mosu/agent-core（✅ 协议层已落地）
 ```
 
 **依赖方向严格单向向下。** `@mosu/markdown` 不认识编辑器，`@mosu/editor` 不认识 UI，
 `@mosu/ui` 不认识 Electron。CI 用 `dependency-cruiser` 强制这条规则，违反即失败。
 
-`@mosu/agent-core`（M5，见 [10 §1.1](10-ai.md)）跟 export / themes 一样是**旁挂的
-叶子**：它定义 Tool Registry、Patch 协议与事件类型，**不 import Pi、不 import
-Electron、不 import 编辑器**。真正跟 Runtime 打交道的适配器在
-`apps/desktop/src/main/agent/`。这么切是为了让「换掉 Runtime」在机械上等于
-「换掉一个文件」，而不是一句承诺。
+`@mosu/agent-core`（见 [10 §1.1](10-ai.md)）跟 export / import 一样是**旁挂的
+叶子**：它定义 Tool Registry、Patch 协议、基线映射与事件类型，**零运行时依赖 ——
+不 import Pi、不 import Electron、不 import 编辑器**。真正跟 Runtime 打交道的适配器
+在 `apps/desktop/src/main/agent/`（⬜ 还没有）。这么切是为了让「换掉 Runtime」在
+机械上等于「换掉一个文件」，而不是一句承诺 —— `scripts/check-layers.mjs` 把它钉住了。
 
 ## 2. 仓库结构
 
@@ -49,7 +49,7 @@ mosu/
 │   ├── ui/
 │   ├── themes/             # 见 05
 │   ├── export/             # 见 06
-│   ├── agent-core/         # ⬜ M5，见 10
+│   ├── agent-core/         # AI 层的协议，零依赖，见 10
 │   └── plugin-api/
 ├── docs/
 │   ├── design/

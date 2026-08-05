@@ -18,6 +18,10 @@ const ALLOWED = {
   '@mosu/plugin-api': [],
   // 文案层是纯字符串处理，谁也不认识 —— 它跟 plugin-api 一样是叶子
   '@mosu/i18n': [],
+  // AI 那一层的**协议**：Tool Registry、Patch、事件类型。它不认识 Pi、不认识
+  // Electron、不认识编辑器 —— 一个 import 了 Pi 的包，说自己跟 Pi 解耦是没有意义的
+  // （ADR-0006 不变量 4）。真正的 Runtime 适配器在 apps/desktop/src/main/agent/
+  '@mosu/agent-core': [],
   '@mosu/markdown': ['@mosu/plugin-api'],
   // 导出层认识语义解析，但**不认识编辑器** —— 导出不该依赖「界面上现在是什么样」
   '@mosu/export': ['@mosu/plugin-api', '@mosu/markdown'],
@@ -25,6 +29,7 @@ const ALLOWED = {
   '@mosu/import': [],
   '@mosu/editor': ['@mosu/plugin-api', '@mosu/markdown', '@mosu/import'],
   '@mosu/desktop': [
+    '@mosu/agent-core',
     '@mosu/plugin-api',
     '@mosu/i18n',
     '@mosu/markdown',
@@ -38,6 +43,7 @@ const ALLOWED = {
 const FORBIDDEN_IMPORTS = {
   '@mosu/plugin-api': [/^electron$/, /^node:/],
   '@mosu/i18n': [/^electron$/, /^node:/],
+  '@mosu/agent-core': [/^electron$/, /^node:/],
   '@mosu/markdown': [/^electron$/, /^node:/],
   '@mosu/export': [/^electron$/, /^node:/],
   '@mosu/import': [/^electron$/, /^node:/],

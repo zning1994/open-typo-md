@@ -15,6 +15,7 @@ export default defineConfig({
         new URL('./packages/markdown/src/text.ts', import.meta.url),
       ),
       '@mosu/markdown': pkg('markdown'),
+      '@mosu/agent-core': pkg('agent-core'),
       '@mosu/export': pkg('export'),
       '@mosu/import': pkg('import'),
       '@mosu/editor': pkg('editor'),
