@@ -16,9 +16,12 @@
 > HTML / PDF 导出、复制为富文本、粘贴 HTML 自动转 Markdown、表格编辑、
 > 文件树、多标签页、会话恢复、设置面板、行内 HTML 渲染都已可用。
 > 其中三条是**缩范围 / 换做法**的版本，各自明确没做的部分都写在路线图里。
-> 下一步是插件系统（M5）—— 见[路线图](docs/design/08-roadmap.md)。
+> 下一步是 **AI 基座（M5）** —— 见[路线图](docs/design/08-roadmap.md)。
+> 这一档原来是插件系统，2026-08 整个换掉了，理由在
+> [ADR-0006](docs/adr/0006-ai-runtime-and-plugin-strategy.md)：**v1 不做开放插件系统，
+> AI 是内置能力**。
 >
-> **[v0.1.0](https://github.com/zning1994/mosu/releases/latest) 已发布** —— 三个平台的安装包都有。
+> **[v0.2.0](https://github.com/zning1994/mosu/releases/latest) 已发布** —— 三个平台的安装包都有。
 > macOS 那几个用 Developer ID 证书签了名并通过了 Apple 公证，双击就开。
 > Windows 仍未签名，而那是**刻意的决定**而非欠着的工作，理由见下面。
 
@@ -130,14 +133,15 @@ Linux 上跑端到端测试需要一个显示环境：`xvfb-run -a pnpm test:e2e
 
 **还没有**（按路线图排期）
 
-- 插件系统（M5）
-- 跨文件搜索（现在只有单文件的查找替换）
+- AI 能力（改写、翻译、总结、问文档）—— M5 / M5.5，一行还没写
+- **开放插件系统 —— 决定不做**（v1）。不加载第三方代码；将来要开放的是受控的
+  Tool API，重估条件见 [ADR-0006](docs/adr/0006-ai-runtime-and-plugin-strategy.md)
 - 用户主题目录与热加载（M4 顺延）
 - Pandoc 导出（DOCX / ePub / LaTeX）
 - 渲染块级 HTML（`<div>…</div>`）—— 这条是**决定不做**，不是排期问题：
   它的意义几乎全在属性上，而属性正是「一个字节 HTML 都不进 DOM」那套做法
   绕不开的地方（02 §5.1、03 §3.1）
-- 表格拖拽调列宽、PDF 的页眉页脚与目录页码、文件树里的重命名 / 新建 / 删除
+- 表格拖拽调列宽、PDF 的页眉页脚与目录页码、文件树里的拖拽移动
   （各自所在功能**明确没做**的部分，同样见路线图）
 
 已知的粗糙之处都记在[路线图](docs/design/08-roadmap.md)各里程碑末尾的「实际偏差」里，
@@ -224,11 +228,12 @@ pnpm docs:dev
 | [02 编辑器内核](docs/design/02-editor-core.md)          | 实时预览的实现模型（本项目最核心的部分）  |
 | [03 Markdown 管线](docs/design/03-markdown-pipeline.md) | 双解析器策略、往返保真、语法扩展          |
 | [04 文件与工作区](docs/design/04-files-and-workspace.md) | 原子保存、文件监听、崩溃恢复、全文搜索    |
-| [05 主题与插件](docs/design/05-themes-and-plugins.md)   | 主题契约、插件 API、权限模型              |
+| [05 主题与扩展点](docs/design/05-themes-and-plugins.md) | 主题契约、扩展点、设置                    |
 | [06 导出](docs/design/06-export.md)                     | HTML / PDF / DOCX / LaTeX 导出管线        |
 | [07 质量基线](docs/design/07-quality.md)                | 测试策略、性能预算、无障碍、国际化        |
 | [08 路线图](docs/design/08-roadmap.md)                  | 里程碑拆分与验收标准                      |
 | [09 分发](docs/design/09-distribution.md)               | 直接分发 / App Store / 定价的取舍          |
+| [10 AI](docs/design/10-ai.md)                           | Tool Registry、Patch 协议、Provider（⬜ M5） |
 
 **架构决策记录（ADR）**
 
@@ -237,8 +242,9 @@ pnpm docs:dev
 | [0001](docs/adr/0001-desktop-shell.md)        | 桌面壳选 Electron 而非 Tauri       |
 | [0002](docs/adr/0002-editor-core.md)          | 编辑器内核选 CodeMirror 6 而非 ProseMirror |
 | [0003](docs/adr/0003-dual-parser.md)          | 编辑解析器与语义解析器分离         |
-| [0004](docs/adr/0004-plugin-isolation.md)     | 插件隔离与权限模型                 |
+| [0004](docs/adr/0004-plugin-isolation.md)     | 插件隔离与权限模型（**已搁置**）    |
 | [0005](docs/adr/0005-windows-and-tabs.md)     | 窗口与标签页的关系                 |
+| [0006](docs/adr/0006-ai-runtime-and-plugin-strategy.md) | AI 是核心能力，插件系统延期 |
 
 **实测记录**
 

@@ -32,7 +32,7 @@ decoration rules are the easiest thing in this project to break, and that docume
 explains why each one looks the way it does.
 
 **The design documents are in Chinese and are not translated.** That is a deliberate
-trade-off, not neglect: there are nine of them plus five architecture decision
+trade-off, not neglect: there are ten of them plus six architecture decision
 records, and they change as development goes on — translating a moving target costs
 one translation per revision, forever. They are worth a machine translation, because
 they record trade-offs and mistakes rather than feature lists.

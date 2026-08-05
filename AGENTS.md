@@ -3,7 +3,7 @@
 Mosu：开源的 Markdown 所见即所得编辑器（Electron + CodeMirror 6）。
 
 **这份文件只写「不看会踩坑」的东西。** 完整的设计与取舍在 `docs/design/`（中文，
-九篇 + 五份 ADR），不要在这里重复它们 —— 每个会话都要读一遍这个文件，它越短越好。
+十篇 + 六份 ADR），不要在这里重复它们 —— 每个会话都要读一遍这个文件，它越短越好。
 
 ## 三条不可破的规则
 
@@ -72,8 +72,11 @@ pre-commit 钩子**，`pnpm format:check` 只有 CI 这一道；哪条路径两�
   但 `github.com` 的 git 操作可以，所以想读某个 action 的 `action.yml`，
   用 `git clone --depth 1 --branch <tag>` 而不是 curl。
 - **没有 `gh` CLI**，GitHub 操作走 MCP 工具（`mcp__github__*`）。
-- MCP 的仓库名要用 **`open-typo-md`**（旧名），新名 `mosu` 会被拒；GitHub 那边
-  透明重定向。
+- MCP 的仓库名**以会话开头那份 scope 清单为准**，两个名字不通用：清单里写
+  `mosu` 就只能传 `mosu`，写 `open-typo-md` 就只能传旧名，传另一个直接
+  「not configured for this session」。挡在前面的是会话的仓库白名单，不是 GitHub
+  （GitHub 那边两个名字都通，永久重定向）。这条原来写死成「一律用旧名」，
+  2026-08 撞见反过来的情况才发现。
 
 ## 依赖
 
