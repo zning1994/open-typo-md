@@ -1,7 +1,10 @@
 /**
- * 文档站构建之后：**每一页都得有正文**。
+ * 文档站构建之后的两道体检：**每一页都得有正文**，且**页面上不许出现没渲染的
+ * `{{ … }}`**。
  *
- * ## 为什么需要这个
+ * 两件事都是「构建绿了，但线上是坏的」，而且都真实发生过。
+ *
+ * ## 一、正文非空
  *
  * VitePress 在服务端渲染某一页出错时会**吞掉异常**：构建照常退出 0，产物里
  * 那一页的外壳（导航、侧栏、页脚）一应俱全，只有 `<main>` 是空的。于是
@@ -11,6 +14,18 @@
  * `` `${{ github.repository }}` `` 被 Vue 当成插值编译（围栏代码块会自动包
  * `v-pre`，行内代码不会），SSR 时求值抛异常，整页正文没了。是用户在线上
  * 看到空白页才发现的。
+ *
+ * ## 二、没有未渲染的插值
+ *
+ * 上面那个洞当时是用「把 Vue 的插值分隔符整体换掉」堵的。代价没被看见：
+ * `vue.template.compilerOptions` 是给 `@vitejs/plugin-vue` 的，而 VitePress
+ * 的默认主题是**以 `.vue` 源码形式**参与本仓库这次构建的 —— 换分隔符把主题
+ * 自己的 `{{ … }}` 一起变成了字面量。线上于是站名成了 `{{ site.title }}`，
+ * 首页四个按钮全是 `{{ text }}`，语言菜单、搜索框、编辑链接、404 页同理。
+ *
+ * 第一道检查拦不住它：占位符**也是字**，每页正文都远超 80 字。所以这里单独
+ * 数一遍花括号 —— 这类失败的共同特征就是「插值以字面量的形式留在了产物里」，
+ * 不管它是主题的还是文档自己的。
  *
  * ## 为什么挂在 `docs:build` 里而不是某个 workflow 的步骤上
  *
@@ -32,7 +47,7 @@ const DIST = new URL('../docs/.vitepress/dist/', import.meta.url)
  */
 const MIN_TEXT = 80
 
-/** 不参与检查的页面。404 页按定义就没有正文。 */
+/** 不参与**正文**检查的页面。404 页按定义就没有正文。 */
 const EXEMPT = new Set(['404.html'])
 
 async function* htmlFiles(dir) {
@@ -64,15 +79,41 @@ function contentText(html) {
     .trim()
 }
 
+/**
+ * 页面上以字面量形式露出来的 `{{ … }}`。
+ *
+ * **`<pre>` 与 `<code>` 里的不算。** 这个仓库的文档讲的就是 CI，`${{ … }}`
+ * 会反复出现在代码里，那是**要**原样显示的正常内容 —— 把它算进来，这道检查
+ * 第一天就会被当成噪音关掉。剩下的部分（导航、按钮、菜单、页脚）本来就不该
+ * 出现花括号，所以一出现就是没渲染。
+ *
+ * `<script>` 也要剥掉：VitePress 会把页面数据以 JSON 形式内联进去。
+ */
+function unrenderedInterpolations(html) {
+  const visible = html
+    .replace(/<script[\s\S]*?<\/script>/g, ' ')
+    .replace(/<style[\s\S]*?<\/style>/g, ' ')
+    .replace(/<pre[\s\S]*?<\/pre>/g, ' ')
+    .replace(/<code[\s\S]*?<\/code>/g, ' ')
+  return [...new Set(visible.match(/\{\{[^{}]{0,200}?\}\}/g) ?? [])]
+}
+
 const root = path.normalize(DIST.pathname)
 const empty = []
+const leaked = []
 let checked = 0
 
 for await (const file of htmlFiles(root)) {
   const name = path.relative(root, file)
+  const html = await readFile(file, 'utf8')
+
+  // 插值检查对 404 页也有效 —— 它同样是给人看的
+  const found = unrenderedInterpolations(html)
+  if (found.length > 0) leaked.push({ name, found })
+
   if (EXEMPT.has(path.basename(name))) continue
 
-  const text = contentText(await readFile(file, 'utf8'))
+  const text = contentText(html)
   checked++
   // `<main>` 整个不见了跟正文为空是同一类失败，一起报
   if (text === null || text.length < MIN_TEXT) {
@@ -80,7 +121,10 @@ for await (const file of htmlFiles(root)) {
   }
 }
 
+let failed = false
+
 if (empty.length > 0) {
+  failed = true
   console.error(`\n构建出来的站点里有 ${empty.length} 页没有正文：\n`)
   for (const { name, length } of empty) console.error(`  ${name}（${length}）`)
   console.error(
@@ -88,7 +132,23 @@ if (empty.length > 0) {
       '\n最常见的原因是 Markdown 里的 Vue 语法：`{{ … }}`、`<` 开头的裸标签。' +
       '\n重新跑一次 `pnpm docs:build` 看有没有 TypeError 被打在 rendering pages 那一步。\n',
   )
-  process.exit(1)
 }
 
-console.log(`✓ 文档站 ${checked} 页都有正文`)
+if (leaked.length > 0) {
+  failed = true
+  console.error(`\n构建出来的站点里有 ${leaked.length} 页把 {{ … }} 原样印在了页面上：\n`)
+  for (const { name, found } of leaked) {
+    console.error(`  ${name}：${found.slice(0, 4).join('、')}${found.length > 4 ? ' …' : ''}`)
+  }
+  console.error(
+    '\n代码块之外的花括号只有一个来源：模板没被当成插值编译。' +
+      '\n先看 `docs/.vitepress/config.ts` 里的 `vue.template.compilerOptions` ——' +
+      '\n那份配置是给 @vitejs/plugin-vue 的，会连 VitePress 默认主题的 .vue 一起改，' +
+      '\n于是站名、按钮、菜单全变成字面量。要让文档里的 `{{ … }}` 免于编译，' +
+      '\n改 Markdown 渲染（给行内代码加 v-pre），不要动全局分隔符。\n',
+  )
+}
+
+if (failed) process.exit(1)
+
+console.log(`✓ 文档站 ${checked} 页都有正文，且没有未渲染的插值`)
