@@ -11,6 +11,9 @@
       "path": "./packages/markdown"
     },
     {
+      "path": "./packages/agent-core"
+    },
+    {
       "path": "./packages/export"
     },
     {

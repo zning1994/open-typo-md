@@ -21,7 +21,7 @@ v0.2.0 补的是工作区写操作、Quick Open、全工作区搜索、大纲长
 | M3 工作区与内容扩展 | ✅ 完成 |
 | M4 主题与导出 | ✅ 完成（用户主题目录顺延） |
 | **M4.5 硬骨头** | ✅ 六条全部完成（3、5 是缩范围版，6 是换做法版） |
-| ~~M5 插件系统~~ → **M5 AI 基座** | ⬜ 未开始 · **2026-08 整个换掉**，见下 |
+| ~~M5 插件系统~~ → **M5 AI 基座** | 🟡 进行中 · **2026-08 整个换掉**，见下。`packages/agent-core` 已落地 |
 | **M5.5 AI 功能面** | ⬜ 未开始 |
 | M6 打磨与 1.0 | 🟡 **提前做了四项**（见下） |
 
@@ -70,7 +70,7 @@ v0.2.0 补的是工作区写操作、Quick Open、全工作区搜索、大纲长
 | ~~Wiki 链接 `[[x]]` / 标签 `#tag`「由插件提供」~~ | 03 §3 | 🚫 **撤回** —— 没有提供方了，且知识库是 00 §3 的非目标 |
 | ~~图床上传插件~~ | 04 §5 | 🚫 **撤回** —— 它要一条渲染进程往任意域名发请求的通路，而 CSP 不给（05 二 §4） |
 | 通用指令语法 `:::note` | 03 §3 | ❌ 原排 M5，随插件系统一起推后 |
-| AI 基座（Tool Registry / Patch / Runtime 适配） | ADR-0006、10 | ⬜ **新增**，M5 |
+| AI 基座（Tool Registry / Patch / Runtime 适配） | ADR-0006、10 | 🟡 协议层（`@mosu/agent-core`）**已落地**；Runtime 适配、工具实现、UI、Provider 未开始 |
 
 ---
 
@@ -637,8 +637,11 @@ ADR-0003 里对 remark 管线的顾虑是**长期一致性成本**（两个解�
 
 然后：
 
-- `packages/agent-core`：Tool Registry 类型、Patch 协议与校验、事件类型、
-  `AgentRuntime` 接口。**纯 TS，不 import Pi / Electron / 编辑器**（10 §1.1）
+- ✅ **`packages/agent-core` 已落地**：Tool Registry（定义、注册表、入参校验）、
+  Patch 协议与校验、基线映射、事件与失败分类、`RequestGate`、`AgentRuntime`
+  接口。**零运行时依赖，不 import Pi / Electron / 编辑器**（10 §1.1）。
+  69 条单测，CI 里一条 Provider 请求都不发。
+  落地时改掉设计稿三处，见 10 §2.3、§3.2
 - `apps/desktop/src/main/agent/`：Pi 适配器 + 工具的真实实现。工具复用已有的三条
   许可，**不新开权限**（10 §2.2）
 - Patch 的应用路径：基线映射（`ChangeSet.map`）、**一次** transaction、
